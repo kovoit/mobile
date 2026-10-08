@@ -14,6 +14,21 @@ abstract final class Env {
 
   static bool get isDev => current == AppEnv.dev;
 
+  static const String _useMockApi = String.fromEnvironment('USE_MOCK_API');
+
+  /// Fausse API en mémoire tant que le backend n'est pas disponible.
+  /// Activée par défaut en dev (`--dart-define=USE_MOCK_API=false` pour viser le vrai backend),
+  /// jamais en production.
+  static bool get useMockApi {
+    if (current == AppEnv.prod) return false;
+    if (_useMockApi.isEmpty) return isDev;
+    return _useMockApi == 'true';
+  }
+
+  /// Client OAuth « Web » Google (audience de l'ID token vérifié par le backend).
+  /// `--dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com`
+  static const String googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+
   static String get apiBaseUrl {
     if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
     return switch (current) {

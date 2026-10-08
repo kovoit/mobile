@@ -25,6 +25,12 @@ dependencies:
   flutter_map: ^8.3.2
   latlong2: ^0.10.1
 
+  # Authentification
+  google_sign_in: ^7.2.0
+
+  # Sérialisation (DTO)
+  json_annotation: ^4.12.0
+
   # Utilitaires
   intl: 0.20.2 # version imposée par flutter_localizations
   logger: ^2.8.0
@@ -35,6 +41,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   mocktail: ^1.0.5
+  build_runner: ^2.15.1
+  json_serializable: ^6.14.1
 
 flutter:
   uses-material-design: true

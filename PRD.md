@@ -185,7 +185,7 @@ Contradictions relevées entre la spécification, l'ancien PRD et les maquettes.
 |---|---|---|
 | D1 | Calcul du prix | Grille 200/300/500 F par distance (spéc.) · pas de calcul dans le MVP (ancien PRD) · formule au km (ancien claude.md). Les maquettes affichent un « prix recommandé calculé automatiquement ». Quelle que soit l'option, le mobile **affiche** le prix de l'API. |
 | D2 | Frais de service | 0 F pendant le pilote (spéc., maquettes « 0 FCFA ») · 10 % · frais fixes 50 F |
-| D3 | Authentification | Téléphone + OTP (spéc.) · email/mot de passe + Google + OTP (maquettes) |
+| D3 | Authentification | ✅ **Tranché (08/10/2026)** : e-mail + mot de passe **ou** Google, puis vérification du téléphone par OTP SMS (6 chiffres). Contrat : `docs/api/auth.md` |
 | D4 | Bouton « Message » (écran 10) | Hors MVP (messagerie) : masquer, désactiver ou remplacer par SMS natif ? |
 | D5 | Paiement « Mobile Money » (écran 9) | Hors MVP : masquer ou afficher « bientôt » ? |
 | D6 | Backend | DRF seul · DRF + FastAPI |
@@ -205,7 +205,7 @@ Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique
 | Cartographie | OpenStreetMap (`flutter_map`) ; distances par la route via OSRM côté backend |
 | Backend | Django / Django REST Framework (voir D6) |
 | Base de données | PostgreSQL + PostGIS |
-| Authentification | JWT + OTP SMS (voir D3) |
+| Authentification | E-mail/mot de passe ou Google, JWT, OTP SMS (D3) |
 | Notifications | Firebase Cloud Messaging (push) + SMS de repli |
 | Administration | React |
 

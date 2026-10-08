@@ -16,7 +16,8 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Gestion d'état | `flutter_riverpod` (+ `riverpod_annotation`) |
 | Navigation | `go_router` avec guards |
 | Réseau | `dio` + intercepteurs (JWT, refresh, erreurs) |
-| Modèles | `freezed` + `json_serializable` |
+| Modèles | DTO `json_serializable` (code généré `*.g.dart`, versionné) ; entités `domain` écrites à la main, immuables (pas de `freezed` : seule une préversion est compatible avec Dart 3.12) |
+| Authentification | E-mail + mot de passe ou Google (`google_sign_in` 7), puis OTP SMS — décision D3 ; contrat : [docs/api/auth.md](docs/api/auth.md) |
 | Stockage sécurisé | `flutter_secure_storage` (tokens) |
 | Cartographie | **OpenStreetMap gratuit** : `flutter_map` + `latlong2`, tuiles OSM ; itinéraires/distances fournis par le backend (OSRM) |
 | Géolocalisation | `geolocator` |
@@ -74,7 +75,7 @@ Chaque feature suit :
 
 ```
 features/<feature>/
-├── data/          # *_dto.dart (freezed/json), *_remote_datasource.dart, *_repository_impl.dart
+├── data/          # dto/ (json_serializable), datasources/ (Dio + fausse API), repositories/, services/
 ├── domain/        # entités, repository abstrait (pas de dépendance Flutter/Dio)
 └── presentation/  # screens/, widgets/, providers/ (Notifier/AsyncNotifier)
 ```
@@ -135,12 +136,17 @@ Le mobile propose seulement les actions autorisées pour le statut courant, tel 
 
 ```bash
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # freezed / json / riverpod
+dart run build_runner build --delete-conflicting-outputs   # après toute modification d'un DTO
 flutter analyze
 flutter test
-flutter run --dart-define=ENV=dev
-flutter build apk --dart-define=ENV=prod
+flutter run                                                # dev + API simulée
+flutter run --dart-define=USE_MOCK_API=false --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com
+flutter build apk --dart-define=ENV=prod --dart-define=GOOGLE_SERVER_CLIENT_ID=...
 ```
+
+**API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource en mémoire qui respecte le contrat de `docs/api/`. Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123`, OTP `123456`.
+
+**Tests** : `test/helpers/test_app.dart` fournit `pumpKovoitApp` et `testOverrides()` (API simulée sans latence, stockage de jetons en mémoire).
 
 ---
 
@@ -150,7 +156,7 @@ Ces points sont contradictoires entre la spécification, le PRD et les maquettes
 
 1. Calcul du prix : grille 200/300/500 F par distance (spéc.), aucun prix (PRD), ou formule au km (ancienne version de ce fichier). Dans tous les cas, le mobile **affiche** le prix renvoyé par l'API.
 2. Frais de service Kovoit : 0 F pendant le pilote (spéc., maquettes) ou 10 %.
-3. Authentification : téléphone + OTP (spéc.) ou email/mot de passe + Google + OTP (maquettes).
+3. ~~Authentification~~ → **tranché** : e-mail + mot de passe ou Google, puis OTP SMS.
 4. Boutons « Message » et « Mobile Money » des maquettes (hors MVP selon la spéc.).
 5. Backend : DRF seul ou DRF + FastAPI.
 6. Paiement : espèces uniquement pour le MVP ?

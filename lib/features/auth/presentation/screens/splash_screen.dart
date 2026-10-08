@@ -1,30 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/kovoit_logo.dart';
+import '../providers/session_controller.dart';
+import '../widgets/auth_error.dart';
 
-/// Écran Figma « Splash » : logo dans un halo, slogan, barre de chargement orange.
-/// Sprint S1 : la redirection dépendra de la session (connexion, OTP, KYC).
-class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key, this.duration = const Duration(milliseconds: 1800)});
-
-  final Duration duration;
+/// Écran Figma « Splash ». Affiché pendant la restauration de la session ;
+/// la sortie est gérée par le routeur (auth_guard). En cas d'échec (réseau), propose « Réessayer ».
+class SplashScreen extends ConsumerStatefulWidget {
+  const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late final AnimationController _progress = AnimationController(vsync: this, duration: widget.duration)
-    ..forward().whenComplete(_goNext);
-
-  void _goNext() {
-    if (mounted) context.go(Routes.search);
-  }
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _progress = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..forward();
 
   @override
   void dispose() {
@@ -34,6 +31,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    final session = ref.watch(sessionControllerProvider);
+    final error = session.hasError && !session.isLoading ? session.error : null;
+
     return Scaffold(
       backgroundColor: AppColors.primaryDark,
       body: SafeArea(
@@ -51,28 +51,64 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 style: AppTextStyles.body.copyWith(color: Colors.white.withValues(alpha: 0.8)),
               ),
               const Spacer(flex: 4),
-              AnimatedBuilder(
-                animation: _progress,
-                builder: (context, _) => ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                  child: LinearProgressIndicator(
-                    value: _progress.value,
-                    minHeight: 5,
-                    color: AppColors.accent,
-                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+              if (error != null)
+                _RetryPanel(
+                  message: authErrorMessage(error),
+                  onRetry: () {
+                    _progress.forward(from: 0);
+                    ref.read(sessionControllerProvider.notifier).retry();
+                  },
+                )
+              else ...[
+                AnimatedBuilder(
+                  animation: _progress,
+                  builder: (context, _) => ClipRRect(
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                    child: LinearProgressIndicator(
+                      value: _progress.value,
+                      minHeight: 5,
+                      color: AppColors.accent,
+                      backgroundColor: Colors.white.withValues(alpha: 0.12),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                "Chargement de l'expérience",
-                style: AppTextStyles.caption.copyWith(color: Colors.white.withValues(alpha: 0.6)),
-              ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  "Chargement de l'expérience",
+                  style: AppTextStyles.caption.copyWith(color: Colors.white.withValues(alpha: 0.6)),
+                ),
+              ],
               const SizedBox(height: AppSpacing.xl),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _RetryPanel extends StatelessWidget {
+  const _RetryPanel({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTextStyles.body.copyWith(color: Colors.white),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        OutlinedButton.icon(
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Réessayer'),
+        ),
+      ],
     );
   }
 }

@@ -26,4 +26,7 @@ abstract final class AppColors {
   static const Color textSecondary = Color(0xFF6B7A90);
   static const Color textDisabled = Color(0xFFA9B4C2);
   static const Color mapPlaceholder = Color(0xFFE8EDE6);
+
+  // Marques tierces
+  static const Color googleBlue = Color(0xFF4285F4);
 }

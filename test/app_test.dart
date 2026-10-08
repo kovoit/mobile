@@ -1,32 +1,34 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:kovoit/app.dart';
+
+import 'helpers/test_app.dart';
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
 
-  testWidgets('Splash puis arrivée sur l’onglet Rechercher', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: KovoitApp()));
+  testWidgets('Sans session : Splash puis écran de connexion', (tester) async {
+    await pumpKovoitApp(tester);
 
-    expect(find.text('Même trajet, moins cher'), findsOneWidget);
+    expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
+    expect(find.text('Se connecter'), findsOneWidget);
+  });
 
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
+  testWidgets('Session existante : arrivée directe sur Rechercher', (tester) async {
+    final storage = InMemoryTokenStorage()..access = 'mock-access-1'; // compte démo
+    await pumpKovoitApp(tester, storage: storage);
 
     expect(find.text('Rechercher un trajet'), findsOneWidget);
-    expect(find.text('Mes trajets'), findsOneWidget); // onglet de la barre du bas
-    expect(find.text('Profil'), findsOneWidget);
+    expect(find.text('Mes trajets'), findsOneWidget);
   });
 
   testWidgets('La barre du bas change d’onglet', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: KovoitApp()));
-    await tester.pump(const Duration(seconds: 2));
-    await tester.pumpAndSettle();
+    final storage = InMemoryTokenStorage()..access = 'mock-access-1';
+    await pumpKovoitApp(tester, storage: storage);
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Votre compte et votre vérification.'), findsOneWidget);
+    expect(find.text('Kodjo Mensah'), findsOneWidget);
+    expect(find.text('Téléphone vérifié'), findsOneWidget);
   });
 }

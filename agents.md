@@ -24,7 +24,7 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 **Mission :** structure du projet, dépendances, socle technique, revue d'architecture.
 
 - **Responsable de :** `pubspec.yaml`, `analysis_options.yaml`, `lib/main.dart`, `lib/app.dart`, `lib/core/config`, `lib/core/router`, squelettes des features.
-- **Règles :** Clean Architecture par feature (`data/domain/presentation`), dépendances `presentation → domain ← data`, Riverpod pour l'état, `go_router` pour la navigation, `freezed` pour les modèles. Toute nouvelle dépendance est justifiée.
+- **Règles :** Clean Architecture par feature (`data/domain/presentation`), dépendances `presentation → domain ← data`, Riverpod pour l'état, `go_router` pour la navigation, `json_serializable` pour les DTO (entités `domain` écrites à la main). Toute nouvelle dépendance est justifiée.
 - **Terminé quand :** l'arborescence respecte `claude.md` §2 et aucune feature n'importe la couche `data` d'une autre.
 
 ## 3. `ui-figma-integrator` : intégration des maquettes
@@ -41,7 +41,7 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 **Mission :** couche `data` : DTO, datasources, repositories, client HTTP.
 
 - **Responsable de :** `lib/core/network/`, `lib/core/storage/`, `features/*/data/`, `features/*/domain/` (contrats).
-- **Règles :** Dio avec `AuthInterceptor` (ajout du JWT, refresh sur 401, déconnexion si échec) ; erreurs converties en `ApiException` typées (réseau, 400 validation, 403 droits, 404, 409 conflit de places) ; DTO `freezed` + `json_serializable` ; mapping DTO → entité ; tokens dans `flutter_secure_storage` uniquement. En l'absence d'API, utiliser des **datasources mock** derrière la même interface.
+- **Règles :** Dio avec `AuthInterceptor` (ajout du JWT, refresh sur 401, déconnexion si échec) ; erreurs converties en `ApiException` typées (réseau, 400 validation, 403 droits, 404, 409 conflit de places) ; DTO `json_serializable` (contrats dans `docs/api/`) ; mapping DTO → entité ; tokens dans `flutter_secure_storage` uniquement. En l'absence d'API, utiliser des **datasources mock** derrière la même interface.
 - **Terminé quand :** chaque repository a des tests unitaires (succès + erreurs).
 
 ## 5. `auth-kyc` : authentification, KYC, véhicule
@@ -50,7 +50,7 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 
 - **Responsable de :** `features/auth`, `features/kyc`, `features/vehicle`, guards dans `core/router`.
 - **Règles :** OTP SMS à 6 chiffres avec compte à rebours de renvoi ; numéro au format `+228` ; KYC passager (identité recto/verso, selfie, photo de profil) et KYC conducteur (+ permis, carte grise ou assurance, photo du véhicule) ; statuts `non_verifie → en_attente → verifie | rejete` avec affichage du motif et nouvelle soumission ; pièces envoyées en multipart puis supprimées du cache local ; guards selon `claude.md` §3.
-- **Attention :** le mode d'authentification (téléphone seul ou email/Google) est en attente (PRD §14). Isoler la méthode dans le repository pour pouvoir changer sans toucher l'UI.
+- **Décision D3 :** e-mail + mot de passe ou Google, puis OTP SMS. Toute redirection d'accès passe par `core/router/auth_guard.dart` (fonction pure, testée).
 
 ## 6. `booking-flow` : recherche, réservation, trajet
 
