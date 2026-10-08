@@ -1,317 +1,229 @@
-# Kovoit Spécification du MVP
+# PRD — Kovoit Mobile (MVP)
 
-## Vision et principes
+> Sources : `docs/Kovoit Spécification du MVP (1).docx`, `docs/Nana Tech.zip` (11 maquettes Figma). Méthode de dev : [claude.md](claude.md). Agents : [agents.md](agents.md).
 
-Kovoit met en relation des conducteurs qui font déjà un trajet en ville à Lomé avec des passagers qui vont dans la même direction. Le conducteur réduit ses frais de carburant, le passager paie moins cher qu'un zémidjan ou un taxi.
+## 1. Problème & vision
 
-- **Périmètre du MVP** : trajets urbains à Lomé uniquement. Les trajets entre villes sont hors périmètre.
+Les passagers ont du mal à trouver rapidement un conducteur fiable qui fait déjà leur trajet. Les conducteurs n'ont pas de moyen simple de proposer leurs trajets et de gérer les demandes.
 
-- **Partage de frais, pas de profit** : le prix couvre une part du carburant du conducteur. Kovoit n'est pas un service de taxi (cadre légal au Togo à confirmer).
+Kovoit met en relation des conducteurs qui se déplacent déjà dans **Lomé** avec des passagers qui vont dans la même direction. Le conducteur réduit ses frais de carburant, le passager paie moins cher qu'un zémidjan ou un taxi.
 
-- **Prix fixe et connu à l'avance** : pas de négociation, contrairement aux zémidjans et aux taxis.
+**Principes :**
+- Trajets **urbains à Lomé uniquement**.
+- **Partage de frais, pas de profit** : Kovoit n'est pas un service de taxi.
+- **Prix fixe et connu à l'avance**, sans négociation.
+- **Un seul compte, deux modes** : passager et conducteur.
+- **KYC obligatoire** avant de réserver ou de publier.
 
-- **Un seul compte, deux modes** : la même personne peut être conductrice le matin et passagère le soir.
+## 2. Utilisateurs
 
-- **Trois types d'utilisateurs** : passager, conducteur, administrateur. Le KYC est obligatoire avant de réserver ou de publier.
+| Rôle | Ce qu'il fait | Où |
+|---|---|---|
+| Passager | Recherche un trajet, consulte les conducteurs, réserve une place, donne le code de départ, confirme l'arrivée, note | App mobile |
+| Conducteur | Déclare son véhicule, publie un trajet, accepte/refuse, saisit le code, clôture, note, suit ses économies | App mobile (mode conducteur) |
+| Administrateur | Valide les KYC, consulte trajets/réservations/utilisateurs, traite les signalements et litiges, suspend, modifie les paramètres | Back-office React (hors de ce dépôt) |
 
-## Rôles et fonctionnalités du MVP
+Le mode conducteur s'active une fois le **KYC conducteur validé** et un **véhicule déclaré**.
 
-Un utilisateur a un seul compte et bascule entre les modes passager et conducteur. Le mode conducteur s'active une fois le KYC conducteur validé et un véhicule déclaré.
+## 3. Fonctionnalités du MVP (mobile)
 
-### Passager
+**Passager**
+- Créer un compte et vérifier son téléphone (OTP SMS)
+- Soumettre son KYC passager
+- Chercher un trajet : départ, arrivée, date, heure (type Moto/Voiture, nombre de places)
+- Voir le profil du conducteur : statut vérifié, note, taux de fiabilité, véhicule, photo, immatriculation
+- Demander une place, recevoir l'acceptation ou le refus (notification)
+- Donner le code de départ au conducteur à la prise en charge
+- Confirmer l'arrivée, noter le conducteur
+- Partager son trajet en cours avec un proche
+- Signaler un problème
 
-- [ ] Créer un compte avec son numéro de téléphone (code OTP par SMS)
-- [ ] Soumettre son KYC passager
-- [ ] Chercher un trajet : point de départ, point d'arrivée, date, heure
-- [ ] Voir le profil du conducteur : statut vérifié, note, taux de fiabilité, véhicule
-- [ ] Demander une place
-- [ ] Recevoir l'acceptation ou le refus (notification)
-- [ ] Donner le code de départ au conducteur à la prise en charge
-- [ ] Confirmer l'arrivée
-- [ ] Noter le conducteur
-- [ ] Partager son trajet en cours avec un proche
-- [ ] Signaler un problème
-- [ ] Recharger et consulter son portefeuille (si paiement en ligne retenu)
+**Conducteur** (en plus) :
+- Soumettre son KYC conducteur, déclarer son véhicule (type, marque, modèle, couleur, immatriculation, nombre de places, photo)
+- Publier un trajet : départ, arrivée, 1 à 3 points de prise en charge, date, heure, places
+- Voir le prix par place (fourni par l'API)
+- Accepter ou refuser les demandes
+- Saisir le code de départ de chaque passager, déclarer une absence
+- Clôturer le trajet, noter ses passagers
+- Voir ses économies par trajet et le cumul du mois
 
-### Conducteur
+## 4. Parcours principaux
 
-Tout ce que fait le passager, plus :
+**Conducteur :** créer son compte → vérifier son téléphone → KYC conducteur → déclarer son véhicule → saisir départ, destination, points de prise en charge, date, heure, places → publier → recevoir une demande → accepter/refuser → saisir le code de départ → transporter → clôturer → noter.
 
-- [ ] Soumettre son KYC conducteur (permis, carte grise ou assurance, photo du véhicule)
-- [ ] Déclarer son véhicule : marque, couleur, immatriculation, nombre de places
-- [ ] Publier un trajet : départ, arrivée, points de prise en charge, date, heure, places disponibles
-- [ ] Voir le prix par place calculé automatiquement
-- [ ] Accepter ou refuser les demandes
-- [ ] Saisir le code de départ de chaque passager
-- [ ] Clôturer le trajet
-- [ ] Noter ses passagers
-- [ ] Voir ses économies : par trajet et cumul du mois
-- [ ] Retirer ses gains (si paiement en ligne retenu)
+**Passager :** créer son compte → vérifier son téléphone → KYC passager → saisir départ, destination, date, heure → rechercher → consulter les conducteurs → choisir → demander une place → recevoir l'acceptation → rejoindre le point de prise en charge → donner le code → confirmer l'arrivée → noter.
 
-### Administrateur
+## 5. Critères d'acceptation
 
-- [ ] Valider ou rejeter les dossiers KYC, avec un motif de rejet
-- [ ] Consulter les trajets, les réservations et les utilisateurs
-- [ ] Traiter les signalements et les litiges
-- [ ] Suspendre ou réactiver un compte
-- [ ] Modifier les paramètres : prix du litre, grille de prix, frais de service, délais d'annulation
-- [ ] Suivre les indicateurs : trajets, passagers transportés, économies réalisées, utilisateurs vérifiés
+**CA1 — Recherche.** Étant donné un trajet publié, quand le passager renseigne départ, destination, date et heure, alors l'application affiche les trajets correspondants avec : conducteur, photo, statut vérifié, note, véhicule, heure de départ, places restantes, distance de marche, prix par place, informations du trajet. Les résultats sont triés par heure de départ la plus proche, puis par distance de marche (tri fait par l'API).
 
-## KYC
+**CA2 — Réservation.** Étant donné un trajet avec au moins une place et un passager au KYC `verifie`, quand il demande une place, alors une réservation `demandee` est créée et le conducteur est notifié. La place n'est retirée qu'à l'acceptation.
 
-Le niveau de vérification dépend du rôle. Dans le MVP, l'administrateur valide chaque dossier à la main.
+**CA3 — Acceptation.** Quand le conducteur accepte : la réservation passe à `acceptee`, une place est retirée, le passager est notifié et un **code de départ à 4 chiffres** est généré et affiché **uniquement au passager**.
 
-| Rôle       | Pièces demandées                                                                     | Ce que le KYC débloque |
-|------------|--------------------------------------------------------------------------------------|------------------------|
-| Passager   | Téléphone vérifié (OTP), pièce d'identité, selfie                                    | Réserver une place     |
-| Conducteur | Pièces du passager + permis de conduire, carte grise ou assurance, photo du véhicule | Publier un trajet      |
+**CA4 — Refus.** Quand le conducteur refuse une demande `demandee`, elle passe à `refusee` et le passager est informé.
 
-**Statuts d'un dossier** : non_verifie → en_attente → verifie ou rejete. Un dossier rejeté porte un motif et peut être soumis à nouveau.
+**CA5 — Annulation.** Le passager ou le conducteur peut annuler une réservation `demandee` ou `acceptee` jusqu'au départ. L'autre partie est notifiée. La place est rendue. Une annulation à moins de `delai_annulation_min` du départ compte comme **annulation tardive** (affichée par l'API).
 
-**Règles d'accès**
+**CA6 — Vérification.** Sans KYC passager `verifie`, le bouton « Réserver » est bloqué avec un renvoi vers le KYC. Sans KYC conducteur `verifie` et véhicule déclaré, la publication est bloquée. Un compte suspendu ne peut ni réserver ni publier.
 
-- Sans compte : aucun accès.
-- Compte avec téléphone vérifié : peut chercher et consulter les trajets.
-- KYC passager verifie : peut réserver.
-- KYC conducteur verifie et véhicule déclaré : peut publier des trajets.
-- Compte suspendu : ne peut ni réserver ni publier ; ses réservations à venir sont annulées et remboursées.
+**CA7 — Prise en charge.** La réservation passe à `en_cours` **uniquement** quand le conducteur saisit le bon code. Un code faux affiche une erreur sans changer le statut.
 
-**Stockage** : les pièces sont des données sensibles. Stockage privé (pas d'URL publique), accès réservé à l'administrateur, journalisation de chaque consultation.
+**CA8 — Fin de trajet.** Après `terminee`, le passager peut confirmer (→ `cloturee`) ou signaler un problème (→ `litige`). Sans action, la clôture est automatique après `delai_confirmation_auto_h`. Les deux parties peuvent noter (1 à 5 ★ + commentaire optionnel).
 
-## Trajets et recherche
+**CA9 — Absence.** Après l'heure de départ + `tolerance_retard_min`, le conducteur peut déclarer un passager `absent` depuis le point de prise en charge. Sa position GPS est envoyée.
 
-Un trajet correspond quand le départ et l'arrivée du passager sont proches de ceux du conducteur et que l'heure tombe dans la même fenêtre. Les valeurs ci-dessous sont des paramètres modifiables par l'administrateur.
+## 6. Écrans du MVP (maquettes Figma)
 
-**Publication d'un trajet (conducteur)**
+| # | Écran Figma | Feature | Contenu clé |
+|---|---|---|---|
+| 1 | Splash | auth | Logo, slogan « Même trajet, moins cher », barre de chargement |
+| 2 | Connexion | auth | Onglets Connexion/Inscription, identifiants, mot de passe oublié, Google* |
+| 3 | Inscription | auth | Nom complet, email, téléphone +228, mot de passe, CGU, Google* |
+| 4 | Vérification SMS | auth | OTP 6 chiffres, numéro affiché, modifier le numéro, renvoi après 30 s |
+| 5 | Vérification d'identité | kyc | 4 étapes : photo de profil, pièce recto, pièce verso, selfie ; progression |
+| 6 | Profil vérifié | kyc | Récapitulatif des pièces complétées, bouton Continuer |
+| 7 | Rechercher un trajet | search | Toggle Moto/Voiture, départ, destination, date, heure, places, trajet du quotidien |
+| 8 | Conducteurs disponibles | search | Carte OSM, nombre de résultats, cartes conducteur (photo, badge vérifié, note, véhicule, places, départ, distance, prix) |
+| 9 | Détails & Réservation | trip / booking | Prise en charge et arrivée estimée, conducteur (note, fiabilité, nb trajets), photo et immatriculation du véhicule, récapitulatif du prix, mode de paiement*, « Réserver ma place » |
+| 10 | Suivi du trajet & Code de départ | booking | Carte, arrivée du conducteur, **code de départ**, Appeler, Message*, Partager mon trajet, Annuler |
+| 11 | Espace Conducteur | driver | Toggle Passager/Conducteur, économies du mois, formulaire de publication (1–3 carrefours), places, prix recommandé |
 
-- Départ et arrivée : coordonnées GPS + libellé (quartier, repère connu).
-- Points de prise en charge : 1 à 3 repères sur le chemin (carrefour, rond-point, station). Plus naturel à Lomé et plus sûr qu'une adresse précise.
-- Date et heure de départ.
-- Nombre de places disponibles (inférieur ou égal aux places du véhicule moins le conducteur).
-- Le prix par place est calculé par l'application (voir Tarification), pas saisi librement.
+\* Éléments soumis à une décision en attente (§14).
 
-**Règle de correspondance (MVP)**
+**Écrans à concevoir (absents de Figma) :** Mes trajets (liste passager/conducteur), Demandes reçues (Accepter/Refuser), Saisie du code de départ (conducteur), Déclaration du véhicule, Confirmation d'arrivée + Notation, Signalement, Profil.
 
-| Critère                                                             | Valeur par défaut | Paramètre           |
-|---------------------------------------------------------------------|-------------------|---------------------|
-| Distance entre le départ du passager et un point de prise en charge | 1,5 km max        | rayon_depart_km     |
-| Distance entre l'arrivée du passager et l'arrivée du conducteur     | 1,5 km max        | rayon_arrivee_km    |
-| Écart entre l'heure souhaitée et l'heure de départ                  | 15 min max        | fenetre_horaire_min |
-| Places restantes                                                    | au moins 1        | —                   |
+**Navigation :** barre du bas **Rechercher / Mes trajets / Profil**.
 
-Résultats triés par heure de départ la plus proche, puis par distance de marche.
+## 7. Statuts
 
-**Calcul des distances**
-
-- Distance par la route, jamais à vol d'oiseau : API Google Maps Directions (payante par requête) ou OSRM sur OpenStreetMap (gratuit, auto-hébergeable).
-- La correspondance (rayons) peut se faire à vol d'oiseau en base (formule de Haversine ou PostGIS) pour aller vite ; seule la distance de facturation passe par la route.
-- Un passager qui ne fait qu'une partie du trajet paie selon sa propre distance, de son point de prise en charge à son arrivée.
-
-**Hors MVP** : passagers situés n'importe où sur l'itinéraire (pas seulement aux points de prise en charge), trajets réguliers automatiques.
-
-## Réservation
-
-Une réservation ne passe « en cours » que lorsque le conducteur saisit le code de départ donné par le passager : c'est la preuve que le passager est bien monté.
-
-Cycle de vie (schéma de la spécification) :
+**Réservation (9) :** `demandee`, `acceptee`, `refusee`, `annulee`, `absent`, `en_cours`, `terminee`, `litige`, `cloturee`.
 
 ```
-demandee --accepte--> acceptee --code de départ saisi--> en_cours --conducteur clôture--> terminee --confirmation ou délai--> cloturee
-demandee --refus--> refusee
-demandee | acceptee --annulation--> annulee
-acceptee --absence déclarée--> absent
-terminee --problème signalé--> litige --arbitrage--> cloturee
+demandee → acceptee → en_cours → terminee → cloturee
+demandee → refusee | annulee
+acceptee → annulee | absent
+terminee → litige → cloturee
 ```
 
-cycle de vie d'une réservation · 9 statuts
+**Trajet :** `publie`, `complet` (places_restantes = 0), `en_cours`, `termine` (toutes les réservations actives terminées), `annule`.
 
-L'annulation est possible depuis « Demandée » comme depuis « Acceptée », jusqu'au départ. Valeurs du champ statut : demandee, acceptee, refusee, annulee, absent, en_cours, terminee, litige, cloturee.
+**KYC :** `non_verifie` → `en_attente` → `verifie` | `rejete` (motif, nouvelle soumission possible).
 
-**Règles**
+**Compte :** `actif` | `suspendu` (`suspendu_jusqu_au`).
 
-- À l'acceptation, une place est retirée de places_restantes ; elle est rendue en cas d'annulation ou de refus.
-- Un code à 4 chiffres est généré à l'acceptation et affiché uniquement au passager.
-- « Clôturée » intervient à la confirmation du passager ou automatiquement après delai_confirmation_auto_h heures sans signalement. Avec le portefeuille, c'est à ce moment que le conducteur est crédité.
-- Chaque changement de statut envoie une notification (push, ou SMS si l'application est fermée) à l'autre partie.
-- Un trajet passe à « complet » quand places_restantes = 0, et à « terminé » quand toutes ses réservations actives sont terminées.
+Chaque changement de statut notifie l'autre partie (push, ou SMS si l'application est fermée).
 
-## Tarification
+## 8. Données (vues par le mobile)
 
-Le prix par passager se situe entre deux repères : le coût du carburant du conducteur (plancher) et le prix des alternatives, zémidjan, taxi collectif et Gozem (plafond). Les montants visés vont de 200 à 500 F par passager.
+| Entité | Champs principaux |
+|---|---|
+| User | id, telephone, nom, prenom, email, photo, mode_actif (passager/conducteur), statut_compte, suspendu_jusqu_au, note, fiabilite, nb_trajets |
+| KycDossier | id, type (passager/conducteur), statut, motif_rejet, pièces (identite, selfie, permis, carte_grise, assurance, photo_vehicule) |
+| Vehicle | id, type (moto/voiture), marque, modele, couleur, immatriculation, nb_places, photo, statut_verification |
+| Trip | id, conducteur, vehicule, depart (lat, lng, libelle), arrivee (lat, lng, libelle), points_prise_en_charge[1..3], depart_le, places_total, places_restantes, distance_km, prix_place, statut |
+| Booking | id, trajet, passager, point_prise_en_charge, nb_places, prix, frais_service, statut, code_depart (**visible passager uniquement**), horodatages |
+| Rating | reservation, auteur, cible, note 1–5, commentaire |
+| Report | reservation, auteur, cible, motif, statut (ouvert/traite) |
+| Payment / Transaction | Conservé côté backend pour la suite, hors MVP mobile |
 
-**Plancher : coût du carburant**
+## 9. Recherche & localisation
 
-Le super sans plomb est à 817 F CFA le litre depuis le 11 septembre 2026 ([Koaci](https://www.koaci.com/index.php/article/2026/09/11/togo/societe/togo-hausse-des-prix-du-carburant-le-super-sans-plomb-passe-a-817-f-cfa_200435.html)). Il a déjà changé deux fois en 2026 : le prix du litre est donc un paramètre, jamais une valeur en dur.
+- Départ/arrivée : coordonnées GPS + libellé (quartier, repère connu), choisis sur une carte **OpenStreetMap** (`flutter_map`) ou parmi des lieux connus.
+- Points de prise en charge : 1 à 3 repères (carrefour, rond-point, station).
+- Correspondance **calculée par le backend** : départ du passager ≤ `rayon_depart_km` d'un point de prise en charge, arrivée ≤ `rayon_arrivee_km`, écart horaire ≤ `fenetre_horaire_min`, au moins 1 place.
+- Le mobile n'effectue aucun calcul de distance ni de correspondance.
 
-`coût au km = consommation (L/100 km) / 100 × prix du litre`
+## 10. Paramètres administrateur (lecture seule pour le mobile)
 
-Avec 7,5 L/100 km en ville : environ 61 F par km, soit environ 610 F pour 10 km. Partagé entre le conducteur et 2 passagers, la part de chacun est d'environ 200 F.
+| Clé | Valeur de départ | Rôle |
+|---|---|---|
+| prix_litre | 817 F | Coût carburant |
+| conso_l_100km | 7,5 | Coût carburant |
+| grille_prix | <5 km : 200 F · 5–10 km : 300 F · >10 km : 500 F | Prix par passager (en attente, §14) |
+| frais_service | 0 F | Désactivé pendant le pilote (en attente, §14) |
+| rayon_depart_km / rayon_arrivee_km | 1,5 | Correspondance |
+| fenetre_horaire_min | 15 | Correspondance |
+| delai_annulation_min | 30 | Annulation tardive |
+| tolerance_retard_min | 10 | Déclaration d'absence |
+| delai_confirmation_auto_h | 3 | Clôture automatique |
+| seuil_incidents | 3 sur 30 jours | Suspension |
+| duree_suspension_j | 7 | Suspension |
 
-**Plafond : prix des alternatives**
+## 11. Annulations & fiabilité
 
-Dans Lomé, une courte course en taxi coûte environ 500 F, et les trajets plus longs en ville montent vers 1 500 à 2 500 F ([guide des transports au Togo](https://www.cyriljarnias.com/?p=41447)). Les prix des zémidjans sont négociés à chaque course. À compléter par le relevé terrain ci-dessous.
+| Situation | Conséquence |
+|---|---|
+| Passager annule > 30 min avant | Gratuit |
+| Passager annule < 30 min avant | Gratuit, compte comme annulation tardive |
+| Passager absent (code jamais saisi) | Paie le trajet, compte comme absence |
+| Conducteur annule | Passagers informés ; annulation tardive si < 30 min |
+| Litige après le trajet | L'administrateur tranche |
 
-**Grille de prix par tranche de distance (à valider par le relevé)**
+Le taux de fiabilité (`1 − (annulations tardives + absences) / réservations sur 30 jours`) est **calculé par le backend** et affiché en % sur le profil. Au-delà de `seuil_incidents`, le compte est suspendu `duree_suspension_j` jours.
 
-| Distance par la route | Prix par passager |
-|-----------------------|-------------------|
-| Moins de 5 km         | 200 F             |
-| 5 à 10 km             | 300 F             |
-| Plus de 10 km         | 500 F             |
+## 12. Paiement
 
-Règle : le prix d'une tranche reste toujours sous le prix d'un zémidjan pour la même distance, idéalement autour de la moitié.
+MVP : **espèces**. Le passager paie le conducteur à la prise en charge. L'application enregistre le montant dû pour calculer les économies du conducteur.
 
-**Relevé terrain à faire par l'équipe**
+Plus tard : portefeuille Kovoit rechargé par T-Money/Flooz via un agrégateur agréé, remboursements automatiques.
 
-- [ ] Choisir 10 à 15 itinéraires fréquents à Lomé (ex. Agoè–Grand Marché, Adidogomé–Université, Baguida–centre-ville)
-- [ ] Pour chacun, noter la distance par la route (Google Maps)
-- [ ] Noter le prix payé en zémidjan, en taxi collectif et sur Gozem (prix affiché avant commande)
-- [ ] Calculer le coût carburant du conducteur avec la formule ci-dessus
-- [ ] Ajuster la grille entre les deux repères
+## 13. Sécurité & confiance
 
-**Économies affichées au conducteur**
+- Profil vérifié (badge), photo du conducteur, photo et immatriculation du véhicule visibles avant la prise en charge.
+- **Code de départ à 4 chiffres** par réservation, stocké haché côté backend, jamais affiché au conducteur. Ne pas le confondre avec l'OTP SMS à 6 chiffres.
+- « Partager mon trajet » : lien public temporaire avec la position du véhicule, valable jusqu'à la clôture.
+- « Signaler un problème » pendant et après le trajet.
+- Notes des deux côtés après chaque trajet.
+- Pièces KYC : stockage privé côté backend, aucune copie persistante sur le téléphone.
 
-- Par trajet : somme payée par ses passagers.
-- Par mois : cumul de ces sommes. C'est ce chiffre qui motive le conducteur ; à mettre en avant dans l'application.
+## 14. Décisions en attente
 
-## Paiement
+Contradictions relevées entre la spécification, l'ancien PRD et les maquettes. **À trancher par l'équipe ; ne rien implémenter qui présuppose une réponse.**
 
-Avec des montants de 200 à 500 F, un paiement Mobile Money par trajet coûte trop cher en frais. Le modèle retenu à terme est un portefeuille dans l'application ; le MVP peut démarrer en espèces.
+| # | Sujet | Options |
+|---|---|---|
+| D1 | Calcul du prix | Grille 200/300/500 F par distance (spéc.) · pas de calcul dans le MVP (ancien PRD) · formule au km (ancien claude.md). Les maquettes affichent un « prix recommandé calculé automatiquement ». Quelle que soit l'option, le mobile **affiche** le prix de l'API. |
+| D2 | Frais de service | 0 F pendant le pilote (spéc., maquettes « 0 FCFA ») · 10 % · frais fixes 50 F |
+| D3 | Authentification | Téléphone + OTP (spéc.) · email/mot de passe + Google + OTP (maquettes) |
+| D4 | Bouton « Message » (écran 10) | Hors MVP (messagerie) : masquer, désactiver ou remplacer par SMS natif ? |
+| D5 | Paiement « Mobile Money » (écran 9) | Hors MVP : masquer ou afficher « bientôt » ? |
+| D6 | Backend | DRF seul · DRF + FastAPI |
+| D7 | Paiement MVP | Espèces uniquement ou portefeuille dès le départ ? |
 
-**Option A : espèces (MVP rapide)**
+**Questions ouvertes (spécification) :** cadre légal du covoiturage avec partage de frais au Togo, agrégateur de paiement et frais réels, relevé terrain pour valider la grille de prix.
 
-- Le passager paie le conducteur en main propre au moment de la prise en charge.
-- Le code de départ et les notes assurent la confiance.
-- L'application enregistre le montant dû pour calculer les économies du conducteur.
+## 15. Hors périmètre du MVP
 
-**Option B : portefeuille (cible)**
+Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique (OCR, comparaison du selfie) · passagers pris n'importe où sur l'itinéraire · trajets réguliers/récurrents · trajets interurbains · IA et recommandation · optimisation d'itinéraires · assurance intégrée · abonnement conducteur ou entreprises · statistiques avancées.
 
-1.  Le passager recharge son portefeuille par Mobile Money (T-Money, Flooz), par exemple 2 000 ou 5 000 F. Les frais ne sont payés qu'une fois.
-1.  À la réservation, le prix est bloqué sur son solde (montant réservé, non débité).
+## 16. Stack
 
-2.  À la saisie du code de départ, le montant est débité du passager.
+| Partie | Technologie |
+|---|---|
+| Application mobile | Flutter, Riverpod, go_router, Dio, freezed |
+| Cartographie | OpenStreetMap (`flutter_map`) ; distances par la route via OSRM côté backend |
+| Backend | Django / Django REST Framework (voir D6) |
+| Base de données | PostgreSQL + PostGIS |
+| Authentification | JWT + OTP SMS (voir D3) |
+| Notifications | Firebase Cloud Messaging (push) + SMS de repli |
+| Administration | React |
 
-3.  À la clôture du trajet (confirmation du passager, ou automatique après le délai delai_confirmation_auto_h), le montant est crédité au conducteur.
+## 17. Plan de livraison
 
-4.  Le conducteur retire ses gains sur Mobile Money, à la demande ou automatiquement une fois par semaine, en un seul versement.
+| Sprint | Contenu |
+|---|---|
+| S0 Socle | Projet Flutter, arborescence, thème Figma, widgets communs, Dio, router, environnements, mocks API |
+| S1 Auth | Splash, inscription, connexion, OTP SMS, tokens |
+| S2 KYC + Véhicule | Parcours KYC 4 étapes, statut du dossier, déclaration du véhicule |
+| S3 Recherche | Formulaire, résultats, carte OSM, profil conducteur |
+| S4 Réservation passager | Détails, demande, statuts, code de départ, annulation, partage du trajet |
+| S5 Conducteur | Bascule de mode, publication (1–3 points), demandes, saisie du code, absence, clôture, économies |
+| S6 Après trajet | Confirmation, notation, signalement, notifications push |
+| S7 Qualité | Tests CA1–CA9, erreurs et hors-ligne, accessibilité, APK de démo |
 
-Chaque mouvement est une ligne dans un journal de transactions (recharge, blocage, déblocage, débit, crédit, retrait, remboursement). Le solde se calcule à partir de ce journal, il n'est jamais modifié directement.
+## Résumé
 
-**Contraintes**
+Conducteur vérifié → publie son trajet → passager recherche → consulte les conducteurs → demande une place → conducteur accepte → code de départ généré → prise en charge avec le code → trajet terminé → confirmation et notation.
 
-- Kovoit détient l'argent des utilisateurs : passer par un agrégateur agréé (ex. PayGate Global, FedaPay, CinetPay) et vérifier le cadre BCEAO avant le lancement.
-- Décider qui paie les frais de recharge et de retrait : passager, conducteur ou Kovoit.
-- Montant minimum de recharge et de retrait : paramètres administrateur.
-
-## Annulations et fiabilité
-
-Avec des montants aussi petits, les pénalités financières pèsent peu. Ce qui compte en ville, c'est la fiabilité : elle est affichée sur chaque profil et peut mener à une suspension.
-
-| Situation                                                               | Conséquence                                                                                 |
-|-------------------------------------------------------------------------|---------------------------------------------------------------------------------------------|
-| Passager annule plus de 30 min avant le départ                          | Gratuit, montant débloqué                                                                   |
-| Passager annule moins de 30 min avant                                   | Gratuit, mais compte comme annulation tardive                                               |
-| Passager absent (code jamais saisi, conducteur au point de rendez-vous) | Le passager paie le trajet, compte comme absence                                            |
-| Conducteur annule                                                       | Passagers débloqués ou remboursés, compte comme annulation tardive si moins de 30 min avant |
-| Litige signalé après le trajet                                          | Montant gelé, l'administrateur tranche                                                      |
-
-**Taux de fiabilité**
-
-\text{fiabilité} = 1 - \frac{\text{annulations tardives} + \text{absences}}{\text{réservations sur les 30 derniers jours}}
-
-Affiché en pourcentage sur le profil. Au-delà de seuil_incidents annulations tardives ou absences sur 30 jours (3 par défaut), suspension temporaire de duree_suspension_j jours (7 par défaut).
-
-**Preuve d'absence** : le conducteur déclare l'absence depuis le point de prise en charge, après l'heure de départ + tolerance_retard_min (10 min par défaut). La position GPS du conducteur est enregistrée avec la déclaration.
-
-## Modèle économique
-
-Pendant le pilote, Kovoit ne prélève rien : l'objectif est d'attirer conducteurs et passagers. L'application prévoit dès le MVP un paramètre de frais de service, désactivé par défaut.
-
-**Revenu par passager selon le mode de prélèvement**
-
-| Prix payé | Commission 10 % | Commission 15 % | Frais fixes 50 F |
-|-----------|-----------------|-----------------|------------------|
-| 200 F     | 20 F            | 30 F            | 50 F             |
-| 300 F     | 30 F            | 45 F            | 50 F             |
-| 500 F     | 50 F            | 75 F            | 50 F             |
-
-Les frais fixes ajoutés au prix du passager sont préférables : plus simples, plus rentables sur des petits montants, et ils ne réduisent pas l'économie du conducteur. Dans les applications de transport, la commission courante est de 12 à 18 %, 15 % étant un point d'équilibre en 2026 ([Kolonell](https://kolonell.com/fr/blog/app-taxi-moto-vtc-lome-cout-2026)).
-
-**Projection mensuelle** (hypothèse : 2 passagers par trajet, aller-retour, 22 jours, 45 F par passager)
-
-| Conducteurs actifs | Trajets passagers par mois | Revenu mensuel |
-|--------------------|----------------------------|----------------|
-| 50                 | 4 400                      | ~200 000 F     |
-| 200                | 17 600                     | ~790 000 F     |
-| 500                | 44 000                     | ~1 980 000 F   |
-
-Ce revenu doit couvrir serveur, SMS (OTP), cartographie, frais de l'agrégateur et validation KYC. Avec quelques dizaines de conducteurs, Kovoit n'est pas rentable : c'est normal pour un pilote.
-
-**Sources de revenus à terme**
-
-- Frais de service par passager (grand public).
-- Abonnement entreprises et écoles : covoiturage domicile-travail entre employés ou étudiants. Source principale visée.
-- Abonnement conducteur premium (trajets mis en avant, trajets réguliers), une fois le volume atteint.
-
-## Sécurité
-
-- Notes après chaque trajet, des deux côtés (1 à 5 étoiles + commentaire optionnel).
-- Bouton « Partager mon trajet » : lien public temporaire avec la position du véhicule, valable jusqu'à la clôture.
-- Bouton « Signaler un problème », pendant et après le trajet, vers l'administrateur.
-- Code de départ à 4 chiffres par réservation, stocké haché, jamais affiché au conducteur.
-- Photo et immatriculation du véhicule visibles par le passager avant la prise en charge.
-
-## Place de l'IA
-
-Le MVP n'utilise pas d'IA : la correspondance, le prix, les statuts et la fiabilité sont des règles. Le seul vrai cas d'IA est la vérification automatique du KYC (lecture de la pièce d'identité par OCR, comparaison du selfie avec la photo), à prévoir quand le volume d'inscriptions dépasse la validation manuelle.
-
-## Hors MVP (V2)
-
-- Passagers pris n'importe où sur l'itinéraire
-- Trajets réguliers (« tous les jours à 7 h »)
-- Portefeuille et Mobile Money, si le MVP démarre en espèces
-- Messagerie intégrée
-- Vérification automatique du KYC
-- Offre entreprises et écoles
-- Trajets entre villes
-
-## Modèle de données
-
-| Table                  | Champs principaux                                                                                                                                                                                    |
-|------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| users                  | id, telephone (unique), nom, prenom, photo, mode_actif (passager, conducteur), statut_compte (actif, suspendu), suspendu_jusqu_au, cree_le                                                           |
-| kyc_dossiers           | id, user_id, type (passager, conducteur), statut (non_verifie, en_attente, verifie, rejete), motif_rejet, soumis_le, traite_le, traite_par                                                           |
-| kyc_pieces             | id, dossier_id, type_piece (identite, selfie, permis, carte_grise, assurance, photo_vehicule), chemin_fichier privé                                                                                  |
-| vehicules              | id, user_id, marque, modele, couleur, immatriculation, nb_places                                                                                                                                     |
-| trajets                | id, conducteur_id, vehicule_id, depart (lat, lng, libelle), arrivee (lat, lng, libelle), depart_le, places_total, places_restantes, distance_km, statut (publie, complet, en_cours, termine, annule) |
-| points_prise_en_charge | id, trajet_id, ordre, lat, lng, libelle                                                                                                                                                              |
-| reservations           | id, trajet_id, passager_id, point_id, arrivee (lat, lng), distance_km, prix, frais_service, statut, code_depart_hash, horodatages par statut                                                         |
-| notes                  | id, reservation_id, auteur_id, cible_id, note (1 à 5), commentaire                                                                                                                                   |
-| signalements           | id, reservation_id, auteur_id, cible_id, motif, statut (ouvert, traite), resolution                                                                                                                  |
-| transactions           | id, user_id, type (recharge, blocage, deblocage, debit, credit, retrait, remboursement), montant, reservation_id, reference_externe, statut, cree_le                                                 |
-| parametres             | cle, valeur, modifie_le, modifie_par                                                                                                                                                                 |
-
-## Paramètres administrateur (valeurs de départ)
-
-| Clé                       | Valeur                                             | Rôle                        |
-|---------------------------|----------------------------------------------------|-----------------------------|
-| prix_litre                | 817 F                                              | Calcul du coût au km        |
-| conso_l_100km             | 7,5                                                | Calcul du coût au km        |
-| grille_prix               | \<5 km : 200 F · 5–10 km : 300 F · \>10 km : 500 F | Prix par passager           |
-| frais_service             | 0 F                                                | Désactivé pendant le pilote |
-| rayon_depart_km           | 1,5                                                | Correspondance              |
-| rayon_arrivee_km          | 1,5                                                | Correspondance              |
-| fenetre_horaire_min       | 15                                                 | Correspondance              |
-| delai_annulation_min      | 30                                                 | Annulation tardive          |
-| tolerance_retard_min      | 10                                                 | Déclaration d'absence       |
-| delai_confirmation_auto_h | 3                                                  | Clôture automatique         |
-| seuil_incidents           | 3 sur 30 jours                                     | Suspension                  |
-| duree_suspension_j        | 7                                                  | Suspension                  |
-
-## Questions ouvertes
-
-- [ ] MVP en espèces ou portefeuille dès le départ ?
-- [ ] Cadre légal du covoiturage avec partage de frais au Togo
-- [ ] Agrégateur de paiement retenu et frais réels
-- [ ] Google Maps ou OSRM pour les distances
-- [ ] Résultats du relevé terrain pour valider la grille de prix
+Le mobile **affiche et déclenche**, le backend **calcule et décide**.

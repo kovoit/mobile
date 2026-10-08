@@ -7,6 +7,14 @@
 .buildlog/
 .history
 
+# Application Flutter : le lockfile doit être versionné (builds reproductibles)
+!pubspec.lock
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
 
 
 # Flutter repo-specific
