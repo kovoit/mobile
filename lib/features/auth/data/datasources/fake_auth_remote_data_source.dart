@@ -1,66 +1,33 @@
 import '../../../../core/config/demo_account.dart';
+import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/network/api_exception.dart';
-import '../../../../core/storage/token_storage.dart';
 import '../dto/auth_response_dto.dart';
 import '../dto/otp_challenge_dto.dart';
 import '../dto/user_dto.dart';
 import 'auth_remote_data_source.dart';
 
-/// Fausse API en mémoire, utilisée tant que le backend n'existe pas (`Env.useMockApi`).
+/// Fausse API d'authentification (`Env.useMockApi`), branchée sur le [FakeBackend] partagé.
 /// Respecte le contrat de docs/api/auth.md, erreurs comprises.
 ///
 /// - Compte de démonstration : `demo@kovoit.tg` / `kovoit123`.
 /// - Code OTP accepté : `123456`.
 class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
-  FakeAuthRemoteDataSource(this._tokenStorage, {this.latency = const Duration(milliseconds: 600)}) {
-    _users[demoEmail] = const _FakeAccount(
-      password: demoPassword,
-      user: UserDto(
-        id: 1,
-        prenom: 'Kodjo',
-        nom: 'Mensah',
-        email: demoEmail,
-        telephone: '+22890123456',
-        telephoneVerifie: true,
-        kycPassager: 'verifie',
-      ),
-    );
-  }
+  FakeAuthRemoteDataSource(this._backend);
 
-  static const String demoEmail = DemoAccount.email;
-  static const String demoPassword = DemoAccount.password;
-  static const String validOtp = DemoAccount.otpCode;
-  static const String googleEmail = 'ama.google@gmail.com';
+  final FakeBackend _backend;
 
-  final TokenStorage _tokenStorage;
-  final Duration latency;
-  final Map<String, _FakeAccount> _users = {};
-  int _nextId = 2;
+  UserDto _user(int id) => UserDto.fromJson(_backend.userJson(id));
 
-  Future<void> _wait() => Future<void>.delayed(latency);
-
-  AuthResponseDto _issueTokens(UserDto user) =>
-      AuthResponseDto(access: 'mock-access-${user.id}', refresh: 'mock-refresh-${user.id}', user: user);
-
-  /// Retrouve le compte à partir du jeton stocké (le vrai backend lit le header Authorization).
-  Future<_FakeAccount> _current() async {
-    final token = await _tokenStorage.readAccessToken();
-    final id = int.tryParse(token?.replaceFirst('mock-access-', '') ?? '');
-    final account = _users.values.where((a) => a.user.id == id).firstOrNull;
-    if (account == null) throw const UnauthorizedApiException('Session expirée, veuillez vous reconnecter.');
-    return account;
-  }
-
-  void _replace(_FakeAccount account, UserDto user) => _users[account.user.email] = account.copyWith(user: user);
+  AuthResponseDto _session(int id) => AuthResponseDto.fromJson(_backend.issueTokens(id));
 
   @override
   Future<AuthResponseDto> login({required String email, required String password}) async {
-    await _wait();
-    final account = _users[email.trim().toLowerCase()];
+    await _backend.wait();
+    final account = _backend.userByEmail(email);
     if (account == null || account.password != password) {
       throw const UnauthorizedApiException('Email ou mot de passe incorrect.');
     }
-    return _issueTokens(account.user);
+    return _session(account.id);
   }
 
   @override
@@ -70,59 +37,74 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
     required String telephone,
     required String password,
   }) async {
-    await _wait();
-    final normalizedEmail = email.trim().toLowerCase();
+    await _backend.wait();
     final errors = <String, String>{
-      if (_users.containsKey(normalizedEmail)) 'email': 'Un compte existe déjà avec cet e-mail.',
-      if (_users.values.any((a) => a.user.telephone == telephone)) 'telephone': 'Ce numéro est déjà utilisé.',
+      if (_backend.userByEmail(email) != null) 'email': 'Un compte existe déjà avec cet e-mail.',
+      if (_backend.phoneTaken(telephone)) 'telephone': 'Ce numéro est déjà utilisé.',
     };
     if (errors.isNotEmpty) throw BadRequestApiException('Veuillez corriger le formulaire.', fieldErrors: errors);
 
     final parts = nomComplet.trim().split(RegExp(r'\s+'));
-    final user = UserDto(
-      id: _nextId++,
-      prenom: parts.first,
-      nom: parts.skip(1).join(' '),
-      email: normalizedEmail,
-      telephone: telephone,
+    final id = _backend.createUser(
+      password: password,
+      fields: {
+        'prenom': parts.first,
+        'nom': parts.skip(1).join(' '),
+        'email': email.trim().toLowerCase(),
+        'telephone': telephone,
+      },
     );
-    _users[normalizedEmail] = _FakeAccount(password: password, user: user);
-    return _issueTokens(user);
+    return _session(id);
   }
 
   @override
   Future<AuthResponseDto> loginWithGoogle(String idToken) async {
-    await _wait();
-    final existing = _users[googleEmail];
-    if (existing != null) return _issueTokens(existing.user);
-    final user = UserDto(id: _nextId++, prenom: 'Ama', nom: 'Agbeko', email: googleEmail);
-    _users[googleEmail] = _FakeAccount(password: null, user: user);
-    return _issueTokens(user);
+    await _backend.wait();
+    final existing = _backend.userByEmail(FakeBackend.googleEmail);
+    final id = existing?.id ??
+        _backend.createUser(
+          password: null,
+          fields: {'prenom': 'Ama', 'nom': 'Agbeko', 'email': FakeBackend.googleEmail},
+        );
+    return _session(id);
   }
 
   @override
   Future<UserDto> me() async {
-    await _wait();
-    return (await _current()).user;
+    await _backend.wait();
+    return _user(await _backend.currentUserId());
   }
 
   @override
   Future<UserDto> updatePhone(String telephone) async {
-    await _wait();
-    final account = await _current();
-    if (_users.values.any((a) => a.user.telephone == telephone && a.user.id != account.user.id)) {
+    await _backend.wait();
+    final id = await _backend.currentUserId();
+    if (_backend.phoneTaken(telephone, exceptId: id)) {
       throw const BadRequestApiException('Numéro invalide.', fieldErrors: {'telephone': 'Ce numéro est déjà utilisé.'});
     }
-    final updated = account.user.copyWithPhone(telephone);
-    _replace(account, updated);
-    return updated;
+    _backend.updateUser(id, {'telephone': telephone, 'telephone_verifie': false});
+    return _user(id);
+  }
+
+  @override
+  Future<UserDto> updateMode(String mode) async {
+    await _backend.wait();
+    final id = await _backend.currentUserId();
+    final user = _backend.userJson(id);
+    if (user['statut_compte'] == 'suspendu') {
+      throw const ForbiddenApiException('Compte suspendu : changement de mode impossible.');
+    }
+    if (mode == 'conducteur' && (user['kyc_conducteur'] != 'verifie' || user['vehicule_declare'] != true)) {
+      throw const ForbiddenApiException('KYC conducteur validé et véhicule déclaré requis pour le mode conducteur.');
+    }
+    _backend.updateUser(id, {'mode_actif': mode});
+    return _user(id);
   }
 
   @override
   Future<OtpChallengeDto> sendOtp() async {
-    await _wait();
-    final account = await _current();
-    final telephone = account.user.telephone;
+    await _backend.wait();
+    final telephone = _backend.userJson(await _backend.currentUserId())['telephone'] as String?;
     if (telephone == null) {
       throw const BadRequestApiException('Ajoutez d’abord votre numéro de téléphone.');
     }
@@ -131,46 +113,18 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
 
   @override
   Future<UserDto> verifyOtp(String code) async {
-    await _wait();
-    final account = await _current();
-    if (code != validOtp) {
+    await _backend.wait();
+    final id = await _backend.currentUserId();
+    if (code != DemoAccount.otpCode) {
       throw const BadRequestApiException('Code invalide ou expiré.', fieldErrors: {'code': 'Code invalide ou expiré.'});
     }
-    final updated = account.user.copyWithPhone(account.user.telephone!, verified: true);
-    _replace(account, updated);
-    return updated;
+    _backend.updateUser(id, {'telephone_verifie': true});
+    return _user(id);
   }
 
   @override
-  Future<void> requestPasswordReset(String email) => _wait();
+  Future<void> requestPasswordReset(String email) => _backend.wait();
 
   @override
-  Future<void> logout(String refreshToken) => _wait();
-}
-
-class _FakeAccount {
-  const _FakeAccount({required this.password, required this.user});
-
-  /// `null` pour un compte Google.
-  final String? password;
-  final UserDto user;
-
-  _FakeAccount copyWith({required UserDto user}) => _FakeAccount(password: password, user: user);
-}
-
-extension on UserDto {
-  UserDto copyWithPhone(String telephone, {bool verified = false}) => UserDto(
-        id: id,
-        prenom: prenom,
-        nom: nom,
-        email: email,
-        telephone: telephone,
-        telephoneVerifie: verified,
-        photo: photo,
-        modeActif: modeActif,
-        statutCompte: statutCompte,
-        suspenduJusquAu: suspenduJusquAu,
-        kycPassager: kycPassager,
-        kycConducteur: kycConducteur,
-      );
+  Future<void> logout(String refreshToken) => _backend.wait();
 }

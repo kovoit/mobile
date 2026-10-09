@@ -10,12 +10,7 @@ Finder _field(String label) => find.descendant(
       matching: find.byType(TextFormField),
     );
 
-Future<void> _tapButton(WidgetTester tester, String label) async {
-  final button = find.text(label);
-  await tester.ensureVisible(button);
-  await tester.tap(button);
-  await tester.pumpAndSettle();
-}
+Future<void> _tapButton(WidgetTester tester, String label) => scrollAndTap(tester, find.text(label));
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
@@ -77,7 +72,10 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, DemoAccount.otpCode);
     await tester.pumpAndSettle();
+
+    // Retour UX : plus de blocage KYC à l'inscription. L'accueil s'ouvre avec la restriction affichée.
     expect(find.text('Rechercher un trajet'), findsOneWidget);
+    expect(find.text('Vérifiez votre identité'), findsOneWidget);
   });
 
   testWidgets('Inscription avec un e-mail déjà utilisé : erreur sous le champ', (tester) async {
@@ -110,14 +108,13 @@ void main() {
   });
 
   testWidgets('Déconnexion depuis le Profil → connexion', (tester) async {
-    final storage = InMemoryTokenStorage()..access = 'mock-access-1';
-    await pumpKovoitApp(tester, storage: storage);
+    final env = await pumpKovoitApp(tester, env: TestEnv.demoSession());
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
     await _tapButton(tester, 'Se déconnecter');
 
     expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
-    expect(storage.access, isNull);
+    expect(env.storage.access, isNull);
   });
 }

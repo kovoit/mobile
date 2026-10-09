@@ -22,6 +22,9 @@ abstract interface class AuthRemoteDataSource {
 
   Future<UserDto> updatePhone(String telephone);
 
+  /// `passager` | `conducteur`. 403 si le mode conducteur n'est pas autorisé.
+  Future<UserDto> updateMode(String mode);
+
   Future<OtpChallengeDto> sendOtp();
 
   Future<UserDto> verifyOtp(String code);
@@ -85,6 +88,12 @@ class DioAuthRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<UserDto> updatePhone(String telephone) => _call(() async {
         final res = await _dio.patch<dynamic>('/auth/me/telephone/', data: {'telephone': telephone});
+        return UserDto.fromJson(_json(res));
+      });
+
+  @override
+  Future<UserDto> updateMode(String mode) => _call(() async {
+        final res = await _dio.patch<dynamic>('/auth/me/mode/', data: {'mode_actif': mode});
         return UserDto.fromJson(_json(res));
       });
 

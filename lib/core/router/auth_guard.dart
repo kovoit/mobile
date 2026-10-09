@@ -9,10 +9,11 @@ import 'routes.dart';
 /// 1. Session en cours de restauration ou en erreur → Splash (qui affiche « Réessayer »).
 /// 2. Déconnecté → connexion / inscription / mot de passe oublié uniquement.
 /// 3. Connecté sans numéro → saisie du numéro ; numéro non vérifié → code SMS.
-/// 4. Téléphone vérifié → l'application ; les écrans d'auth renvoient vers « Rechercher ».
+/// 4. Téléphone vérifié → l'application ; les écrans d'auth renvoient vers l'accueil.
 ///
-/// Les droits KYC (réserver, publier) sont vérifiés au moment de l'action (Sprint S2+),
-/// pas par une redirection globale : la recherche reste ouverte dès l'OTP validé.
+/// Le KYC ne bloque PAS la navigation (retour UX du 08/10) : il se fait depuis le Profil.
+/// Réserver, publier et passer en mode conducteur sont contrôlés au moment de l'action
+/// par `AccessPolicy` (et par le backend).
 String? authRedirect(AsyncValue<AppUser?> session, String location) {
   if (session.isLoading || session.hasError) {
     return location == Routes.splash ? null : Routes.splash;
@@ -34,5 +35,5 @@ String? authRedirect(AsyncValue<AppUser?> session, String location) {
   final onEntryScreen = location == Routes.splash ||
       Routes.publicAuth.contains(location) ||
       Routes.phoneVerification.contains(location);
-  return onEntryScreen ? Routes.search : null;
+  return onEntryScreen ? Routes.home : null;
 }

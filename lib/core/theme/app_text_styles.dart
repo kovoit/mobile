@@ -7,10 +7,11 @@ abstract final class AppTextStyles {
   static const String fontFamily = 'PlusJakartaSans';
 
   /// Grand titre d'écran : « Rechercher un trajet », « Espace Conducteur ».
+  /// Réduit de 28 à 24 (retour UX du 08/10) pour un rendu plus équilibré sur mobile.
   static const TextStyle display = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 28,
-    height: 1.2,
+    fontSize: 24,
+    height: 1.25,
     fontWeight: FontWeight.w800,
     color: AppColors.textPrimary,
   );
@@ -18,7 +19,7 @@ abstract final class AppTextStyles {
   /// Titre de section : « Publier un trajet », « Mode de paiement ».
   static const TextStyle title = TextStyle(
     fontFamily: fontFamily,
-    fontSize: 19,
+    fontSize: 18,
     height: 1.3,
     fontWeight: FontWeight.w700,
     color: AppColors.textPrimary,

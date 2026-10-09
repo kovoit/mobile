@@ -4,7 +4,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
 
-enum InfoBannerTone { success, accent, primary }
+enum InfoBannerTone { success, accent, primary, error }
 
 /// Bandeau d'information des maquettes :
 /// - success : « Moins de véhicules. Plus de bonnes rencontres. »
@@ -32,11 +32,13 @@ class InfoBanner extends StatelessWidget {
       InfoBannerTone.success => (AppColors.successLight, AppColors.success, AppColors.success),
       InfoBannerTone.accent => (AppColors.accentLight, AppColors.textPrimary, AppColors.warning),
       InfoBannerTone.primary => (AppColors.primary, Colors.white, AppColors.accent),
+      InfoBannerTone.error => (AppColors.errorLight, AppColors.textPrimary, AppColors.error),
     };
     final subtitleColor = switch (tone) {
       InfoBannerTone.success => AppColors.success,
       InfoBannerTone.accent => AppColors.warning,
       InfoBannerTone.primary => Colors.white.withValues(alpha: 0.75),
+      InfoBannerTone.error => AppColors.error,
     };
 
     return Container(

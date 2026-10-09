@@ -21,6 +21,7 @@ UserDto _$UserDtoFromJson(Map<String, dynamic> json) => UserDto(
       : DateTime.parse(json['suspendu_jusqu_au'] as String),
   kycPassager: json['kyc_passager'] as String?,
   kycConducteur: json['kyc_conducteur'] as String?,
+  vehiculeDeclare: json['vehicule_declare'] as bool? ?? false,
 );
 
 Map<String, dynamic> _$UserDtoToJson(UserDto instance) => <String, dynamic>{
@@ -36,4 +37,5 @@ Map<String, dynamic> _$UserDtoToJson(UserDto instance) => <String, dynamic>{
   'suspendu_jusqu_au': instance.suspenduJusquAu?.toIso8601String(),
   'kyc_passager': instance.kycPassager,
   'kyc_conducteur': instance.kycConducteur,
+  'vehicule_declare': instance.vehiculeDeclare,
 };

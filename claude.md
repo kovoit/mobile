@@ -21,7 +21,7 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Stockage sécurisé | `flutter_secure_storage` (tokens) |
 | Cartographie | **OpenStreetMap gratuit** : `flutter_map` + `latlong2`, tuiles OSM ; itinéraires/distances fournis par le backend (OSRM) |
 | Géolocalisation | `geolocator` |
-| Photos KYC | `image_picker` / `camera` |
+| Photos KYC | `image_picker` (selfie : caméra frontale uniquement) ; contrats : [docs/api/kyc.md](docs/api/kyc.md), [docs/api/vehicle.md](docs/api/vehicle.md) |
 | Notifications | `firebase_messaging` (push) |
 | Partage | `share_plus` (« Partager mon trajet ») |
 | Formats | `intl` (FCFA, dates, fuseau `Africa/Lome`) |
@@ -50,7 +50,8 @@ lib/
 ├── main.dart                 # bootstrap (env, ProviderScope)
 ├── app.dart                  # MaterialApp.router, thème
 ├── core/
-│   ├── config/               # Env (dev/staging/prod), baseUrl
+│   ├── config/               # Env (dev/staging/prod), baseUrl, compte démo
+│   ├── mock/                 # FakeBackend : API simulée partagée (JSON des contrats docs/api)
 │   ├── network/              # DioClient, AuthInterceptor, ApiException, Result
 │   ├── storage/              # SecureStorage (access/refresh tokens)
 │   ├── router/               # app_router.dart, routes.dart, guards
@@ -58,8 +59,8 @@ lib/
 │   ├── widgets/              # composants partagés (voir §5)
 │   └── utils/                # formatters (FCFA, dates), validators (téléphone +228)
 └── features/
-    ├── auth/                 # splash, connexion, inscription, OTP SMS
-    ├── kyc/                  # dossier passager/conducteur, pièces, selfie, statut
+    ├── auth/                 # splash, connexion, inscription, OTP SMS, AccessPolicy (domain)
+    ├── kyc/                  # dossier passager/conducteur, pièces, selfie, statut, carte « accès restreint »
     ├── vehicle/              # déclaration du véhicule
     ├── search/               # recherche, résultats, carte
     ├── trip/                 # détail d'un trajet, publication (conducteur)
@@ -67,8 +68,8 @@ lib/
     ├── driver/               # espace conducteur, demandes, saisie code, absence, clôture, économies
     ├── rating/               # notation 1–5 ★
     ├── report/               # signalement
-    ├── profile/              # profil, bascule de mode passager/conducteur
-    └── shell/                # BottomNav : Rechercher / Mes trajets / Profil
+    ├── profile/              # profil (KYC, véhicule, macaron), bascule de mode, « Devenir conducteur »
+    └── shell/                # BottomNav : Rechercher|Publier / Mes trajets / Profil, accueil selon le mode
 ```
 
 Chaque feature suit :
@@ -86,19 +87,41 @@ features/<feature>/
 
 ---
 
-## 3. Droits d'accès → guards de navigation
+## 3. Navigation et droits d'accès
 
-Le backend fait foi (403 = refus), le mobile anticipe pour l'UX :
+### A. Cartographie des routes (`core/router/routes.dart`)
+
+| Route | Écran | Accès |
+|---|---|---|
+| `/` | Splash (restauration de session) | tous |
+| `/connexion`, `/inscription`, `/mot-de-passe-oublie` | Auth (S1) | déconnecté uniquement |
+| `/telephone`, `/verification-sms` | Saisie du numéro, OTP SMS | connecté, téléphone non vérifié |
+| `/accueil` *(onglet 1)* | Passager : « Rechercher un trajet » · Conducteur : « Espace Conducteur » | téléphone vérifié |
+| `/mes-trajets` *(onglet 2)* | Réservations / trajets publiés (S4) | téléphone vérifié |
+| `/profil` *(onglet 3)* | Profil : KYC, véhicule, bascule de mode, macaron orange | téléphone vérifié |
+| `/profil/verification/:type` | KYC `passager` ou `conducteur` (plein écran) | téléphone vérifié |
+| `/profil/verification/:type/envoye` | « Dossier envoyé » / « Profil vérifié » | téléphone vérifié |
+| `/profil/vehicule` | Déclaration du véhicule | téléphone vérifié |
+| `/profil/devenir-conducteur` | Check-list avant le mode conducteur | téléphone vérifié |
+| `/dev/composants` | Catalogue des composants | dev uniquement |
+
+Les redirections passent **toutes** par `core/router/auth_guard.dart` (fonction pure, testée). Le routeur ne se réévalue que si un champ utile à la garde change (session, téléphone), pas à chaque rafraîchissement de l'utilisateur.
+
+### B. Droits d'accès (`features/auth/domain/access_policy.dart`)
+
+Le **KYC ne bloque plus la navigation** (retour UX du 08/10) : il se fait depuis le Profil. Les droits sont contrôlés **au moment de l'action** par `AccessPolicy` (et par le backend : 403).
 
 | État de l'utilisateur | Accès mobile |
 |---|---|
 | Non connecté | Splash, connexion, inscription uniquement (le lien « Partager mon trajet » est une page web publique, pas l'app) |
-| Téléphone vérifié (OTP) | Rechercher et consulter les trajets |
-| KYC passager `verifie` | Réserver une place |
-| KYC conducteur `verifie` + véhicule déclaré | Mode conducteur : publier un trajet |
-| Compte `suspendu` | Ni réserver ni publier ; message explicatif avec date `suspendu_jusqu_au` |
+| Téléphone vérifié (OTP) | Toute l'application ; carte « accès restreint » sur l'accueil, macaron orange sur Profil tant que le KYC passager est `non_verifie` / `rejete` |
+| KYC passager `verifie` | Réserver une place (`AccessPolicy.canBook`) |
+| KYC passager + conducteur `verifie` + véhicule déclaré | « Passer en mode conducteur », publier (`canSwitchToDriver` / `canPublish`) ; sinon → `/profil/devenir-conducteur` |
+| Compte `suspendu` | Ni réserver, ni publier, ni changer de mode ; message avec `suspendu_jusqu_au` |
 
-Statuts KYC : `non_verifie` → `en_attente` → `verifie` | `rejete` (avec `motif_rejet`, nouvelle soumission possible).
+Statuts KYC : `non_verifie` → `en_attente` → `verifie` | `rejete` (avec `motif_rejet`, nouvelle soumission possible). Le dossier conducteur ne s'ouvre qu'après l'envoi du dossier passager.
+
+Tout nouvel écran avec une action sensible (réserver, publier) affiche `AccessRequiredCard` / désactive l'action quand `AccessPolicy` renvoie une `AccessDenial`.
 
 ---
 
@@ -126,9 +149,13 @@ Le mobile propose seulement les actions autorisées pour le statut courant, tel 
 ## 5. UI : fidélité aux maquettes Figma
 
 - **Palette** (relevée sur les maquettes, à confirmer dans Figma) : bleu nuit primaire ≈ `#0F2A55`, orange accent ≈ `#F28C28`, vert « vérifié » ≈ `#22A85A`, fond ≈ `#F5F7FA`, cartes blanches à coins arrondis (~16 px).
-- **Composants partagés** (`core/widgets/`) : `KovoitAppBar` (retour + logo + badge « Lomé »), `PrimaryButton`, `SegmentedToggle` (Connexion/Inscription, Moto/Voiture, Passager/Conducteur), `KovoitTextField` (icône), `OtpCodeInput` (6 cases), `VerifiedBadge`, `RatingLabel`, `DriverCard`, `PriceTag`, `PlaceStepper` (− n +), `StepProgress`, `MapPreview`.
+- **Typographie** : titres d'en-tête (`AppTextStyles.display`) à **24 px** (réduits de 28 px, retour UX du 08/10) ; ne pas les agrandir écran par écran.
+- **Composants partagés** (`core/widgets/`) : `KovoitAppBar` (retour + logo + badge « Lomé »), `PrimaryButton`, `SegmentedToggle` (Connexion/Inscription, Moto/Voiture), `KovoitTextField` (icône), `OtpCodeInput` (6 cases), `VerifiedBadge`, `StatusChip`, `InfoBanner`, `RatingLabel`, `DriverCard`, `PriceTag`, `PlaceStepper` (− n +), `StepProgress`, `MapPreview`.
+- **Bascule de mode** : uniquement dans le Profil (bouton « Passer en mode conducteur / passager »). Ne pas reproduire le toggle Passager/Conducteur de la maquette « Espace Conducteur ».
+- **Macaron orange** (`AppColors.accent`) : action attendue de l'utilisateur (KYC), sur l'onglet Profil et la ligne concernée.
 - **Deux codes à ne pas confondre** : OTP SMS à **6 chiffres** (vérification du téléphone) ≠ code de départ à **4 chiffres** (prise en charge).
-- Éléments visibles sur les maquettes mais **hors MVP** (bouton « Message », paiement « Mobile Money ») : en attente de décision (voir PRD §14), ne pas implémenter de logique.
+- **Paiement mobile** : libellés **Flooz** (Moov Africa) et **Mixx** (Togocom). Ne jamais afficher « T-Money ». Le traitement réel reste soumis à D5/D7 (PRD §14).
+- Bouton « Message » de la maquette : hors MVP (D4), ne pas implémenter de logique.
 
 ---
 
@@ -144,9 +171,9 @@ flutter run --dart-define=USE_MOCK_API=false --dart-define=GOOGLE_SERVER_CLIENT_
 flutter build apk --dart-define=ENV=prod --dart-define=GOOGLE_SERVER_CLIENT_ID=...
 ```
 
-**API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource en mémoire qui respecte le contrat de `docs/api/`. Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123`, OTP `123456`.
+**API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource branchée sur le `FakeBackend` partagé (`core/mock`), qui respecte les contrats de `docs/api/` et les règles serveur (statuts KYC, droits du mode conducteur). Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123` (KYC passager validé), OTP `123456`. Dans le Profil, des boutons « Valider / Refuser les dossiers » simulent la décision de l'administrateur.
 
-**Tests** : `test/helpers/test_app.dart` fournit `pumpKovoitApp` et `testOverrides()` (API simulée sans latence, stockage de jetons en mémoire).
+**Tests** : `test/helpers/test_app.dart` fournit `pumpKovoitApp`, `TestEnv` (`demoSession()`, `newUserSession()`, backend sans latence, caméra simulée) et `scrollAndTap`. Aucune vraie entrée/sortie disque ou réseau dans les tests de widgets : passer par un service injectable.
 
 ---
 
@@ -157,7 +184,7 @@ Ces points sont contradictoires entre la spécification, le PRD et les maquettes
 1. Calcul du prix : grille 200/300/500 F par distance (spéc.), aucun prix (PRD), ou formule au km (ancienne version de ce fichier). Dans tous les cas, le mobile **affiche** le prix renvoyé par l'API.
 2. Frais de service Kovoit : 0 F pendant le pilote (spéc., maquettes) ou 10 %.
 3. ~~Authentification~~ → **tranché** : e-mail + mot de passe ou Google, puis OTP SMS.
-4. Boutons « Message » et « Mobile Money » des maquettes (hors MVP selon la spéc.).
+4. Bouton « Message » (hors MVP selon la spéc.). Paiement mobile : libellés tranchés (Flooz / Mixx), traitement réel en attente (D5/D7).
 5. Backend : DRF seul ou DRF + FastAPI.
 6. Paiement : espèces uniquement pour le MVP ?
 

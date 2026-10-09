@@ -1,4 +1,5 @@
 /// Chemins de navigation. Toujours passer par ces constantes (jamais de chaîne en dur).
+/// Cartographie complète : claude.md §3.
 abstract final class Routes {
   static const String splash = '/';
 
@@ -10,9 +11,25 @@ abstract final class Routes {
   static const String otp = '/verification-sms';
 
   // Onglets de la barre du bas
-  static const String search = '/rechercher';
+  /// Tableau de bord selon le mode : Rechercher (passager) ou Espace conducteur (conducteur).
+  static const String home = '/accueil';
   static const String myTrips = '/mes-trajets';
   static const String profile = '/profil';
+
+  // Sous-écrans du Profil (S2), plein écran sans barre du bas
+  static const String kycSegment = 'verification/:type';
+  static const String kycSubmittedSegment = 'envoye';
+  static const String vehicleSegment = 'vehicule';
+  static const String becomeDriverSegment = 'devenir-conducteur';
+
+  /// `/profil/verification/passager` ou `/profil/verification/conducteur`.
+  static String kyc(String type) => '$profile/verification/$type';
+
+  /// Récapitulatif après envoi (maquette « Profil vérifié »).
+  static String kycSubmitted(String type) => '${kyc(type)}/$kycSubmittedSegment';
+
+  static const String vehicle = '$profile/$vehicleSegment';
+  static const String becomeDriver = '$profile/$becomeDriverSegment';
 
   /// Catalogue des composants (environnement dev uniquement).
   static const String componentCatalog = '/dev/composants';

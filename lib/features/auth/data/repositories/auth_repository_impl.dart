@@ -67,6 +67,12 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AppUser> updatePhone(String telephone) async => (await _remote.updatePhone(telephone)).toEntity();
 
   @override
+  Future<AppUser> refreshUser() async => (await _remote.me()).toEntity();
+
+  @override
+  Future<AppUser> updateMode(UserMode mode) async => (await _remote.updateMode(mode.apiValue)).toEntity();
+
+  @override
   Future<OtpChallenge> sendOtp() async => (await _remote.sendOtp()).toEntity();
 
   @override

@@ -53,6 +53,7 @@ class AppUser {
     this.suspenduJusquAu,
     this.kycPassager = KycStatus.nonVerifie,
     this.kycConducteur = KycStatus.nonVerifie,
+    this.vehiculeDeclare = false,
   });
 
   final int id;
@@ -69,6 +70,9 @@ class AppUser {
   final DateTime? suspenduJusquAu;
   final KycStatus kycPassager;
   final KycStatus kycConducteur;
+  final bool vehiculeDeclare;
+
+  bool get isDriverMode => modeActif == UserMode.conducteur;
 
   String get nomComplet => '$prenom $nom'.trim();
 
@@ -90,7 +94,8 @@ class AppUser {
       other.statutCompte == statutCompte &&
       other.suspenduJusquAu == suspenduJusquAu &&
       other.kycPassager == kycPassager &&
-      other.kycConducteur == kycConducteur;
+      other.kycConducteur == kycConducteur &&
+      other.vehiculeDeclare == vehiculeDeclare;
 
   @override
   int get hashCode => Object.hash(
@@ -106,5 +111,6 @@ class AppUser {
         suspenduJusquAu,
         kycPassager,
         kycConducteur,
+        vehiculeDeclare,
       );
 }

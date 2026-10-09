@@ -53,6 +53,16 @@ class SessionController extends AsyncNotifier<AppUser?> {
     state = AsyncData(await _repository.updatePhone(telephone));
   }
 
+  /// À appeler après une action qui modifie les statuts (KYC envoyé, véhicule déclaré).
+  Future<void> refreshUser() async {
+    state = AsyncData(await _repository.refreshUser());
+  }
+
+  /// Bascule de mode. Les droits sont vérifiés avant l'appel (AccessPolicy) et par le backend.
+  Future<void> switchMode(UserMode mode) async {
+    state = AsyncData(await _repository.updateMode(mode));
+  }
+
   Future<void> verifyOtp(String code) async {
     state = AsyncData(await _repository.verifyOtp(code));
   }

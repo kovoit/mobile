@@ -44,7 +44,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerPr
               const Spacer(flex: 3),
               const _LogoHalo(),
               const SizedBox(height: AppSpacing.xl),
-              Text('Kovoït', style: AppTextStyles.display.copyWith(color: Colors.white, fontSize: 34)),
+              Text('Kovoït', style: AppTextStyles.display.copyWith(color: Colors.white, fontSize: 30)),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Même trajet, moins cher',

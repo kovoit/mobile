@@ -13,17 +13,15 @@ void main() {
     expect(find.text('Se connecter'), findsOneWidget);
   });
 
-  testWidgets('Session existante : arrivée directe sur Rechercher', (tester) async {
-    final storage = InMemoryTokenStorage()..access = 'mock-access-1'; // compte démo
-    await pumpKovoitApp(tester, storage: storage);
+  testWidgets('Session existante : arrivée directe sur l’accueil passager', (tester) async {
+    await pumpKovoitApp(tester, env: TestEnv.demoSession());
 
     expect(find.text('Rechercher un trajet'), findsOneWidget);
     expect(find.text('Mes trajets'), findsOneWidget);
   });
 
   testWidgets('La barre du bas change d’onglet', (tester) async {
-    final storage = InMemoryTokenStorage()..access = 'mock-access-1';
-    await pumpKovoitApp(tester, storage: storage);
+    await pumpKovoitApp(tester, env: TestEnv.demoSession());
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();

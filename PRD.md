@@ -13,7 +13,7 @@ Kovoit met en relation des conducteurs qui se déplacent déjà dans **Lomé** a
 - **Partage de frais, pas de profit** : Kovoit n'est pas un service de taxi.
 - **Prix fixe et connu à l'avance**, sans négociation.
 - **Un seul compte, deux modes** : passager et conducteur.
-- **KYC obligatoire** avant de réserver ou de publier.
+- **KYC obligatoire avant de réserver ou de publier**, mais **pas à l'inscription** : il se fait depuis le Profil (retours UX, §18).
 
 ## 2. Utilisateurs
 
@@ -23,7 +23,7 @@ Kovoit met en relation des conducteurs qui se déplacent déjà dans **Lomé** a
 | Conducteur | Déclare son véhicule, publie un trajet, accepte/refuse, saisit le code, clôture, note, suit ses économies | App mobile (mode conducteur) |
 | Administrateur | Valide les KYC, consulte trajets/réservations/utilisateurs, traite les signalements et litiges, suspend, modifie les paramètres | Back-office React (hors de ce dépôt) |
 
-Le mode conducteur s'active une fois le **KYC conducteur validé** et un **véhicule déclaré**.
+Le mode conducteur s'active depuis le **Profil** (« Passer en mode conducteur »), une fois le **KYC passager et le KYC conducteur validés** et un **véhicule déclaré**. Sinon, l'application affiche la check-list « Devenir conducteur ».
 
 ## 3. Fonctionnalités du MVP (mobile)
 
@@ -49,9 +49,9 @@ Le mode conducteur s'active une fois le **KYC conducteur validé** et un **véhi
 
 ## 4. Parcours principaux
 
-**Conducteur :** créer son compte → vérifier son téléphone → KYC conducteur → déclarer son véhicule → saisir départ, destination, points de prise en charge, date, heure, places → publier → recevoir une demande → accepter/refuser → saisir le code de départ → transporter → clôturer → noter.
+**Conducteur :** créer son compte → vérifier son téléphone → (Profil) KYC passager puis KYC conducteur → déclarer son véhicule → validation par l'administrateur → (Profil) « Passer en mode conducteur » → saisir départ, destination, points de prise en charge, date, heure, places → publier → recevoir une demande → accepter/refuser → saisir le code de départ → transporter → clôturer → noter.
 
-**Passager :** créer son compte → vérifier son téléphone → KYC passager → saisir départ, destination, date, heure → rechercher → consulter les conducteurs → choisir → demander une place → recevoir l'acceptation → rejoindre le point de prise en charge → donner le code → confirmer l'arrivée → noter.
+**Passager :** créer son compte → vérifier son téléphone → accès immédiat à l'accueil (réservation restreinte) → (Profil) KYC passager → validation par l'administrateur → saisir départ, destination, date, heure → rechercher → consulter les conducteurs → choisir → demander une place → recevoir l'acceptation → rejoindre le point de prise en charge → donner le code → confirmer l'arrivée → noter.
 
 ## 5. Critères d'acceptation
 
@@ -65,7 +65,9 @@ Le mode conducteur s'active une fois le **KYC conducteur validé** et un **véhi
 
 **CA5 — Annulation.** Le passager ou le conducteur peut annuler une réservation `demandee` ou `acceptee` jusqu'au départ. L'autre partie est notifiée. La place est rendue. Une annulation à moins de `delai_annulation_min` du départ compte comme **annulation tardive** (affichée par l'API).
 
-**CA6 — Vérification.** Sans KYC passager `verifie`, le bouton « Réserver » est bloqué avec un renvoi vers le KYC. Sans KYC conducteur `verifie` et véhicule déclaré, la publication est bloquée. Un compte suspendu ne peut ni réserver ni publier.
+**CA6 — Vérification.** L'inscription n'exige pas le KYC : après l'OTP, l'utilisateur accède à son tableau de bord. Sans KYC passager `verifie`, une carte « accès restreint » s'affiche sur le tableau de bord, le bouton « Réserver » est bloqué avec un renvoi vers le KYC, et un **macaron orange** signale l'action attendue sur l'onglet et dans l'écran Profil. Sans KYC conducteur `verifie` et véhicule déclaré, le passage en mode conducteur et la publication sont bloqués. Un compte suspendu ne peut ni réserver, ni publier, ni changer de mode.
+
+**CA6 bis — Bascule de mode.** Depuis le Profil, « Passer en mode conducteur » n'est effectif que si `AccessPolicy.canSwitchToDriver` l'autorise (sinon : check-list « Devenir conducteur »). « Passer en mode passager » est toujours possible. Le premier onglet devient « Publier » (Espace Conducteur) en mode conducteur, « Rechercher » en mode passager.
 
 **CA7 — Prise en charge.** La réservation passe à `en_cours` **uniquement** quand le conducteur saisit le bon code. Un code faux affiche une erreur sans changer le statut.
 
@@ -81,19 +83,21 @@ Le mode conducteur s'active une fois le **KYC conducteur validé** et un **véhi
 | 2 | Connexion | auth | Onglets Connexion/Inscription, identifiants, mot de passe oublié, Google* |
 | 3 | Inscription | auth | Nom complet, email, téléphone +228, mot de passe, CGU, Google* |
 | 4 | Vérification SMS | auth | OTP 6 chiffres, numéro affiché, modifier le numéro, renvoi après 30 s |
-| 5 | Vérification d'identité | kyc | 4 étapes : photo de profil, pièce recto, pièce verso, selfie ; progression |
-| 6 | Profil vérifié | kyc | Récapitulatif des pièces complétées, bouton Continuer |
+| 5 | Vérification d'identité | kyc | Ouvert depuis le Profil. 4 étapes : photo de profil, pièce recto, pièce verso, selfie (caméra frontale) ; progression ; même écran pour le dossier conducteur |
+| 6 | Profil vérifié | kyc | Récapitulatif des pièces ; « Dossier envoyé » tant que le statut est `en_attente`, « Profil vérifié » une fois validé |
 | 7 | Rechercher un trajet | search | Toggle Moto/Voiture, départ, destination, date, heure, places, trajet du quotidien |
 | 8 | Conducteurs disponibles | search | Carte OSM, nombre de résultats, cartes conducteur (photo, badge vérifié, note, véhicule, places, départ, distance, prix) |
-| 9 | Détails & Réservation | trip / booking | Prise en charge et arrivée estimée, conducteur (note, fiabilité, nb trajets), photo et immatriculation du véhicule, récapitulatif du prix, mode de paiement*, « Réserver ma place » |
+| 9 | Détails & Réservation | trip / booking | Prise en charge et arrivée estimée, conducteur (note, fiabilité, nb trajets), photo et immatriculation du véhicule, récapitulatif du prix, mode de paiement (Espèces, ou mobile : **Flooz** (Moov Africa) / **Mixx** (Togocom))*, « Réserver ma place » |
 | 10 | Suivi du trajet & Code de départ | booking | Carte, arrivée du conducteur, **code de départ**, Appeler, Message*, Partager mon trajet, Annuler |
-| 11 | Espace Conducteur | driver | Toggle Passager/Conducteur, économies du mois, formulaire de publication (1–3 carrefours), places, prix recommandé |
+| 11 | Espace Conducteur | driver | Économies du mois, formulaire de publication (1–3 carrefours), places, prix recommandé. **Le toggle Passager/Conducteur de la maquette est retiré** : la bascule se fait dans le Profil |
+| 12 | Profil *(nouveau, S2)* | profile | Identité, macaron orange + carte « Vérifiez votre identité » tant que le KYC attend une action, lignes Vérification d'identité / Dossier conducteur / Mon véhicule avec statut, bouton « Passer en mode conducteur / passager », déconnexion |
 
 \* Éléments soumis à une décision en attente (§14).
 
-**Écrans à concevoir (absents de Figma) :** Mes trajets (liste passager/conducteur), Demandes reçues (Accepter/Refuser), Saisie du code de départ (conducteur), Déclaration du véhicule, Confirmation d'arrivée + Notation, Signalement, Profil.
+**Écrans conçus hors Figma (S2) :** Profil, Déclaration du véhicule, Devenir conducteur (check-list).
+**Écrans à concevoir :** Mes trajets (liste passager/conducteur), Demandes reçues (Accepter/Refuser), Saisie du code de départ (conducteur), Confirmation d'arrivée + Notation, Signalement.
 
-**Navigation :** barre du bas **Rechercher / Mes trajets / Profil**.
+**Navigation :** barre du bas **Rechercher | Publier (selon le mode) / Mes trajets / Profil** (macaron orange sur Profil). Cartographie complète des routes : `claude.md` §3.
 
 ## 7. Statuts
 
@@ -118,8 +122,8 @@ Chaque changement de statut notifie l'autre partie (push, ou SMS si l'applicatio
 
 | Entité | Champs principaux |
 |---|---|
-| User | id, telephone, nom, prenom, email, photo, mode_actif (passager/conducteur), statut_compte, suspendu_jusqu_au, note, fiabilite, nb_trajets |
-| KycDossier | id, type (passager/conducteur), statut, motif_rejet, pièces (identite, selfie, permis, carte_grise, assurance, photo_vehicule) |
+| User | id, telephone, nom, prenom, email, photo, mode_actif (passager/conducteur), statut_compte, suspendu_jusqu_au, kyc_passager, kyc_conducteur, vehicule_declare, note, fiabilite, nb_trajets |
+| KycDossier | type (passager/conducteur), statut, motif_rejet, pièces (passager : photo_profil, identite_recto, identite_verso, selfie · conducteur : permis, carte_grise_ou_assurance, photo_vehicule) — `docs/api/kyc.md` |
 | Vehicle | id, type (moto/voiture), marque, modele, couleur, immatriculation, nb_places, photo, statut_verification |
 | Trip | id, conducteur, vehicule, depart (lat, lng, libelle), arrivee (lat, lng, libelle), points_prise_en_charge[1..3], depart_le, places_total, places_restantes, distance_km, prix_place, statut |
 | Booking | id, trajet, passager, point_prise_en_charge, nb_places, prix, frais_service, statut, code_depart (**visible passager uniquement**), horodatages |
@@ -166,7 +170,9 @@ Le taux de fiabilité (`1 − (annulations tardives + absences) / réservations 
 
 MVP : **espèces**. Le passager paie le conducteur à la prise en charge. L'application enregistre le montant dû pour calculer les économies du conducteur.
 
-Plus tard : portefeuille Kovoit rechargé par T-Money/Flooz via un agrégateur agréé, remboursements automatiques.
+Moyens de paiement mobile valides au Togo (affichés sur « Détails & Réservation ») : **Flooz** (Moov Africa) et **Mixx** (Togocom, ex-T-Money — l'ancienne appellation ne doit plus apparaître).
+
+Plus tard : portefeuille Kovoit rechargé par Flooz / Mixx via un agrégateur agréé, remboursements automatiques.
 
 ## 13. Sécurité & confiance
 
@@ -187,7 +193,7 @@ Contradictions relevées entre la spécification, l'ancien PRD et les maquettes.
 | D2 | Frais de service | 0 F pendant le pilote (spéc., maquettes « 0 FCFA ») · 10 % · frais fixes 50 F |
 | D3 | Authentification | ✅ **Tranché (08/10/2026)** : e-mail + mot de passe **ou** Google, puis vérification du téléphone par OTP SMS (6 chiffres). Contrat : `docs/api/auth.md` |
 | D4 | Bouton « Message » (écran 10) | Hors MVP (messagerie) : masquer, désactiver ou remplacer par SMS natif ? |
-| D5 | Paiement « Mobile Money » (écran 9) | Hors MVP : masquer ou afficher « bientôt » ? |
+| D5 | Paiement mobile (écran 9) | ✅ Libellés tranchés (08/10/2026) : **Flooz** et **Mixx**. Reste ouvert (lié à D7) : paiement réellement traité dans le MVP, ou options affichées « bientôt » avec espèces seules ? |
 | D6 | Backend | DRF seul · DRF + FastAPI |
 | D7 | Paiement MVP | Espèces uniquement ou portefeuille dès le départ ? |
 
@@ -215,12 +221,21 @@ Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique
 |---|---|
 | S0 Socle | Projet Flutter, arborescence, thème Figma, widgets communs, Dio, router, environnements, mocks API |
 | S1 Auth | Splash, inscription, connexion, OTP SMS, tokens |
-| S2 KYC + Véhicule | Parcours KYC 4 étapes, statut du dossier, déclaration du véhicule |
+| S2 KYC + Véhicule + Profil | KYC depuis le Profil (passager 4 pièces, conducteur 3 pièces), statut et motif de rejet, déclaration du véhicule, macaron orange, accès restreint sur l'accueil, bascule de mode |
 | S3 Recherche | Formulaire, résultats, carte OSM, profil conducteur |
 | S4 Réservation passager | Détails, demande, statuts, code de départ, annulation, partage du trajet |
-| S5 Conducteur | Bascule de mode, publication (1–3 points), demandes, saisie du code, absence, clôture, économies |
+| S5 Conducteur | Espace conducteur (bascule déjà faite en S2), publication (1–3 points), demandes, saisie du code, absence, clôture, économies |
 | S6 Après trajet | Confirmation, notation, signalement, notifications push |
 | S7 Qualité | Tests CA1–CA9, erreurs et hors-ligne, accessibilité, APK de démo |
+
+## 18. Retours UX du 08/10/2026 (intégrés en S2)
+
+| # | Ajustement | Impact |
+|---|---|---|
+| 1 | Inscription simplifiée : le KYC ne bloque plus | Après l'OTP → tableau de bord. KYC depuis le **Profil**. Macaron orange (onglet + ligne Profil) et carte « Vérifiez votre identité ». Réserver / publier restent restreints tant que le KYC n'est pas `verifie` (CA6). |
+| 2 | Bascule de mode centralisée dans le Profil | Bouton « Passer en mode conducteur » / « Passer en mode passager ». Droits KYC + véhicule vérifiés avant l'appel ; sinon check-list « Devenir conducteur » (CA6 bis). Toggle retiré de l'Espace Conducteur. |
+| 3 | Paiement mobile : Flooz (Moov Africa) et Mixx (Togocom) | T-Money ne doit plus apparaître (§12). Écran 9 au sprint S4. |
+| 4 | Titres d'en-tête réduits | `AppTextStyles.display` : 28 → 24 px (s'applique à tous les écrans) ; Splash 34 → 30 px. |
 
 ## Résumé
 

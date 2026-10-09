@@ -18,7 +18,7 @@ void main() {
   group('session en chargement ou en erreur', () {
     test('reste sur le Splash', () {
       expect(authRedirect(const AsyncLoading(), Routes.splash), isNull);
-      expect(authRedirect(const AsyncLoading(), Routes.search), Routes.splash);
+      expect(authRedirect(const AsyncLoading(), Routes.home), Routes.splash);
       expect(authRedirect(const AsyncError<AppUser?>(NetworkApiException(), StackTrace.empty), Routes.login), Routes.splash);
     });
   });
@@ -34,32 +34,40 @@ void main() {
 
     test('est renvoyé vers la connexion ailleurs', () {
       expect(authRedirect(session, Routes.splash), Routes.login);
-      expect(authRedirect(session, Routes.search), Routes.login);
+      expect(authRedirect(session, Routes.home), Routes.login);
       expect(authRedirect(session, Routes.otp), Routes.login);
     });
   });
 
+  test('KYC non vérifié : la navigation reste ouverte (contrôle au moment de l’action)', () {
+    final session = AsyncData<AppUser?>(_user());
+    expect(session.value!.kycPassager, KycStatus.nonVerifie);
+    expect(authRedirect(session, Routes.home), isNull);
+    expect(authRedirect(session, Routes.kyc('passager')), isNull);
+  });
+
   test('compte Google sans numéro → saisie du numéro', () {
     final session = AsyncData<AppUser?>(_user(telephone: null, verified: false));
-    expect(authRedirect(session, Routes.search), Routes.phone);
+    expect(authRedirect(session, Routes.home), Routes.phone);
     expect(authRedirect(session, Routes.otp), Routes.phone);
     expect(authRedirect(session, Routes.phone), isNull);
   });
 
   test('numéro non vérifié → code SMS (modification du numéro autorisée)', () {
     final session = AsyncData<AppUser?>(_user(verified: false));
-    expect(authRedirect(session, Routes.search), Routes.otp);
+    expect(authRedirect(session, Routes.home), Routes.otp);
     expect(authRedirect(session, Routes.login), Routes.otp);
     expect(authRedirect(session, Routes.otp), isNull);
     expect(authRedirect(session, Routes.phone), isNull);
   });
 
-  test('téléphone vérifié → application, écrans d’entrée renvoyés vers Rechercher', () {
+  test('téléphone vérifié → application, écrans d’entrée renvoyés vers l’accueil', () {
     final session = AsyncData<AppUser?>(_user());
-    expect(authRedirect(session, Routes.search), isNull);
+    expect(authRedirect(session, Routes.home), isNull);
+    expect(authRedirect(session, Routes.vehicle), isNull);
     expect(authRedirect(session, Routes.profile), isNull);
-    expect(authRedirect(session, Routes.splash), Routes.search);
-    expect(authRedirect(session, Routes.login), Routes.search);
-    expect(authRedirect(session, Routes.otp), Routes.search);
+    expect(authRedirect(session, Routes.splash), Routes.home);
+    expect(authRedirect(session, Routes.login), Routes.home);
+    expect(authRedirect(session, Routes.otp), Routes.home);
   });
 }

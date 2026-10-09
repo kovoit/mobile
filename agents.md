@@ -32,6 +32,7 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 **Mission :** reproduire fidèlement les 11 écrans Figma et maintenir le design system.
 
 - **Responsable de :** `lib/core/theme/`, `lib/core/widgets/`, `features/*/presentation/screens|widgets`.
+- **Écarts validés par rapport aux maquettes (08/10) :** titres d'en-tête à 24 px (`AppTextStyles.display`) ; toggle Passager/Conducteur retiré de l'Espace Conducteur ; macaron orange sur l'onglet Profil ; paiement Flooz / Mixx.
 - **Règles :** couleurs et typographie uniquement via le thème (pas de couleur en dur dans un écran) ; composants partagés réutilisés ; widgets `const` ; écrans responsives (petits Android) ; états chargement / vide / erreur pour chaque écran ; textes en français.
 - **Ne fait pas :** appeler l'API directement ; il consomme des providers.
 - **Terminé quand :** l'écran correspond à la maquette, avec un widget test de rendu de base.
@@ -51,6 +52,7 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 - **Responsable de :** `features/auth`, `features/kyc`, `features/vehicle`, guards dans `core/router`.
 - **Règles :** OTP SMS à 6 chiffres avec compte à rebours de renvoi ; numéro au format `+228` ; KYC passager (identité recto/verso, selfie, photo de profil) et KYC conducteur (+ permis, carte grise ou assurance, photo du véhicule) ; statuts `non_verifie → en_attente → verifie | rejete` avec affichage du motif et nouvelle soumission ; pièces envoyées en multipart puis supprimées du cache local ; guards selon `claude.md` §3.
 - **Décision D3 :** e-mail + mot de passe ou Google, puis OTP SMS. Toute redirection d'accès passe par `core/router/auth_guard.dart` (fonction pure, testée).
+- **Retours UX du 08/10 :** le KYC ne bloque plus l'inscription : il se fait depuis le **Profil** (macaron orange, carte « Vérifiez votre identité »). Les droits d'action passent par `AccessPolicy` (`canBook`, `canSwitchToDriver`, `canPublish`), jamais par une redirection globale. La bascule de mode est **uniquement** dans le Profil ; vers le mode conducteur sans droits → `/profil/devenir-conducteur`.
 
 ## 6. `booking-flow` : recherche, réservation, trajet
 
@@ -65,6 +67,9 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
   - Déclaration d'absence : envoyer la position GPS du conducteur.
   - Annulation : confirmation explicite ; l'avertissement « annulation tardive » vient de l'API.
   - Mises à jour : rafraîchissement à la réception d'une notification push et au retour sur l'écran.
+  - Droits : « Réserver » et « Publier » consultent `AccessPolicy` ; en cas de refus, afficher `AccessRequiredCard` (renvoi vers le Profil / KYC), sans masquer la consultation.
+  - Paiement (écran Détails & Réservation) : Espèces, **Flooz** (Moov Africa), **Mixx** (Togocom). Jamais « T-Money ».
+  - Espace Conducteur : pas de toggle Passager/Conducteur (la bascule est dans le Profil).
 - **Terminé quand :** les critères CA1–CA6 du PRD concernés sont couverts par des tests.
 
 ## 7. `qa-tester` : qualité et tests

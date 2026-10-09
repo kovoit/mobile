@@ -9,22 +9,45 @@ import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/phone_number_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/kyc/domain/entities/kyc_dossier.dart';
+import '../../features/kyc/presentation/screens/kyc_screen.dart';
+import '../../features/kyc/presentation/screens/kyc_submitted_screen.dart';
+import '../../features/profile/presentation/screens/become_driver_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/shell/presentation/screens/component_catalog_screen.dart';
+import '../../features/shell/presentation/screens/home_screen.dart';
 import '../../features/shell/presentation/screens/home_shell.dart';
 import '../../features/shell/presentation/screens/placeholder_screen.dart';
+import '../../features/vehicle/presentation/screens/vehicle_form_screen.dart';
 import '../config/env.dart';
 import 'auth_guard.dart';
 import 'routes.dart';
 
+/// Navigateur racine : les sous-écrans du Profil s'ouvrent en plein écran, sans la barre du bas.
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
 /// Routeur de l'application. Les redirections d'accès sont centralisées dans [authRedirect].
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // Relance l'évaluation des redirections à chaque changement de session.
+  // Relance l'évaluation des redirections uniquement quand un champ utile à [authRedirect] change.
+  // Un rafraîchissement de l'utilisateur (KYC envoyé, véhicule, mode) ne doit pas reconstruire
+  // la pile de navigation : il entrerait en concurrence avec un `pop()` en cours.
   final sessionChanges = ValueNotifier<int>(0);
-  ref.listen(sessionControllerProvider, (_, _) => sessionChanges.value++);
+  ref.listen(
+    sessionControllerProvider.select(
+      (s) => (
+        s.isLoading,
+        s.hasError,
+        s.value == null,
+        s.value?.hasTelephone,
+        s.value?.telephoneVerifie,
+      ),
+    ),
+    (_, _) => sessionChanges.value++,
+  );
   ref.onDispose(sessionChanges.dispose);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.splash,
     debugLogDiagnostics: Env.isDev,
     refreshListenable: sessionChanges,
@@ -40,16 +63,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) => HomeShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: Routes.search,
-                builder: (context, state) => const PlaceholderScreen(
-                  title: 'Rechercher un trajet',
-                  subtitle: 'Le même chemin, à plusieurs. Et moins cher.',
-                  sprint: 'S3',
-                ),
-              ),
-            ],
+            routes: [GoRoute(path: Routes.home, builder: (context, state) => const HomeScreen())],
           ),
           StatefulShellBranch(
             routes: [
@@ -65,7 +79,37 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(path: Routes.profile, builder: (context, state) => const ProfileScreen()),
+              GoRoute(
+                path: Routes.profile,
+                builder: (context, state) => const ProfileScreen(),
+                routes: [
+                  GoRoute(
+                    path: Routes.kycSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    redirect: (context, state) =>
+                        KycType.fromApi(state.pathParameters['type']) == null ? Routes.profile : null,
+                    builder: (context, state) => KycScreen(type: KycType.fromApi(state.pathParameters['type'])!),
+                    routes: [
+                      GoRoute(
+                        path: Routes.kycSubmittedSegment,
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) =>
+                            KycSubmittedScreen(type: KycType.fromApi(state.pathParameters['type'])!),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: Routes.vehicleSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const VehicleFormScreen(),
+                  ),
+                  GoRoute(
+                    path: Routes.becomeDriverSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) => const BecomeDriverScreen(),
+                  ),
+                ],
+              ),
             ],
           ),
         ],

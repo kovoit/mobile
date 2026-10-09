@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
+import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
@@ -11,7 +12,7 @@ import '../../domain/repositories/auth_repository.dart';
 
 /// Source de données : fausse API en mémoire tant que le backend n'est pas prêt (Env.useMockApi).
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
-  if (Env.useMockApi) return FakeAuthRemoteDataSource(ref.watch(tokenStorageProvider));
+  if (Env.useMockApi) return FakeAuthRemoteDataSource(ref.watch(fakeBackendProvider));
   return DioAuthRemoteDataSource(ref.watch(dioProvider));
 });
 

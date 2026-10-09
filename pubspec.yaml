@@ -28,6 +28,9 @@ dependencies:
   # Authentification
   google_sign_in: ^7.2.0
 
+  # Capture des pièces KYC (photo / galerie)
+  image_picker: ^1.2.4
+
   # Sérialisation (DTO)
   json_annotation: ^4.12.0
 

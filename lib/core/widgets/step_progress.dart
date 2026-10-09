@@ -48,8 +48,22 @@ class StepProgress extends StatelessWidget {
           if (stepLabels.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.xs),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [for (final label in stepLabels) Text(label, style: AppTextStyles.caption)],
+              children: [
+                for (final (index, label) in stepLabels.indexed)
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: index == 0
+                          ? TextAlign.start
+                          : index == stepLabels.length - 1
+                              ? TextAlign.end
+                              : TextAlign.center,
+                    ),
+                  ),
+              ],
             ),
           ],
         ],

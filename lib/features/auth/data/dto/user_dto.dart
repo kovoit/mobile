@@ -20,6 +20,7 @@ class UserDto {
     this.suspenduJusquAu,
     this.kycPassager,
     this.kycConducteur,
+    this.vehiculeDeclare = false,
   });
 
   factory UserDto.fromJson(Map<String, dynamic> json) => _$UserDtoFromJson(json);
@@ -36,6 +37,7 @@ class UserDto {
   final DateTime? suspenduJusquAu;
   final String? kycPassager;
   final String? kycConducteur;
+  final bool vehiculeDeclare;
 
   Map<String, dynamic> toJson() => _$UserDtoToJson(this);
 
@@ -52,5 +54,6 @@ class UserDto {
         suspenduJusquAu: suspenduJusquAu,
         kycPassager: KycStatus.fromApi(kycPassager),
         kycConducteur: KycStatus.fromApi(kycConducteur),
+        vehiculeDeclare: vehiculeDeclare,
       );
 }

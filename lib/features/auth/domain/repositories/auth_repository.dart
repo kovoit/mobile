@@ -21,6 +21,12 @@ abstract interface class AuthRepository {
 
   Future<AppUser> updatePhone(String telephone);
 
+  /// Relit l'utilisateur (après un envoi KYC, une déclaration de véhicule…).
+  Future<AppUser> refreshUser();
+
+  /// Bascule passager ↔ conducteur. Lève `ForbiddenApiException` si le mode conducteur est refusé.
+  Future<AppUser> updateMode(UserMode mode);
+
   Future<OtpChallenge> sendOtp();
 
   Future<AppUser> verifyOtp(String code);

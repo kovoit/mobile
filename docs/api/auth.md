@@ -20,14 +20,18 @@ Décision D3 (PRD §14) : **email + mot de passe, ou Google**, puis **vérificat
   "statut_compte": "actif",
   "suspendu_jusqu_au": null,
   "kyc_passager": "non_verifie",
-  "kyc_conducteur": "non_verifie"
+  "kyc_conducteur": "non_verifie",
+  "vehicule_declare": false
 }
 ```
 
 - `telephone` peut être `null` (compte créé via Google sans numéro).
 - `mode_actif` : `passager` | `conducteur`.
 - `statut_compte` : `actif` | `suspendu`.
-- `kyc_*` : `non_verifie` | `en_attente` | `verifie` | `rejete`.
+- `kyc_*` : `non_verifie` | `en_attente` | `verifie` | `rejete` (calculés depuis les dossiers, voir [kyc.md](kyc.md)).
+- `vehicule_declare` : `true` dès qu'un véhicule est enregistré (voir [vehicle.md](vehicle.md)).
+
+> **Retour UX du 08/10 :** l'inscription ne bloque plus sur le KYC. Un compte au téléphone vérifié accède à l'application ; seules les actions sensibles sont refusées (403) tant que le KYC n'est pas `verifie`.
 
 ## Réponse d'authentification
 
@@ -47,6 +51,7 @@ Renvoyée par `register`, `login` et `google` :
 | POST | `/auth/token/refresh/` | `refresh` | 200 `{"access", "refresh"?}` | 401 |
 | POST | `/auth/logout/` | `refresh` | 205 (refresh mis en liste noire) | — |
 | GET | `/auth/me/` | — | 200 `user` | 401 |
+| PATCH | `/auth/me/mode/` | `mode_actif` (`passager` \| `conducteur`) | 200 `user` | 403 `{"detail"}` si vers `conducteur` sans `kyc_passager` + `kyc_conducteur` = `verifie` et `vehicule_declare`, ou compte suspendu |
 | PATCH | `/auth/me/telephone/` | `telephone` | 200 `user` (`telephone_verifie` repasse à false) | 400 numéro invalide ou déjà utilisé |
 | POST | `/auth/otp/send/` | — (numéro du compte) | 200 `{"telephone", "expire_dans": 300, "renvoi_dans": 30}` | 429 `{"detail", "renvoi_dans"}` trop de demandes |
 | POST | `/auth/otp/verify/` | `code` (6 chiffres) | 200 `user` (`telephone_verifie: true`) | 400 code invalide ou expiré |
