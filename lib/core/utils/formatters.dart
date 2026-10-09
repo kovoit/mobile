@@ -23,10 +23,16 @@ abstract final class Formatters {
   /// `07:30`
   static String time(DateTime dateTime) => DateFormat('HH:mm', 'fr').format(toLome(dateTime));
 
-  /// `1.2 km` / `850 m` : affichage d'une distance renvoyée par l'API.
+  /// `1,2 km` / `850 m` : affichage d'une distance renvoyée par l'API (virgule décimale française).
   static String distanceKm(double km) {
     if (km < 1) return '${(km * 1000).round()} m';
-    return '${km.toStringAsFixed(1)} km';
+    return '${km.toStringAsFixed(1).replaceAll('.', ',')} km';
+  }
+
+  /// `25 min` / `1 h 05`
+  static String durationMin(int minutes) {
+    if (minutes < 60) return '$minutes min';
+    return '${minutes ~/ 60} h ${(minutes % 60).toString().padLeft(2, '0')}';
   }
 
   /// `1 place restante` / `3 places restantes`

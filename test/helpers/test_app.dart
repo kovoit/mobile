@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -6,10 +9,48 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/app.dart';
 import 'package:kovoit/core/mock/fake_backend.dart';
 import 'package:kovoit/core/storage/token_storage.dart';
+import 'package:kovoit/core/utils/clock.dart';
+import 'package:kovoit/core/widgets/map_preview.dart';
 import 'package:kovoit/features/auth/data/services/google_auth_service.dart';
 import 'package:kovoit/features/auth/presentation/providers/auth_providers.dart';
 import 'package:kovoit/features/kyc/data/services/document_capture_service.dart';
 import 'package:kovoit/features/kyc/presentation/providers/kyc_providers.dart';
+import 'package:kovoit/features/search/domain/repositories/search_repository.dart';
+import 'package:kovoit/features/search/presentation/providers/search_providers.dart';
+
+/// Recherches récentes en mémoire (pas de SharedPreferences en test de widgets).
+class InMemoryRecentSearches implements RecentSearchRepository {
+  final List<RecentSearch> items = [];
+
+  @override
+  Future<List<RecentSearch>> load() async => List.of(items);
+
+  @override
+  Future<List<RecentSearch>> remember(RecentSearch search) async {
+    items
+      ..removeWhere((r) => r.depart == search.depart && r.arrivee == search.arrivee)
+      ..insert(0, search);
+    return List.of(items);
+  }
+}
+
+/// Tuiles de carte transparentes : ni réseau ni cache disque en test.
+class TransparentTileProvider extends TileProvider {
+  /// PNG 1×1 transparent.
+  static final Uint8List _png = Uint8List.fromList([
+    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, //
+    0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+    0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x63, 0x00, 0x01, 0x00, 0x00,
+    0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+    0x42, 0x60, 0x82,
+  ]);
+
+  @override
+  ImageProvider getImage(TileCoordinates coordinates, TileLayer options) => MemoryImage(_png);
+}
+
+/// Heure fixe des tests : jeudi 08 octobre 2026, 07:20 à Lomé → formulaire pré-rempli à 07:30.
+final DateTime kTestNow = DateTime.utc(2026, 10, 8, 7, 20);
 
 /// Stockage de jetons en mémoire (le plugin sécurisé n'existe pas en test).
 class InMemoryTokenStorage extends TokenStorage {
@@ -82,6 +123,10 @@ class TestEnv {
   final InMemoryTokenStorage storage;
   late final FakeBackend backend;
   final FakeCaptureService camera = FakeCaptureService();
+  final InMemoryRecentSearches recentSearches = InMemoryRecentSearches();
+
+  /// Horloge des tests, modifiable avant le lancement de l'app.
+  DateTime now = kTestNow;
 
   List<Override> get overrides => [
         tokenStorageProvider.overrideWithValue(storage),
@@ -89,6 +134,9 @@ class TestEnv {
         googleAuthServiceProvider.overrideWithValue(FakeGoogleAuthService()),
         documentCaptureServiceProvider.overrideWithValue(camera),
         splashMinDurationProvider.overrideWithValue(Duration.zero),
+        recentSearchRepositoryProvider.overrideWithValue(recentSearches),
+        mapTileProviderProvider.overrideWithValue(TransparentTileProvider()),
+        clockProvider.overrideWithValue(() => now),
       ];
 }
 

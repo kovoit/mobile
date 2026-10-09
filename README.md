@@ -28,9 +28,10 @@ Tant que le backend n'est pas prêt, `flutter run` utilise une fausse API en mé
 - code SMS : `123456` ;
 - « Continuer avec Google » simule un compte sans numéro (écran de saisie du numéro) ;
 - le compte démo a un KYC passager validé ; un nouvel inscrit arrive sans KYC (macaron orange dans le Profil) ;
-- Profil → « Mode démo » : **Valider / Refuser les dossiers** simule la décision de l'administrateur (KYC en attente).
+- Profil → « Mode démo » : **Valider / Refuser les dossiers** simule la décision de l'administrateur (KYC en attente) ;
+- recherche de démo : **Carrefour Franciscain → Université de Lomé**, en voiture vers **07:30** (3 trajets) ou en moto vers 07:35. Autres trajets : Agoè-Zongo → Grand Marché (07:15), Bè Kpota → Port (moto, 08:00), Baguida → Déckon (17:30). Fenêtre de ± 15 min.
 
-Pour viser le vrai backend : `--dart-define=USE_MOCK_API=false`. Contrats : [auth](docs/api/auth.md), [KYC](docs/api/kyc.md), [véhicule](docs/api/vehicle.md).
+Pour viser le vrai backend : `--dart-define=USE_MOCK_API=false`. Contrats : [auth](docs/api/auth.md), [KYC](docs/api/kyc.md), [véhicule](docs/api/vehicle.md), [recherche & trajets](docs/api/trips.md).
 
 ## Connexion Google (à configurer avant le vrai backend)
 

@@ -16,6 +16,24 @@ abstract final class Routes {
   static const String myTrips = '/mes-trajets';
   static const String profile = '/profil';
 
+  // Recherche (S3), sous l'onglet Accueil
+  static const String searchResultsSegment = 'resultats';
+  static const String placePickerSegment = 'lieu';
+  static const String mapPickerSegment = 'carte';
+  static const String tripDetailSegment = 'trajets/:id';
+
+  /// Résultats : critères dans les paramètres d'URL (`SearchQuery.toQueryParameters`).
+  static const String searchResults = '$home/$searchResultsSegment';
+
+  /// Choix d'un lieu ; `champ` = `depart` | `arrivee`. Renvoie un `GeoPlace` via `pop`.
+  static String placePicker(String champ) => '$home/$placePickerSegment?champ=$champ';
+
+  /// Choix d'un point sur la carte. Renvoie un `GeoPlace` via `pop`.
+  static const String mapPicker = '$home/$placePickerSegment/$mapPickerSegment';
+
+  /// Détail d'un trajet (maquette « Détails & Réservation »).
+  static String tripDetail(int id, {int places = 1}) => '$home/trajets/$id?places=$places';
+
   // Sous-écrans du Profil (S2), plein écran sans barre du bas
   static const String kycSegment = 'verification/:type';
   static const String kycSubmittedSegment = 'envoye';

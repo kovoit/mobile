@@ -25,7 +25,7 @@ void main() {
     final env = await pumpKovoitApp(tester, env: TestEnv.newUserSession());
 
     // Tableau de bord accessible, réservation restreinte.
-    expect(find.text('Rechercher un trajet'), findsOneWidget);
+    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
     expect(find.text('Vérifiez votre identité'), findsOneWidget);
     expect(_profileBadgeVisible(tester), isTrue);
 
@@ -115,6 +115,6 @@ void main() {
 
     await _openProfile(tester);
     await _tap(tester, find.text('Passer en mode passager'));
-    expect(find.text('Rechercher un trajet'), findsOneWidget);
+    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
   });
 }

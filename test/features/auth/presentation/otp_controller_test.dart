@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/features/auth/domain/entities/otp_challenge.dart';
 import 'package:kovoit/features/auth/domain/repositories/auth_repository.dart';
 import 'package:kovoit/features/auth/presentation/providers/auth_providers.dart';

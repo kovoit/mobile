@@ -9,6 +9,7 @@ export 'kovoit_logo.dart';
 export 'kovoit_text_field.dart';
 export 'map_preview.dart';
 export 'otp_code_input.dart';
+export 'picker_field.dart';
 export 'place_stepper.dart';
 export 'price_tag.dart';
 export 'primary_button.dart';

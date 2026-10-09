@@ -22,6 +22,7 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Cartographie | **OpenStreetMap gratuit** : `flutter_map` + `latlong2`, tuiles OSM ; itinéraires/distances fournis par le backend (OSRM) |
 | Géolocalisation | `geolocator` |
 | Photos KYC | `image_picker` (selfie : caméra frontale uniquement) ; contrats : [docs/api/kyc.md](docs/api/kyc.md), [docs/api/vehicle.md](docs/api/vehicle.md) |
+| Recherche | Lieux connus + recherche + détail : [docs/api/trips.md](docs/api/trips.md) ; recherches récentes dans `shared_preferences` (données non sensibles) |
 | Notifications | `firebase_messaging` (push) |
 | Partage | `share_plus` (« Partager mon trajet ») |
 | Formats | `intl` (FCFA, dates, fuseau `Africa/Lome`) |
@@ -97,6 +98,10 @@ features/<feature>/
 | `/connexion`, `/inscription`, `/mot-de-passe-oublie` | Auth (S1) | déconnecté uniquement |
 | `/telephone`, `/verification-sms` | Saisie du numéro, OTP SMS | connecté, téléphone non vérifié |
 | `/accueil` *(onglet 1)* | Passager : « Rechercher un trajet » · Conducteur : « Espace Conducteur » | téléphone vérifié |
+| `/accueil/resultats?…` | « Conducteurs disponibles » (critères dans l'URL, barre du bas visible) | téléphone vérifié |
+| `/accueil/lieu?champ=depart\|arrivee` | Choix d'un lieu connu (plein écran, renvoie un `GeoPlace`) | téléphone vérifié |
+| `/accueil/lieu/carte` | Choix d'un point sur la carte OSM (plein écran) | téléphone vérifié |
+| `/accueil/trajets/:id?places=n` | « Détails & Réservation » (consultation en S3, réservation en S4) | téléphone vérifié |
 | `/mes-trajets` *(onglet 2)* | Réservations / trajets publiés (S4) | téléphone vérifié |
 | `/profil` *(onglet 3)* | Profil : KYC, véhicule, bascule de mode, macaron orange | téléphone vérifié |
 | `/profil/verification/:type` | KYC `passager` ou `conducteur` (plein écran) | téléphone vérifié |
@@ -153,6 +158,9 @@ Le mobile propose seulement les actions autorisées pour le statut courant, tel 
 - **Composants partagés** (`core/widgets/`) : `KovoitAppBar` (retour + logo + badge « Lomé »), `PrimaryButton`, `SegmentedToggle` (Connexion/Inscription, Moto/Voiture), `KovoitTextField` (icône), `OtpCodeInput` (6 cases), `VerifiedBadge`, `StatusChip`, `InfoBanner`, `RatingLabel`, `DriverCard`, `PriceTag`, `PlaceStepper` (− n +), `StepProgress`, `MapPreview`.
 - **Bascule de mode** : uniquement dans le Profil (bouton « Passer en mode conducteur / passager »). Ne pas reproduire le toggle Passager/Conducteur de la maquette « Espace Conducteur ».
 - **Macaron orange** (`AppColors.accent`) : action attendue de l'utilisateur (KYC), sur l'onglet Profil et la ligne concernée.
+- **Heure de Lomé** : les dates saisies (recherche, publication) sont stockées en `DateTime.utc` = heure murale de Lomé, quel que soit le fuseau du téléphone. Ne jamais utiliser `DateTime(...)` local pour une date métier.
+- **Montants** : afficher `prix_place`, `frais_service`, `prix_total` tels que renvoyés par l'API. Ne jamais multiplier un prix par un nombre de places dans l'app.
+- **Cartes** : passer `ref.watch(mapTileProviderProvider)` à toute carte (`MapPreview`, `FlutterMap`) pour qu'elle soit testable.
 - **Deux codes à ne pas confondre** : OTP SMS à **6 chiffres** (vérification du téléphone) ≠ code de départ à **4 chiffres** (prise en charge).
 - **Paiement mobile** : libellés **Flooz** (Moov Africa) et **Mixx** (Togocom). Ne jamais afficher « T-Money ». Le traitement réel reste soumis à D5/D7 (PRD §14).
 - Bouton « Message » de la maquette : hors MVP (D4), ne pas implémenter de logique.

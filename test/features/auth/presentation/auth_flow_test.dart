@@ -22,7 +22,7 @@ void main() {
     await tester.enterText(_field('Mot de passe'), DemoAccount.password);
     await _tapButton(tester, 'Se connecter');
 
-    expect(find.text('Rechercher un trajet'), findsOneWidget);
+    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
   });
 
   testWidgets('Connexion refusée : message d’erreur, reste sur l’écran', (tester) async {
@@ -74,7 +74,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Retour UX : plus de blocage KYC à l'inscription. L'accueil s'ouvre avec la restriction affichée.
-    expect(find.text('Rechercher un trajet'), findsOneWidget);
+    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
     expect(find.text('Vérifiez votre identité'), findsOneWidget);
   });
 

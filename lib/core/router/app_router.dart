@@ -14,10 +14,15 @@ import '../../features/kyc/presentation/screens/kyc_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_submitted_screen.dart';
 import '../../features/profile/presentation/screens/become_driver_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/search/domain/entities/search_query.dart';
+import '../../features/search/presentation/screens/map_picker_screen.dart';
+import '../../features/search/presentation/screens/place_picker_screen.dart';
+import '../../features/search/presentation/screens/search_results_screen.dart';
 import '../../features/shell/presentation/screens/component_catalog_screen.dart';
 import '../../features/shell/presentation/screens/home_screen.dart';
 import '../../features/shell/presentation/screens/home_shell.dart';
 import '../../features/shell/presentation/screens/placeholder_screen.dart';
+import '../../features/trip/presentation/screens/trip_detail_screen.dart';
 import '../../features/vehicle/presentation/screens/vehicle_form_screen.dart';
 import '../config/env.dart';
 import 'auth_guard.dart';
@@ -63,7 +68,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state, navigationShell) => HomeShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
-            routes: [GoRoute(path: Routes.home, builder: (context, state) => const HomeScreen())],
+            routes: [
+              GoRoute(
+                path: Routes.home,
+                builder: (context, state) => const HomeScreen(),
+                routes: [
+                  // Résultats : barre du bas visible (maquette « Conducteurs disponibles »).
+                  GoRoute(
+                    path: Routes.searchResultsSegment,
+                    redirect: (context, state) =>
+                        SearchQuery.fromQueryParameters(state.uri.queryParameters) == null ? Routes.home : null,
+                    builder: (context, state) =>
+                        SearchResultsScreen(query: SearchQuery.fromQueryParameters(state.uri.queryParameters)!),
+                  ),
+                  GoRoute(
+                    path: Routes.placePickerSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    builder: (context, state) =>
+                        PlacePickerScreen(isDepart: state.uri.queryParameters['champ'] != 'arrivee'),
+                    routes: [
+                      GoRoute(
+                        path: Routes.mapPickerSegment,
+                        parentNavigatorKey: _rootNavigatorKey,
+                        builder: (context, state) => const MapPickerScreen(),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: Routes.tripDetailSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    redirect: (context, state) =>
+                        int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.home : null,
+                    builder: (context, state) => TripDetailScreen(
+                      tripId: int.parse(state.pathParameters['id']!),
+                      places: (int.tryParse(state.uri.queryParameters['places'] ?? '') ?? 1).clamp(1, 8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           StatefulShellBranch(
             routes: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../theme/app_colors.dart';
@@ -8,6 +9,14 @@ import '../theme/app_text_styles.dart';
 
 /// Centre de Lomé, position par défaut de la carte.
 const LatLng kLomeCenter = LatLng(6.1319, 1.2228);
+
+/// URL des tuiles OpenStreetMap (serveurs publics : usage de développement, voir README).
+const String kOsmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const String kOsmUserAgent = 'com.kovoit.kovoit';
+
+/// Fournisseur de tuiles des cartes. `null` = réseau avec cache par défaut ;
+/// surchargé dans les tests (pas de réseau ni de `path_provider`).
+final mapTileProviderProvider = Provider<TileProvider?>((ref) => null);
 
 /// Aperçu de carte OpenStreetMap (écrans « Conducteurs disponibles » et « Suivi du trajet »).
 /// Le tracé [route] et les positions viennent de l'API (OSRM côté backend) :
@@ -24,6 +33,7 @@ class MapPreview extends StatelessWidget {
     this.height = 190,
     this.interactive = false,
     this.tileProvider,
+    this.badge,
   });
 
   final LatLng start;
@@ -36,10 +46,11 @@ class MapPreview extends StatelessWidget {
   final bool interactive;
 
   /// Injectable pour les tests (le cache de tuiles par défaut exige path_provider).
+  /// Les écrans passent `ref.watch(mapTileProviderProvider)`.
   final TileProvider? tileProvider;
 
-  static const String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  static const String _userAgent = 'com.kovoit.kovoit';
+  /// Étiquette au centre de la carte, ex. « 25 min · 8,4 km » (valeurs fournies par l'API).
+  final String? badge;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +72,7 @@ class MapPreview extends StatelessWidget {
               ),
             ),
             children: [
-              TileLayer(urlTemplate: _tileUrl, userAgentPackageName: _userAgent, tileProvider: tileProvider),
+              TileLayer(urlTemplate: kOsmTileUrl, userAgentPackageName: kOsmUserAgent, tileProvider: tileProvider),
               PolylineLayer(
                 polylines: [Polyline(points: points, strokeWidth: 5, color: AppColors.primary)],
               ),
@@ -75,6 +86,7 @@ class MapPreview extends StatelessWidget {
               ),
               if (startLabel != null) _CornerLabel(text: startLabel!, alignment: Alignment.bottomLeft),
               if (endLabel != null) _CornerLabel(text: endLabel!, alignment: Alignment.topRight),
+              if (badge != null) _CornerLabel(text: badge!, alignment: Alignment.center),
               const RichAttributionWidget(
                 showFlutterMapAttribution: false,
                 attributions: [TextSourceAttribution('© OpenStreetMap')],

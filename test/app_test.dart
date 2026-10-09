@@ -16,7 +16,7 @@ void main() {
   testWidgets('Session existante : arrivée directe sur l’accueil passager', (tester) async {
     await pumpKovoitApp(tester, env: TestEnv.demoSession());
 
-    expect(find.text('Rechercher un trajet'), findsOneWidget);
+    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
     expect(find.text('Mes trajets'), findsOneWidget);
   });
 

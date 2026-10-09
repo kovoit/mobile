@@ -20,6 +20,7 @@ dependencies:
   # Réseau & stockage
   dio: ^5.11.1
   flutter_secure_storage: ^11.2.0
+  shared_preferences: ^2.5.6 # préférences non sensibles (recherches récentes)
 
   # Cartographie OpenStreetMap
   flutter_map: ^8.3.2

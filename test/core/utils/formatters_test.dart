@@ -24,9 +24,15 @@ void main() {
     test('date longue avec majuscule', () => expect(Formatters.longDate(departure), 'Jeudi 08 octobre'));
   });
 
-  test('distanceKm', () {
-    expect(Formatters.distanceKm(1.2), '1.2 km');
+  test('distanceKm (virgule décimale)', () {
+    expect(Formatters.distanceKm(1.2), '1,2 km');
+    expect(Formatters.distanceKm(8.4), '8,4 km');
     expect(Formatters.distanceKm(0.85), '850 m');
+  });
+
+  test('durationMin', () {
+    expect(Formatters.durationMin(25), '25 min');
+    expect(Formatters.durationMin(65), '1 h 05');
   });
 
   test('placesRemaining gère le singulier', () {

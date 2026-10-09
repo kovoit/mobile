@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/utils/clock.dart';
 import 'auth_providers.dart';
 
 class OtpState {
@@ -65,8 +66,5 @@ class OtpController extends Notifier<OtpState> {
   /// Après un changement de numéro, le prochain passage sur l'écran renverra un code.
   void reset() => state = const OtpState();
 }
-
-/// Horloge injectable (surchargée dans les tests).
-final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 final otpControllerProvider = NotifierProvider<OtpController, OtpState>(OtpController.new);

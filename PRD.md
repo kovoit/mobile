@@ -222,7 +222,7 @@ Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique
 | S0 Socle | Projet Flutter, arborescence, thème Figma, widgets communs, Dio, router, environnements, mocks API |
 | S1 Auth | Splash, inscription, connexion, OTP SMS, tokens |
 | S2 KYC + Véhicule + Profil | KYC depuis le Profil (passager 4 pièces, conducteur 3 pièces), statut et motif de rejet, déclaration du véhicule, macaron orange, accès restreint sur l'accueil, bascule de mode |
-| S3 Recherche | Formulaire, résultats, carte OSM, profil conducteur |
+| S3 Recherche | Formulaire (lieux connus ou point sur la carte, Moto/Voiture, date/heure de Lomé, places), recherches récentes, résultats + carte OSM de l'itinéraire, détail du trajet en consultation (profil conducteur, fiabilité, véhicule, prix renvoyés par l'API) |
 | S4 Réservation passager | Détails, demande, statuts, code de départ, annulation, partage du trajet |
 | S5 Conducteur | Espace conducteur (bascule déjà faite en S2), publication (1–3 points), demandes, saisie du code, absence, clôture, économies |
 | S6 Après trajet | Confirmation, notation, signalement, notifications push |
