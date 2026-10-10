@@ -8,6 +8,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/app.dart';
 import 'package:kovoit/core/mock/fake_backend.dart';
+import 'package:kovoit/core/mock/fake_bookings.dart';
+import 'package:kovoit/core/mock/fake_driver.dart';
+import 'package:kovoit/core/services/location_service.dart';
+import 'package:kovoit/core/services/external_actions.dart';
 import 'package:kovoit/core/storage/token_storage.dart';
 import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/core/widgets/map_preview.dart';
@@ -47,6 +51,33 @@ class TransparentTileProvider extends TileProvider {
 
   @override
   ImageProvider getImage(TileCoordinates coordinates, TileLayer options) => MemoryImage(_png);
+}
+
+/// Appels et partages capturés au lieu d'ouvrir le système.
+class RecordingExternalActions implements ExternalActions {
+  final List<String> calls = [];
+  final List<String> shares = [];
+
+  @override
+  Future<bool> call(String phoneNumber) async {
+    calls.add(phoneNumber);
+    return true;
+  }
+
+  @override
+  Future<void> share(String text, {String? subject}) async => shares.add(text);
+}
+
+/// Position simulée (Carrefour Franciscain par défaut).
+class FakeLocationService implements LocationService {
+  LocationResult result = const LocationFound(6.1660, 1.1650);
+  int calls = 0;
+
+  @override
+  Future<LocationResult> currentPosition() async {
+    calls++;
+    return result;
+  }
 }
 
 /// Heure fixe des tests : jeudi 08 octobre 2026, 07:20 à Lomé → formulaire pré-rempli à 07:30.
@@ -97,8 +128,13 @@ class FakeCaptureService implements DocumentCaptureService {
 class TestEnv {
   TestEnv({String? accessToken}) : storage = InMemoryTokenStorage() {
     storage.access = accessToken;
-    backend = FakeBackend(storage, latency: Duration.zero);
+    backend = FakeBackend(storage, latency: Duration.zero, clock: () => now);
+    bookings = FakeBookings(backend);
+    driver = FakeDriver(backend);
   }
+
+  /// Session du conducteur de démo (Yao Agbodjan : KYC validés, Toyota Yaris 5 places, mode conducteur).
+  factory TestEnv.driverSession() => TestEnv(accessToken: 'mock-access-2');
 
   /// Session du compte démo (Kodjo Mensah, téléphone et KYC passager vérifiés).
   factory TestEnv.demoSession() => TestEnv(accessToken: 'mock-access-1');
@@ -122,6 +158,14 @@ class TestEnv {
 
   final InMemoryTokenStorage storage;
   late final FakeBackend backend;
+
+  /// Réservations simulées (permet de jouer le rôle du conducteur dans les tests).
+  late final FakeBookings bookings;
+
+  /// Règles conducteur simulées (trajets publiés, demandes fictives).
+  late final FakeDriver driver;
+  final FakeLocationService location = FakeLocationService();
+  final RecordingExternalActions externalActions = RecordingExternalActions();
   final FakeCaptureService camera = FakeCaptureService();
   final InMemoryRecentSearches recentSearches = InMemoryRecentSearches();
 
@@ -137,6 +181,10 @@ class TestEnv {
         recentSearchRepositoryProvider.overrideWithValue(recentSearches),
         mapTileProviderProvider.overrideWithValue(TransparentTileProvider()),
         clockProvider.overrideWithValue(() => now),
+        fakeBookingsProvider.overrideWithValue(bookings),
+        fakeDriverProvider.overrideWithValue(driver),
+        locationServiceProvider.overrideWithValue(location),
+        externalActionsProvider.overrideWithValue(externalActions),
       ];
 }
 

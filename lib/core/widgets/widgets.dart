@@ -7,6 +7,7 @@ export 'kovoit_app_bar.dart';
 export 'kovoit_card.dart';
 export 'kovoit_logo.dart';
 export 'kovoit_text_field.dart';
+export 'lome_pickers.dart';
 export 'map_preview.dart';
 export 'otp_code_input.dart';
 export 'picker_field.dart';

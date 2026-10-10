@@ -68,8 +68,9 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
   - Annulation : confirmation explicite ; l'avertissement « annulation tardive » vient de l'API.
   - Mises à jour : rafraîchissement à la réception d'une notification push et au retour sur l'écran.
   - Droits : « Réserver » et « Publier » consultent `AccessPolicy` ; en cas de refus, afficher `AccessRequiredCard` (renvoi vers le Profil / KYC), sans masquer la consultation.
-  - Paiement (écran Détails & Réservation) : Espèces, **Flooz** (Moov Africa), **Mixx** (Togocom). Jamais « T-Money ».
-  - Espace Conducteur : pas de toggle Passager/Conducteur (la bascule est dans le Profil).
+  - Paiement (écran Détails & Réservation) : Espèces, **Flooz** (Moov Africa) ou **Mixx** (Togocom), au choix du passager (D5/D7). Paiement mobile après acceptation seulement. Jamais « T-Money ».
+  - Actions d'une réservation : uniquement celles du champ `actions` de l'API (`Booking.can`). Appel et partage via `ExternalActions` (simulable en test).
+  - Espace Conducteur : pas de toggle Passager/Conducteur (la bascule est dans le Profil). Prix recommandé fourni par l'API (`/trajets/prix/`), jamais saisi. Le conducteur **saisit** le code de départ (`DepartureCodeDialog`), il ne le voit jamais. Absence : position via `LocationService`.
 - **Terminé quand :** les critères CA1–CA6 du PRD concernés sont couverts par des tests.
 
 ## 7. `qa-tester` : qualité et tests

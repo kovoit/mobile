@@ -23,6 +23,8 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Géolocalisation | `geolocator` |
 | Photos KYC | `image_picker` (selfie : caméra frontale uniquement) ; contrats : [docs/api/kyc.md](docs/api/kyc.md), [docs/api/vehicle.md](docs/api/vehicle.md) |
 | Recherche | Lieux connus + recherche + détail : [docs/api/trips.md](docs/api/trips.md) ; recherches récentes dans `shared_preferences` (données non sensibles) |
+| Espace conducteur | Publication, demandes, code, absence, économies : [docs/api/driver.md](docs/api/driver.md) ; `geolocator` derrière `LocationService` (`core/services`), position au premier plan uniquement |
+| Réservation & paiement | Espèces / Flooz / Mixx au choix (D5/D7) : [docs/api/bookings.md](docs/api/bookings.md) ; `url_launcher` (appeler) et `share_plus` (partager) derrière `ExternalActions` (`core/services`) |
 | Notifications | `firebase_messaging` (push) |
 | Partage | `share_plus` (« Partager mon trajet ») |
 | Formats | `intl` (FCFA, dates, fuseau `Africa/Lome`) |
@@ -102,7 +104,9 @@ features/<feature>/
 | `/accueil/lieu?champ=depart\|arrivee` | Choix d'un lieu connu (plein écran, renvoie un `GeoPlace`) | téléphone vérifié |
 | `/accueil/lieu/carte` | Choix d'un point sur la carte OSM (plein écran) | téléphone vérifié |
 | `/accueil/trajets/:id?places=n` | « Détails & Réservation » (consultation en S3, réservation en S4) | téléphone vérifié |
-| `/mes-trajets` *(onglet 2)* | Réservations / trajets publiés (S4) | téléphone vérifié |
+| `/mes-trajets` *(onglet 2)* | Réservations du passager (à venir, historique) ; trajets publiés en S5 | téléphone vérifié |
+| `/mes-trajets/reservations/:id` | « Suivi du trajet & Code de départ » (plein écran) | téléphone vérifié |
+| `/mes-trajets/publies/:id` | Gestion d'un trajet publié : demandes, code, absence, fin (plein écran) | mode conducteur |
 | `/profil` *(onglet 3)* | Profil : KYC, véhicule, bascule de mode, macaron orange | téléphone vérifié |
 | `/profil/verification/:type` | KYC `passager` ou `conducteur` (plein écran) | téléphone vérifié |
 | `/profil/verification/:type/envoye` | « Dossier envoyé » / « Profil vérifié » | téléphone vérifié |
@@ -147,7 +151,9 @@ demandee ──► acceptee ──► en_cours ──► terminee ──► clot
 
 **Trajet :** `publie` → `complet` (places_restantes = 0) → `en_cours` → `termine` | `annule`.
 
-Le mobile propose seulement les actions autorisées pour le statut courant, tel que renvoyé par l'API.
+Le mobile propose seulement les actions autorisées pour le statut courant, tel que renvoyé par l'API : champ `actions` de la réservation (`annuler`, `payer`, `partager`, `appeler`, testé via `Booking.can(...)`), de la demande vue par le conducteur (`accepter`, `refuser`, `saisir_code`, `declarer_absence`) et du trajet publié (`annuler`, `terminer`). Ne jamais déduire une action du seul statut.
+
+Tant que les notifications push (S6) ne sont pas branchées, l'écran de suivi relit la réservation toutes les 15 s, et toutes les 3 s pendant un paiement mobile (2 min au plus). Le sondage compte les ticks du minuteur, pas l'horloge murale.
 
 ---
 
@@ -162,7 +168,7 @@ Le mobile propose seulement les actions autorisées pour le statut courant, tel 
 - **Montants** : afficher `prix_place`, `frais_service`, `prix_total` tels que renvoyés par l'API. Ne jamais multiplier un prix par un nombre de places dans l'app.
 - **Cartes** : passer `ref.watch(mapTileProviderProvider)` à toute carte (`MapPreview`, `FlutterMap`) pour qu'elle soit testable.
 - **Deux codes à ne pas confondre** : OTP SMS à **6 chiffres** (vérification du téléphone) ≠ code de départ à **4 chiffres** (prise en charge).
-- **Paiement mobile** : libellés **Flooz** (Moov Africa) et **Mixx** (Togocom). Ne jamais afficher « T-Money ». Le traitement réel reste soumis à D5/D7 (PRD §14).
+- **Paiement** : Espèces, **Flooz** (Moov Africa) ou **Mixx** (Togocom), au choix du passager (D5/D7 tranchées). Paiement mobile **après acceptation** uniquement. Ne jamais afficher « T-Money ».
 - Bouton « Message » de la maquette : hors MVP (D4), ne pas implémenter de logique.
 
 ---
@@ -181,7 +187,7 @@ flutter build apk --dart-define=ENV=prod --dart-define=GOOGLE_SERVER_CLIENT_ID=.
 
 **API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource branchée sur le `FakeBackend` partagé (`core/mock`), qui respecte les contrats de `docs/api/` et les règles serveur (statuts KYC, droits du mode conducteur). Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123` (KYC passager validé), OTP `123456`. Dans le Profil, des boutons « Valider / Refuser les dossiers » simulent la décision de l'administrateur.
 
-**Tests** : `test/helpers/test_app.dart` fournit `pumpKovoitApp`, `TestEnv` (`demoSession()`, `newUserSession()`, backend sans latence, caméra simulée) et `scrollAndTap`. Aucune vraie entrée/sortie disque ou réseau dans les tests de widgets : passer par un service injectable.
+**Tests** : `test/helpers/test_app.dart` fournit `pumpKovoitApp`, `TestEnv` (`demoSession()`, `newUserSession()`, `driverSession()`, horloge `now` modifiable, backend sans latence, caméra, localisation, appel et partage simulés) et `scrollAndTap` ; `test/helpers/flows.dart` les parcours réutilisables. Aucune vraie entrée/sortie disque ou réseau dans les tests de widgets : passer par un service injectable. Un appel direct au backend simulé depuis le corps d'un test de widgets passe par `tester.runAsync` (sinon son délai ne s'écoule jamais).
 
 ---
 
@@ -192,8 +198,8 @@ Ces points sont contradictoires entre la spécification, le PRD et les maquettes
 1. Calcul du prix : grille 200/300/500 F par distance (spéc.), aucun prix (PRD), ou formule au km (ancienne version de ce fichier). Dans tous les cas, le mobile **affiche** le prix renvoyé par l'API.
 2. Frais de service Kovoit : 0 F pendant le pilote (spéc., maquettes) ou 10 %.
 3. ~~Authentification~~ → **tranché** : e-mail + mot de passe ou Google, puis OTP SMS.
-4. Bouton « Message » (hors MVP selon la spéc.). Paiement mobile : libellés tranchés (Flooz / Mixx), traitement réel en attente (D5/D7).
+4. Bouton « Message » (hors MVP selon la spéc.) : non affiché sur le suivi, seul « Appeler » l'est.
 5. Backend : DRF seul ou DRF + FastAPI.
-6. Paiement : espèces uniquement pour le MVP ?
+6. ~~Paiement~~ → **tranché** : espèces ou Flooz / Mixx au choix. Restent ouverts : agrégateur et frais de transaction.
 
 Les paramètres administrateur (prix du litre, rayons, délais, seuils) sont décrits dans le PRD §10 et ne concernent le mobile qu'en lecture.

@@ -2,23 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import '../../../helpers/flows.dart';
 import '../../../helpers/test_app.dart';
 
-/// Choisit un lieu dans l'écran « Point de départ » / « Destination » en tapant une partie de son nom.
-Future<void> _choosePlace(WidgetTester tester, String field, String typed, String placeLabel) async {
-  await scrollAndTap(tester, find.text(field));
-  await tester.enterText(find.byType(TextFormField), typed);
-  await tester.pump(const Duration(milliseconds: 350)); // anti-rebond de la saisie
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(placeLabel));
-  await tester.pumpAndSettle();
-}
-
-Future<void> _searchFranciscainToUniversity(WidgetTester tester) async {
-  await _choosePlace(tester, 'Carrefour, quartier, repère…', 'franc', 'Carrefour Franciscain');
-  await _choosePlace(tester, 'Où allez-vous ?', 'univ', 'Université de Lomé · Entrée sud');
-  await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Rechercher un trajet'));
-}
+Future<void> _searchFranciscainToUniversity(WidgetTester tester) => searchFranciscainToUniversity(tester);
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));

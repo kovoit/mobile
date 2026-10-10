@@ -35,6 +35,10 @@ void main() {
     expect(ApiException.fromDio(_response(409)), isA<ConflictApiException>());
   });
 
+  test('429 devient TooManyAttemptsApiException', () {
+    expect(ApiException.fromDio(_response(429, {'detail': 'Trop d’essais.'})), isA<TooManyAttemptsApiException>());
+  });
+
   test('5xx devient ServerApiException', () {
     expect(ApiException.fromDio(_response(503)), isA<ServerApiException>());
   });

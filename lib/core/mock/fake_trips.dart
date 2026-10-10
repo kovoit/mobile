@@ -215,6 +215,9 @@ abstract final class FakeTrips {
       .replaceAll(RegExp('[ùûü]'), 'u')
       .trim();
 
+  /// Distance « par la route » simulée (vol d'oiseau × 1,3), en km.
+  static double roadKm(double lat1, double lng1, double lat2, double lng2) => _km(lat1, lng1, lat2, lng2) * 1.3;
+
   /// Distance à vol d'oiseau (Haversine), en km.
   static double _km(double lat1, double lng1, double lat2, double lng2) {
     const earthRadiusKm = 6371.0;

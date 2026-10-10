@@ -9,6 +9,9 @@ import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/phone_number_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/booking/presentation/screens/booking_screen.dart';
+import '../../features/booking/presentation/screens/my_trips_screen.dart';
+import '../../features/driver/presentation/screens/driver_trip_screen.dart';
 import '../../features/kyc/domain/entities/kyc_dossier.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_submitted_screen.dart';
@@ -21,7 +24,6 @@ import '../../features/search/presentation/screens/search_results_screen.dart';
 import '../../features/shell/presentation/screens/component_catalog_screen.dart';
 import '../../features/shell/presentation/screens/home_screen.dart';
 import '../../features/shell/presentation/screens/home_shell.dart';
-import '../../features/shell/presentation/screens/placeholder_screen.dart';
 import '../../features/trip/presentation/screens/trip_detail_screen.dart';
 import '../../features/vehicle/presentation/screens/vehicle_form_screen.dart';
 import '../config/env.dart';
@@ -85,7 +87,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: Routes.placePickerSegment,
                     parentNavigatorKey: _rootNavigatorKey,
                     builder: (context, state) =>
-                        PlacePickerScreen(isDepart: state.uri.queryParameters['champ'] != 'arrivee'),
+                        PlacePickerScreen(field: PlaceField.fromParam(state.uri.queryParameters['champ'])),
                     routes: [
                       GoRoute(
                         path: Routes.mapPickerSegment,
@@ -112,11 +114,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: Routes.myTrips,
-                builder: (context, state) => const PlaceholderScreen(
-                  title: 'Mes trajets',
-                  subtitle: 'Vos réservations et trajets publiés.',
-                  sprint: 'S4',
-                ),
+                builder: (context, state) => const MyTripsScreen(),
+                routes: [
+                  GoRoute(
+                    path: Routes.bookingSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    redirect: (context, state) =>
+                        int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.myTrips : null,
+                    builder: (context, state) => BookingScreen(bookingId: int.parse(state.pathParameters['id']!)),
+                  ),
+                  GoRoute(
+                    path: Routes.driverTripSegment,
+                    parentNavigatorKey: _rootNavigatorKey,
+                    redirect: (context, state) =>
+                        int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.myTrips : null,
+                    builder: (context, state) => DriverTripScreen(tripId: int.parse(state.pathParameters['id']!)),
+                  ),
+                ],
               ),
             ],
           ),

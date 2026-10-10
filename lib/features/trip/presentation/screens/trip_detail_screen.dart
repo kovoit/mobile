@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -9,29 +11,71 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/domain/access_policy.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
+import '../../../booking/domain/entities/booking.dart';
+import '../../../booking/presentation/providers/booking_providers.dart';
+import '../../../booking/presentation/widgets/payment_method_selector.dart';
 import '../../../kyc/presentation/widgets/access_required_card.dart';
 import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/entities/trip.dart';
 import '../providers/trip_providers.dart';
 
-/// Maquette « Détails & Réservation », partie consultation (S3) : prise en charge, conducteur
-/// (note, fiabilité), véhicule (photo + immatriculation), prix. Réservation et paiement : S4.
-class TripDetailScreen extends ConsumerWidget {
+/// Maquette « Détails & Réservation » : prise en charge, conducteur (note, fiabilité), véhicule
+/// (photo + immatriculation), prix renvoyés par l'API, choix du paiement et demande de place (CA2).
+class TripDetailScreen extends ConsumerStatefulWidget {
   const TripDetailScreen({super.key, required this.tripId, this.places = 1});
 
   final int tripId;
   final int places;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TripDetailScreen> createState() => _TripDetailScreenState();
+}
+
+class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
+  PaymentMethod _method = PaymentMethod.especes;
+  bool _submitting = false;
+
+  int get tripId => widget.tripId;
+  int get places => widget.places;
+
+  Future<void> _book(Trip trip) async {
+    final pickup = trip.matchedPickup;
+    if (pickup == null) return;
+    setState(() => _submitting = true);
+    try {
+      final booking = await ref.read(bookingRequesterProvider).request(
+            tripId: trip.id,
+            places: places,
+            pickupPointId: pickup.id,
+            method: _method,
+          );
+      if (mounted) context.pushReplacement(Routes.booking(booking.id));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      // Places ou disponibilité changées : on relit le trajet.
+      if (e is ConflictApiException || e is NotFoundApiException) ref.invalidate(tripDetailProvider((tripId, places)));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final trip = ref.watch(tripDetailProvider((tripId, places)));
     final user = ref.watch(sessionControllerProvider).value;
     final denial = user == null ? null : AccessPolicy.canBook(user);
+    // Demande déjà en cours sur ce trajet : on renvoie vers son suivi plutôt que d'en créer une autre.
+    final existing = ref
+        .watch(myBookingsProvider)
+        .value
+        ?.where((b) => b.trip.id == tripId && b.status.isUpcoming)
+        .firstOrNull;
 
     return Scaffold(
       appBar: const KovoitAppBar(),
       body: switch (trip) {
-        AsyncValue(:final value?) => _content(value, denial, user?.suspenduJusquAu),
+        AsyncValue(:final value?) => _content(value, denial, user?.suspenduJusquAu, hasExisting: existing != null),
         AsyncValue(:final error?) => Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
@@ -54,11 +98,22 @@ class TripDetailScreen extends ConsumerWidget {
           ),
         _ => const Center(child: CircularProgressIndicator()),
       },
-      bottomNavigationBar: trip.hasValue && denial == null ? const _BookingBar() : null,
+      bottomNavigationBar: switch (trip.value) {
+        Trip() when existing != null => _BookingBar(
+            label: 'Voir ma réservation',
+            onPressed: () => context.pushReplacement(Routes.booking(existing.id)),
+          ),
+        final value? when denial == null => _BookingBar(
+            label: 'Réserver ma place',
+            isLoading: _submitting,
+            onPressed: value.placesRestantes >= places ? () => _book(value) : null,
+          ),
+        _ => null,
+      },
     );
   }
 
-  Widget _content(Trip trip, AccessDenial? denial, DateTime? suspendedUntil) {
+  Widget _content(Trip trip, AccessDenial? denial, DateTime? suspendedUntil, {required bool hasExisting}) {
     final isMoto = trip.vehicle.type == VehicleType.moto;
     final pickup = trip.matchedPickup;
     return ListView(
@@ -77,13 +132,26 @@ class TripDetailScreen extends ConsumerWidget {
         const SizedBox(height: AppSpacing.md),
         if (denial != null)
           AccessRequiredCard(denial: denial, suspendedUntil: suspendedUntil)
-        else
+        else if (hasExisting)
           const InfoBanner(
-            icon: Icons.payments_outlined,
-            tone: InfoBannerTone.accent,
-            title: 'Paiement et réservation : bientôt disponibles',
-            subtitle: 'Espèces, Flooz ou Mixx (sprint S4).',
+            icon: Icons.event_available_rounded,
+            title: 'Vous avez déjà une demande sur ce trajet.',
+          )
+        else ...[
+          PaymentMethodSelector(
+            selected: _method,
+            enabled: !_submitting,
+            onChanged: (method) => setState(() => _method = method),
           ),
+          if (trip.placesRestantes < places) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const InfoBanner(
+              icon: Icons.event_busy_rounded,
+              tone: InfoBannerTone.error,
+              title: 'Plus assez de places sur ce trajet.',
+            ),
+          ],
+        ],
         const SizedBox(height: AppSpacing.md),
         const Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -359,16 +427,19 @@ class _PriceRow extends StatelessWidget {
   }
 }
 
-/// Bouton de la maquette, désactivé jusqu'au sprint S4 (réservation + paiement).
 class _BookingBar extends StatelessWidget {
-  const _BookingBar();
+  const _BookingBar({required this.label, required this.onPressed, this.isLoading = false});
+
+  final String label;
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
+    return SafeArea(
       child: Padding(
-        padding: EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.xs, AppSpacing.screenPadding, AppSpacing.sm),
-        child: PrimaryButton(label: 'Réserver ma place', onPressed: null),
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.xs, AppSpacing.screenPadding, AppSpacing.sm),
+        child: PrimaryButton(label: label, isLoading: isLoading, onPressed: onPressed),
       ),
     );
   }

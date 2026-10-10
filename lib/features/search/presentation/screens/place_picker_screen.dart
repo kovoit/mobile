@@ -13,12 +13,30 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../trip/domain/entities/geo_place.dart';
 import '../providers/search_providers.dart';
 
-/// Choix d'un lieu : lieux connus de Lomé (carrefours, quartiers, repères) ou point sur la carte.
-/// Renvoie le [GeoPlace] choisi via `context.pop`.
-class PlacePickerScreen extends ConsumerStatefulWidget {
-  const PlacePickerScreen({super.key, required this.isDepart});
+/// Champ pour lequel on choisit un lieu (paramètre `champ` de la route).
+enum PlaceField {
+  depart('depart', 'Point de départ', 'Un carrefour, un quartier ou un repère connu.'),
+  arrivee('arrivee', 'Destination', 'Un carrefour, un quartier ou un repère connu.'),
+  carrefour('carrefour', 'Carrefour de prise en charge', 'Un repère sur votre chemin, où les passagers vous rejoindront.');
 
-  final bool isDepart;
+  const PlaceField(this.param, this.title, this.subtitle);
+
+  final String param;
+  final String title;
+  final String subtitle;
+
+  static PlaceField fromParam(String? value) =>
+      values.firstWhere((f) => f.param == value, orElse: () => PlaceField.depart);
+}
+
+/// Choix d'un lieu : lieux connus de Lomé (carrefours, quartiers, repères) ou point sur la carte.
+/// Renvoie le [GeoPlace] choisi via `context.pop`. Sert à la recherche et à la publication.
+class PlacePickerScreen extends ConsumerStatefulWidget {
+  const PlacePickerScreen({super.key, required this.field});
+
+  final PlaceField field;
+
+  bool get isDepart => field != PlaceField.arrivee;
 
   @override
   ConsumerState<PlacePickerScreen> createState() => _PlacePickerScreenState();
@@ -62,10 +80,7 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ScreenHeader(
-                  title: widget.isDepart ? 'Point de départ' : 'Destination',
-                  subtitle: 'Un carrefour, un quartier ou un repère connu.',
-                ),
+                ScreenHeader(title: widget.field.title, subtitle: widget.field.subtitle),
                 const SizedBox(height: AppSpacing.md),
                 KovoitTextField(
                   controller: _controller,

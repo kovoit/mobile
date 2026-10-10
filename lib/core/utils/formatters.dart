@@ -20,6 +20,18 @@ abstract final class Formatters {
     return text[0].toUpperCase() + text.substring(1);
   }
 
+  /// `Octobre`
+  static String monthName(DateTime dateTime) {
+    final text = DateFormat('MMMM', 'fr').format(toLome(dateTime));
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
+  /// `Jeu. 08 oct.`
+  static String shortDate(DateTime dateTime) {
+    final text = DateFormat('EEE dd MMM', 'fr').format(toLome(dateTime));
+    return text[0].toUpperCase() + text.substring(1);
+  }
+
   /// `07:30`
   static String time(DateTime dateTime) => DateFormat('HH:mm', 'fr').format(toLome(dateTime));
 

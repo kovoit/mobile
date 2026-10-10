@@ -25,7 +25,7 @@ abstract final class Routes {
   /// Résultats : critères dans les paramètres d'URL (`SearchQuery.toQueryParameters`).
   static const String searchResults = '$home/$searchResultsSegment';
 
-  /// Choix d'un lieu ; `champ` = `depart` | `arrivee`. Renvoie un `GeoPlace` via `pop`.
+  /// Choix d'un lieu ; `champ` = `depart` | `arrivee` | `carrefour`. Renvoie un `GeoPlace` via `pop`.
   static String placePicker(String champ) => '$home/$placePickerSegment?champ=$champ';
 
   /// Choix d'un point sur la carte. Renvoie un `GeoPlace` via `pop`.
@@ -33,6 +33,18 @@ abstract final class Routes {
 
   /// Détail d'un trajet (maquette « Détails & Réservation »).
   static String tripDetail(int id, {int places = 1}) => '$home/trajets/$id?places=$places';
+
+  // Réservations (S4), sous l'onglet Mes trajets
+  static const String bookingSegment = 'reservations/:id';
+
+  /// Suivi d'une réservation (maquette « Suivi du trajet & Code de départ »), plein écran.
+  static String booking(int id) => '$myTrips/reservations/$id';
+
+  // Espace conducteur (S5), sous l'onglet Mes trajets
+  static const String driverTripSegment = 'publies/:id';
+
+  /// Gestion d'un trajet publié : demandes, code de départ, absence, fin du trajet. Plein écran.
+  static String driverTrip(int id) => '$myTrips/publies/$id';
 
   // Sous-écrans du Profil (S2), plein écran sans barre du bas
   static const String kycSegment = 'verification/:type';

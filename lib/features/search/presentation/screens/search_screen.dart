@@ -30,29 +30,19 @@ class SearchScreen extends ConsumerWidget {
   }
 
   Future<void> _pickDate(BuildContext context, WidgetRef ref) async {
-    // Dates en heure de Lomé (UTC) : on passe au sélecteur des dates « murales » sans fuseau.
-    final now = ref.read(clockProvider)().toUtc();
-    final today = DateTime(now.year, now.month, now.day);
-    final current = ref.read(searchFormProvider).dateTime;
-    final currentDay = DateTime(current.year, current.month, current.day);
-    final date = await showDatePicker(
-      context: context,
-      initialDate: currentDay.isBefore(today) ? today : currentDay,
-      firstDate: today,
-      lastDate: today.add(const Duration(days: 30)),
-      helpText: 'Date du trajet',
+    final date = await LomePickers.pickDate(
+      context,
+      now: ref.read(clockProvider)(),
+      current: ref.read(searchFormProvider).dateTime,
     );
     if (date != null) ref.read(searchFormProvider.notifier).setDate(date);
   }
 
   Future<void> _pickTime(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(searchFormProvider).dateTime;
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(current),
+    final time = await LomePickers.pickTime(
+      context,
+      current: ref.read(searchFormProvider).dateTime,
       helpText: 'Heure de départ souhaitée',
-      builder: (context, child) =>
-          MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),
     );
     if (time != null) ref.read(searchFormProvider.notifier).setTime(time.hour, time.minute);
   }

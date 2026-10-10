@@ -49,6 +49,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Kovoit utilise l’appareil photo pour vos pièces d’identité, votre selfie et la photo de votre véhicule.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Kovoit enregistre votre position lorsque vous déclarez un passager absent au point de prise en charge.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Kovoit accède à vos photos pour joindre vos pièces d’identité et la photo de votre véhicule.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

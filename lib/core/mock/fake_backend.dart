@@ -8,12 +8,31 @@ import '../storage/token_storage.dart';
 /// Il manipule le JSON des contrats `docs/api/*.md` pour que `core` ne dépende d'aucune feature.
 /// Il reproduit les règles serveur utiles au mobile (statuts KYC, droits du mode conducteur).
 class FakeBackend {
-  FakeBackend(this._tokenStorage, {this.latency = const Duration(milliseconds: 600)}) {
+  FakeBackend(
+    this._tokenStorage, {
+    this.latency = const Duration(milliseconds: 600),
+    DateTime Function()? clock,
+  }) : clock = clock ?? DateTime.now {
     _seedDemoAccount();
   }
 
   final TokenStorage _tokenStorage;
   final Duration latency;
+
+  /// Horloge « serveur » (injectable pour des tests déterministes).
+  final DateTime Function() clock;
+
+  /// Réservations simulées, par id (JSON interne, voir fake_bookings.dart).
+  final Map<int, Map<String, dynamic>> bookings = {};
+  int nextBookingId = 501;
+
+  /// Trajets publiés et demandes reçues par les conducteurs (voir fake_driver.dart).
+  final Map<int, Map<String, dynamic>> driverTrips = {};
+  int nextDriverTripId = 9001;
+  int nextDriverRequestId = 801;
+
+  /// Économies des conducteurs : lignes `{date, montant, places}` par utilisateur.
+  final Map<int, List<Map<String, dynamic>>> savings = {};
 
   final Map<int, FakeUserRecord> _users = {};
   final Map<int, Map<String, FakeKycDossier>> _kyc = {};
@@ -42,6 +61,43 @@ class FakeBackend {
     );
     // Le compte démo a un KYC passager validé : il peut réserver, pas encore publier.
     _kyc[1] = {'passager': FakeKycDossier(statut: 'verifie', pieces: {...kycPieces['passager']!})};
+
+    // Conducteur de démo : tous les droits, véhicule déclaré, en mode conducteur.
+    _users[2] = FakeUserRecord(
+      password: DemoAccount.password,
+      fields: {
+        'id': 2,
+        'prenom': 'Yao',
+        'nom': 'Agbodjan',
+        'email': DemoAccount.driverEmail,
+        'telephone': '+22891000002',
+        'telephone_verifie': true,
+        'photo': null,
+        'mode_actif': 'conducteur',
+        'statut_compte': 'actif',
+        'suspendu_jusqu_au': null,
+      },
+    );
+    _kyc[2] = {
+      'passager': FakeKycDossier(statut: 'verifie', pieces: {...kycPieces['passager']!}),
+      'conducteur': FakeKycDossier(statut: 'verifie', pieces: {...kycPieces['conducteur']!}),
+    };
+    _vehicles[2] = {
+      'id': 2,
+      'type': 'voiture',
+      'marque': 'Toyota',
+      'modele': 'Yaris',
+      'couleur': 'Gris',
+      'immatriculation': 'TG 4827 AU',
+      'nb_places': 5,
+      'statut_verification': 'verifie',
+    };
+    // Économies déjà réalisées ce mois-ci (maquette : 18 500 FCFA, 24 places partagées).
+    final now = clock().toUtc();
+    savings[2] = [
+      {'date': DateTime.utc(now.year, now.month).toIso8601String(), 'montant': 18500, 'places': 24},
+    ];
+    _nextId = 3;
   }
 
   /// Pièces attendues par type de dossier (voir docs/api/kyc.md).

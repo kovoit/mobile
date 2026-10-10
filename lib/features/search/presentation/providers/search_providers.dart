@@ -5,6 +5,7 @@ import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/clock.dart';
+import '../../../../core/utils/lome_time.dart';
 import '../../../trip/domain/entities/geo_place.dart';
 import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../data/datasources/search_remote_data_source.dart';
@@ -85,13 +86,7 @@ class SearchFormController extends Notifier<SearchForm> {
   DateTime _now() => ref.read(clockProvider)().toUtc();
 
   @override
-  SearchForm build() => SearchForm(dateTime: _nextQuarterHour(_now()));
-
-  /// Prochain quart d'heure : heure par défaut du formulaire.
-  static DateTime _nextQuarterHour(DateTime now) {
-    final base = DateTime.utc(now.year, now.month, now.day, now.hour);
-    return base.add(Duration(minutes: ((now.minute ~/ 15) + 1) * 15));
-  }
+  SearchForm build() => SearchForm(dateTime: LomeTime.nextQuarterHour(_now()));
 
   Map<SearchFormField, String> _without(SearchFormField field) => {...state.errors}..remove(field);
 
@@ -99,21 +94,15 @@ class SearchFormController extends Notifier<SearchForm> {
 
   void setArrivee(GeoPlace place) => state = state.copyWith(arrivee: place, errors: _without(SearchFormField.arrivee));
 
-  void setDate(DateTime date) {
-    final t = state.dateTime;
-    state = state.copyWith(
-      dateTime: DateTime.utc(date.year, date.month, date.day, t.hour, t.minute),
-      errors: _without(SearchFormField.dateTime),
-    );
-  }
+  void setDate(DateTime date) => state = state.copyWith(
+        dateTime: LomeTime.withDate(state.dateTime, date),
+        errors: _without(SearchFormField.dateTime),
+      );
 
-  void setTime(int hour, int minute) {
-    final d = state.dateTime;
-    state = state.copyWith(
-      dateTime: DateTime.utc(d.year, d.month, d.day, hour, minute),
-      errors: _without(SearchFormField.dateTime),
-    );
-  }
+  void setTime(int hour, int minute) => state = state.copyWith(
+        dateTime: LomeTime.withTime(state.dateTime, hour, minute),
+        errors: _without(SearchFormField.dateTime),
+      );
 
   void setPlaces(int places) => state = state.copyWith(places: places.clamp(1, state.maxPlaces));
 

@@ -39,6 +39,7 @@ sealed class ApiException implements Exception {
       403 => ForbiddenApiException(detail ?? "Vous n'avez pas les droits pour cette action."),
       404 => NotFoundApiException(detail ?? 'Ressource introuvable.'),
       409 => ConflictApiException(detail ?? 'Action impossible : la situation a changé, veuillez réessayer.'),
+      429 => TooManyAttemptsApiException(detail ?? 'Trop de tentatives. Réessayez plus tard.'),
       >= 500 => const ServerApiException(),
       _ => UnknownApiException(detail ?? 'Une erreur inattendue est survenue.'),
     };
@@ -103,6 +104,11 @@ final class NotFoundApiException extends ApiException {
 /// 409 : typiquement plus de place disponible ou statut déjà modifié.
 final class ConflictApiException extends ApiException {
   const ConflictApiException(super.message);
+}
+
+/// 429 : trop d'essais (code de départ, renvoi d'OTP…).
+final class TooManyAttemptsApiException extends ApiException {
+  const TooManyAttemptsApiException(super.message);
 }
 
 final class ServerApiException extends ApiException {

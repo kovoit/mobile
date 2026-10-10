@@ -32,6 +32,13 @@ dependencies:
   # Capture des pièces KYC (photo / galerie)
   image_picker: ^1.2.4
 
+  # Position du conducteur (déclaration d'absence, CA9)
+  geolocator: ^14.1.1
+
+  # Actions externes : appeler le conducteur, « Partager mon trajet »
+  url_launcher: ^6.3.3
+  share_plus: ^13.3.1
+
   # Sérialisation (DTO)
   json_annotation: ^4.12.0
 
