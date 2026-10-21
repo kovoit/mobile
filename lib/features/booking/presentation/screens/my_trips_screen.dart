@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -28,7 +29,7 @@ class MyTripsScreen extends ConsumerWidget {
     final isDriver = ref.watch(sessionControllerProvider).value?.isDriverMode ?? false;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false),
+      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(myBookingsProvider.notifier).refresh();

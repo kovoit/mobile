@@ -1,51 +1,44 @@
-# Contrat API — KYC (Sprint S2)
+# Contrat API — KYC (backend `kovoit/backend`, app `kyc`)
 
-Base : `/api/v1`. Authentification JWT requise. Validation **manuelle** par l'administrateur (MVP).
+Base : `/api/v1`. JWT requis. Réponses enveloppées `{statut, message, reponse}`. Validation **manuelle** par l'administrateur.
 
-Retour UX du 08/10 : le KYC ne bloque plus l'inscription. Il se fait depuis l'écran **Profil**. Tant qu'il n'est pas `verifie`, le backend refuse (403) la réservation, la publication et le passage en mode conducteur.
+Retour UX du 08/10 : le KYC ne bloque pas l'inscription. Il se fait depuis le **Profil**. Tant qu'il n'est pas `verifie`, le backend refuse (403) la réservation, la publication et le passage en mode conducteur.
 
-## Objet `dossier`
+## Objet `dossier` (`DossierSerializer`)
 
 ```json
 {
-  "type": "passager",
-  "statut": "rejete",
-  "motif_rejet": "Photo de la pièce illisible.",
-  "pieces": [
-    { "type_piece": "photo_profil", "fournie": true },
-    { "type_piece": "identite_recto", "fournie": true },
-    { "type_piece": "identite_verso", "fournie": false },
-    { "type_piece": "selfie", "fournie": false }
-  ]
+  "id": "…", "type": "conducteur", "statut": "rejete",
+  "motif_rejet": "Photo de la pièce illisible.", "soumis_le": "…", "traite_le": "…",
+  "pieces": [ { "id": "…", "type_piece": "identite", "cree_le": "…" }, { "id": "…", "type_piece": "assurance", "cree_le": "…" } ],
+  "pieces_manquantes": ["permis", "photo_vehicule", "selfie"]
 }
 ```
 
-- `type` : `passager` | `conducteur`.
-- `statut` : `non_verifie` → `en_attente` → `verifie` | `rejete`. Un dossier `rejete` porte `motif_rejet` et redevient modifiable.
-- Pièces attendues, **dans cet ordre** (ordre d'affichage de la maquette « Vérification d'identité ») :
+- `statut` : `non_verifie` → `en_attente` → `verifie` | `rejete`. Un dossier `rejete` porte `motif_rejet` (chaîne vide sinon) et redevient modifiable.
+- `pieces_manquantes` : emplacements vides. `carte_grise_ou_assurance` signale le document du véhicule manquant.
 
-| Dossier | Pièces |
+| Dossier | Pièces obligatoires |
 |---|---|
-| passager | `photo_profil`, `identite_recto`, `identite_verso`, `selfie` |
-| conducteur | `permis`, `carte_grise_ou_assurance`, `photo_vehicule` |
+| passager | `identite`, `selfie` |
+| conducteur | `identite`, `selfie`, `permis`, `photo_vehicule` + `carte_grise` **ou** `assurance` |
+
+> Le dossier conducteur redemande l'identité et le selfie : les pièces du dossier passager ne sont pas réutilisées par le backend, et le mobile ne garde aucune pièce sur l'appareil.
 
 ## Endpoints
 
 | Méthode | Chemin | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| GET | `/kyc/dossiers/` | — | 200 `[dossier passager, dossier conducteur]` (créés à `non_verifie` s'ils n'existent pas) | 401 |
-| POST | `/kyc/dossiers/{type}/pieces/` | multipart : `type_piece`, `fichier` (JPEG, ≤ 5 Mo) | 200 `dossier` | 400 type de pièce invalide ou fichier refusé · 409 dossier `en_attente` / `verifie` (non modifiable) |
-| POST | `/kyc/dossiers/{type}/soumettre/` | — | 200 `dossier` (`en_attente`) | 400 pièces manquantes · 403 dossier `conducteur` alors que le dossier `passager` est `non_verifie` |
+| GET | `/kyc/` | — | `[dossier passager, dossier conducteur]` (créés à `non_verifie`) | 401 |
+| POST | `/kyc/{type}/pieces/` | multipart : `type_piece`, `fichier` (JPEG, PNG ou PDF, ≤ 5 Mo) | 201 `dossier` | 400 pièce non demandée, fichier trop gros ou mauvais format · 409 `DOSSIER_NON_MODIFIABLE` |
+| POST | `/kyc/{type}/soumettre/` | — | `dossier` (`en_attente`) | 403 `PROFIL_INCOMPLET` · 400 `DOSSIER_INCOMPLET` (`erreurs.pieces_manquantes`) · 409 `DOSSIER_NON_MODIFIABLE` |
 
 Un nouvel envoi d'une pièce déjà fournie la **remplace**.
 
-## Règles serveur
-
-- Les pièces sont des données sensibles : stockage privé (pas d'URL publique), accès réservé à l'administrateur, journalisation de chaque consultation.
-- Après décision de l'administrateur (`verifie` / `rejete` + motif) : notification push à l'utilisateur, et mise à jour de `kyc_passager` / `kyc_conducteur` dans l'objet `user`.
-- Le dossier conducteur ne peut être soumis qu'après l'envoi du dossier passager (les pièces d'identité du passager en font partie).
-
 ## Côté mobile
 
+- Emplacements affichés (`KycSlot`, dans cet ordre) : identité, selfie, permis, carte grise ou assurance, photo du véhicule. Seuls ceux présents dans `pieces` ou `pieces_manquantes` sont affichés.
+- Pour « carte grise ou assurance », l'utilisateur choisit d'abord le document qu'il envoie.
 - Le fichier capturé est supprimé de l'appareil après l'envoi, que celui-ci réussisse ou non.
 - Le selfie se prend uniquement en direct (caméra frontale), jamais depuis la galerie.
+- Ordre conseillé (règle d'interface, non imposée par le backend) : le dossier conducteur s'ouvre une fois le dossier passager envoyé.

@@ -4,12 +4,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/notifications/presentation/notifications_providers.dart';
+import 'features/notifications/presentation/push_coordinator.dart';
 
-class KovoitApp extends ConsumerWidget {
+class KovoitApp extends ConsumerStatefulWidget {
   const KovoitApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<KovoitApp> createState() => _KovoitAppState();
+}
+
+class _KovoitAppState extends ConsumerState<KovoitApp> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // Retour au premier plan : on relit les notifications (statuts changés pendant l'absence).
+    _lifecycle = AppLifecycleListener(onResume: () => ref.read(notificationsProvider.notifier).refresh());
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(pushCoordinatorProvider);
     return MaterialApp.router(
       title: 'Kovoit',
       debugShowCheckedModeBanner: false,

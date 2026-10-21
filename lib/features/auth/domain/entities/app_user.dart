@@ -1,4 +1,4 @@
-/// Statut d'un dossier KYC (valeurs API : non_verifie, en_attente, verifie, rejete).
+﻿/// Statut d'un dossier KYC (valeurs API : non_verifie, en_attente, verifie, rejete).
 enum KycStatus {
   nonVerifie('non_verifie'),
   enAttente('en_attente'),
@@ -37,7 +37,7 @@ enum UserMode {
       values.firstWhere((m) => m.apiValue == value, orElse: () => UserMode.passager);
 }
 
-/// Utilisateur connecté, tel que renvoyé par l'API (`/auth/me/`).
+/// Utilisateur connecté, tel que renvoyé par l'API (`GET /moi/`).
 /// Les droits (réserver, publier) se déduisent de ces statuts, mais le backend fait foi.
 class AppUser {
   const AppUser({
@@ -46,7 +46,7 @@ class AppUser {
     required this.nom,
     required this.email,
     this.telephone,
-    this.telephoneVerifie = false,
+    this.profilComplet = true,
     this.photoUrl,
     this.modeActif = UserMode.passager,
     this.statutCompte = AccountStatus.actif,
@@ -56,14 +56,16 @@ class AppUser {
     this.vehiculeDeclare = false,
   });
 
-  final int id;
+  /// UUID côté backend.
+  final String id;
   final String prenom;
   final String nom;
   final String email;
 
-  /// `null` pour un compte créé via Google qui n'a pas encore saisi son numéro.
   final String? telephone;
-  final bool telephoneVerifie;
+
+  /// Prénom, nom et téléphone renseignés (obligatoire avant d'utiliser l'application).
+  final bool profilComplet;
   final String? photoUrl;
   final UserMode modeActif;
   final AccountStatus statutCompte;
@@ -88,7 +90,7 @@ class AppUser {
       other.nom == nom &&
       other.email == email &&
       other.telephone == telephone &&
-      other.telephoneVerifie == telephoneVerifie &&
+      other.profilComplet == profilComplet &&
       other.photoUrl == photoUrl &&
       other.modeActif == modeActif &&
       other.statutCompte == statutCompte &&
@@ -104,7 +106,7 @@ class AppUser {
         nom,
         email,
         telephone,
-        telephoneVerifie,
+        profilComplet,
         photoUrl,
         modeActif,
         statutCompte,

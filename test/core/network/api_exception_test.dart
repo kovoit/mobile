@@ -31,6 +31,25 @@ void main() {
     expect(error.message, 'KYC passager requis.');
   });
 
+  test('enveloppe Kovoit : message, code et erreurs détaillées', () {
+    final error = ApiException.fromDio(
+      _response(409, {
+        'statut': 'failed',
+        'message': 'Dossier incomplet.',
+        'reponse': {
+          'code': 'DOSSIER_INCOMPLET',
+          'erreurs': {
+            'pieces_manquantes': ['selfie'],
+          },
+        },
+      }),
+    );
+    expect(error, isA<ConflictApiException>());
+    expect(error.message, 'Dossier incomplet.');
+    expect(error.code, 'DOSSIER_INCOMPLET');
+    expect(error.details['pieces_manquantes'], ['selfie']);
+  });
+
   test('409 (plus de place) devient ConflictApiException', () {
     expect(ApiException.fromDio(_response(409)), isA<ConflictApiException>());
   });

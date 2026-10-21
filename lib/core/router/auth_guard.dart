@@ -7,9 +7,9 @@ import 'routes.dart';
 /// Fonction pure pour être testée sans widget. Retourne `null` si la route est autorisée.
 ///
 /// 1. Session en cours de restauration ou en erreur → Splash (qui affiche « Réessayer »).
-/// 2. Déconnecté → connexion / inscription / mot de passe oublié uniquement.
-/// 3. Connecté sans numéro → saisie du numéro ; numéro non vérifié → code SMS.
-/// 4. Téléphone vérifié → l'application ; les écrans d'auth renvoient vers l'accueil.
+/// 2. Déconnecté → saisie de l'e-mail et du code uniquement.
+/// 3. Connecté, profil incomplet (prénom, nom, téléphone) → complétion du profil.
+/// 4. Profil complet → l'application ; les écrans d'entrée renvoient vers l'accueil.
 ///
 /// Le KYC ne bloque PAS la navigation (retour UX du 08/10) : il se fait depuis le Profil.
 /// Réserver, publier et passer en mode conducteur sont contrôlés au moment de l'action
@@ -24,16 +24,11 @@ String? authRedirect(AsyncValue<AppUser?> session, String location) {
     return Routes.publicAuth.contains(location) ? null : Routes.login;
   }
 
-  if (!user.hasTelephone) {
-    return location == Routes.phone ? null : Routes.phone;
+  if (!user.profilComplet) {
+    return location == Routes.completeProfile ? null : Routes.completeProfile;
   }
 
-  if (!user.telephoneVerifie) {
-    return Routes.phoneVerification.contains(location) ? null : Routes.otp;
-  }
-
-  final onEntryScreen = location == Routes.splash ||
-      Routes.publicAuth.contains(location) ||
-      Routes.phoneVerification.contains(location);
+  final onEntryScreen =
+      location == Routes.splash || Routes.publicAuth.contains(location) || location == Routes.completeProfile;
   return onEntryScreen ? Routes.home : null;
 }

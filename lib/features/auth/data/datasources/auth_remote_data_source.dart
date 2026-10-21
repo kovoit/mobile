@@ -1,121 +1,55 @@
-import 'package:dio/dio.dart';
-
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_exception.dart';
-import '../dto/auth_response_dto.dart';
-import '../dto/otp_challenge_dto.dart';
-import '../dto/user_dto.dart';
+import '../../../../core/network/api_service.dart';
+import '../dto/connexion_dto.dart';
+import '../dto/profil_dto.dart';
 
-/// Appels HTTP d'authentification. Toute erreur est levée en [ApiException].
+/// Appels HTTP d'authentification et de profil. Toute erreur est levée en [ApiException].
 abstract interface class AuthRemoteDataSource {
-  Future<AuthResponseDto> login({required String email, required String password});
+  Future<void> requestCode(String email);
 
-  Future<AuthResponseDto> register({
-    required String nomComplet,
-    required String email,
-    required String telephone,
-    required String password,
-  });
+  Future<ConnexionDto> verifyCode({required String email, required String code});
 
-  Future<AuthResponseDto> loginWithGoogle(String idToken);
+  Future<ProfilDto> me();
 
-  Future<UserDto> me();
-
-  Future<UserDto> updatePhone(String telephone);
+  Future<ProfilDto> updateProfile({required String prenom, required String nom, required String telephone});
 
   /// `passager` | `conducteur`. 403 si le mode conducteur n'est pas autorisé.
-  Future<UserDto> updateMode(String mode);
-
-  Future<OtpChallengeDto> sendOtp();
-
-  Future<UserDto> verifyOtp(String code);
-
-  Future<void> requestPasswordReset(String email);
+  Future<ProfilDto> updateMode(String mode);
 
   Future<void> logout(String refreshToken);
 }
 
-class DioAuthRemoteDataSource implements AuthRemoteDataSource {
-  DioAuthRemoteDataSource(this._dio);
+class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
+  const ApiAuthRemoteDataSource(this._api);
 
-  final Dio _dio;
+  final ApiService _api;
 
-  Future<T> _call<T>(Future<T> Function() request) async {
-    try {
-      return await request();
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
-
-  Map<String, dynamic> _json(Response<dynamic> response) => response.data as Map<String, dynamic>;
+  static ProfilDto _profil(Object? json) => ProfilDto.fromJson(ApiService.asMap(json));
 
   @override
-  Future<AuthResponseDto> login({required String email, required String password}) => _call(() async {
-        final res = await _dio.post<dynamic>('/auth/login/', data: {'email': email, 'password': password});
-        return AuthResponseDto.fromJson(_json(res));
-      });
+  Future<void> requestCode(String email) =>
+      _api.post<void>(ApiEndpoints.otpDemander, body: {'email': email}, parse: (_) {});
 
   @override
-  Future<AuthResponseDto> register({
-    required String nomComplet,
-    required String email,
-    required String telephone,
-    required String password,
-  }) =>
-      _call(() async {
-        final res = await _dio.post<dynamic>('/auth/register/', data: {
-          'nom_complet': nomComplet,
-          'email': email,
-          'telephone': telephone,
-          'password': password,
-          'cgu_acceptees': true,
-        });
-        return AuthResponseDto.fromJson(_json(res));
-      });
+  Future<ConnexionDto> verifyCode({required String email, required String code}) => _api.post(
+        ApiEndpoints.otpVerifier,
+        body: {'email': email, 'code': code},
+        parse: (json) => ConnexionDto.fromJson(ApiService.asMap(json)),
+      );
 
   @override
-  Future<AuthResponseDto> loginWithGoogle(String idToken) => _call(() async {
-        final res = await _dio.post<dynamic>('/auth/google/', data: {'id_token': idToken});
-        return AuthResponseDto.fromJson(_json(res));
-      });
+  Future<ProfilDto> me() => _api.get(ApiEndpoints.moi, parse: _profil);
 
   @override
-  Future<UserDto> me() => _call(() async {
-        final res = await _dio.get<dynamic>('/auth/me/');
-        return UserDto.fromJson(_json(res));
-      });
+  Future<ProfilDto> updateProfile({required String prenom, required String nom, required String telephone}) =>
+      _api.patch(ApiEndpoints.moi, body: {'prenom': prenom, 'nom': nom, 'telephone': telephone}, parse: _profil);
 
   @override
-  Future<UserDto> updatePhone(String telephone) => _call(() async {
-        final res = await _dio.patch<dynamic>('/auth/me/telephone/', data: {'telephone': telephone});
-        return UserDto.fromJson(_json(res));
-      });
+  Future<ProfilDto> updateMode(String mode) =>
+      _api.patch(ApiEndpoints.moiMode, body: {'mode_actif': mode}, parse: _profil);
 
   @override
-  Future<UserDto> updateMode(String mode) => _call(() async {
-        final res = await _dio.patch<dynamic>('/auth/me/mode/', data: {'mode_actif': mode});
-        return UserDto.fromJson(_json(res));
-      });
-
-  @override
-  Future<OtpChallengeDto> sendOtp() => _call(() async {
-        final res = await _dio.post<dynamic>('/auth/otp/send/');
-        return OtpChallengeDto.fromJson(_json(res));
-      });
-
-  @override
-  Future<UserDto> verifyOtp(String code) => _call(() async {
-        final res = await _dio.post<dynamic>('/auth/otp/verify/', data: {'code': code});
-        return UserDto.fromJson(_json(res));
-      });
-
-  @override
-  Future<void> requestPasswordReset(String email) => _call(() async {
-        await _dio.post<dynamic>('/auth/password/reset/', data: {'email': email});
-      });
-
-  @override
-  Future<void> logout(String refreshToken) => _call(() async {
-        await _dio.post<dynamic>('/auth/logout/', data: {'refresh': refreshToken});
-      });
+  Future<void> logout(String refreshToken) =>
+      _api.post<void>(ApiEndpoints.deconnexion, body: {'refresh': refreshToken}, parse: (_) {});
 }

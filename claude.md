@@ -1,4 +1,4 @@
-# CLAUDE.md — Kovoit Mobile (MVP)
+﻿# CLAUDE.md — Kovoit Mobile (MVP)
 
 Kovoit : application mobile de covoiturage urbain à Lomé (Togo) basée sur le **partage des frais de carburant** (pas de profit, pas un service de taxi). Slogan : *« Même trajet, moins cher »*.
 
@@ -17,7 +17,7 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Navigation | `go_router` avec guards |
 | Réseau | `dio` + intercepteurs (JWT, refresh, erreurs) |
 | Modèles | DTO `json_serializable` (code généré `*.g.dart`, versionné) ; entités `domain` écrites à la main, immuables (pas de `freezed` : seule une préversion est compatible avec Dart 3.12) |
-| Authentification | E-mail + mot de passe ou Google (`google_sign_in` 7), puis OTP SMS — décision D3 ; contrat : [docs/api/auth.md](docs/api/auth.md) |
+| Authentification | Sans mot de passe : code à 6 chiffres envoyé par e-mail (backend), puis profil à compléter — décision D3 révisée le 10/10 ; contrat : [docs/api/auth.md](docs/api/auth.md) |
 | Stockage sécurisé | `flutter_secure_storage` (tokens) |
 | Cartographie | **OpenStreetMap gratuit** : `flutter_map` + `latlong2`, tuiles OSM ; itinéraires/distances fournis par le backend (OSRM) |
 | Géolocalisation | `geolocator` |
@@ -25,10 +25,10 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Recherche | Lieux connus + recherche + détail : [docs/api/trips.md](docs/api/trips.md) ; recherches récentes dans `shared_preferences` (données non sensibles) |
 | Espace conducteur | Publication, demandes, code, absence, économies : [docs/api/driver.md](docs/api/driver.md) ; `geolocator` derrière `LocationService` (`core/services`), position au premier plan uniquement |
 | Réservation & paiement | Espèces / Flooz / Mixx au choix (D5/D7) : [docs/api/bookings.md](docs/api/bookings.md) ; `url_launcher` (appeler) et `share_plus` (partager) derrière `ExternalActions` (`core/services`) |
-| Notifications | `firebase_messaging` (push) |
+| Notifications | Liste in-app (`/notifications/`) + push FCM (`firebase_messaging`) derrière `PushService` (`core/services`), activé par `--dart-define=PUSH_ENABLED=true` une fois Firebase configuré ; contrat : [docs/api/after_trip.md](docs/api/after_trip.md) |
 | Partage | `share_plus` (« Partager mon trajet ») |
 | Formats | `intl` (FCFA, dates, fuseau `Africa/Lome`) |
-| Backend consommé | Django REST Framework, JWT + OTP SMS, PostgreSQL/PostGIS |
+| Backend consommé | `kovoit/backend` : Django REST Framework, JWT (rotation), code e-mail, réponses `{statut, message, reponse}` ; client `core/network/api_service.dart` |
 
 ---
 
@@ -62,15 +62,16 @@ lib/
 │   ├── widgets/              # composants partagés (voir §5)
 │   └── utils/                # formatters (FCFA, dates), validators (téléphone +228)
 └── features/
-    ├── auth/                 # splash, connexion, inscription, OTP SMS, AccessPolicy (domain)
+    ├── auth/                 # splash, connexion par code e-mail, profil à compléter, AccessPolicy (domain)
     ├── kyc/                  # dossier passager/conducteur, pièces, selfie, statut, carte « accès restreint »
     ├── vehicle/              # déclaration du véhicule
     ├── search/               # recherche, résultats, carte
     ├── trip/                 # détail d'un trajet, publication (conducteur)
     ├── booking/              # réservation, suivi, code de départ, annulation, confirmation
     ├── driver/               # espace conducteur, demandes, saisie code, absence, clôture, économies
-    ├── rating/               # notation 1–5 ★
-    ├── report/               # signalement
+    ├── rating/               # notation 1–5 ★ (RatingSheet, passager et conducteur)
+    ├── report/               # signalement (motif + description → litige)
+    ├── notifications/        # cloche, liste, coordination du push
     ├── profile/              # profil (KYC, véhicule, macaron), bascule de mode, « Devenir conducteur »
     └── shell/                # BottomNav : Rechercher|Publier / Mes trajets / Profil, accueil selon le mode
 ```
@@ -98,7 +99,8 @@ features/<feature>/
 |---|---|---|
 | `/` | Splash (restauration de session) | tous |
 | `/connexion`, `/inscription`, `/mot-de-passe-oublie` | Auth (S1) | déconnecté uniquement |
-| `/telephone`, `/verification-sms` | Saisie du numéro, OTP SMS | connecté, téléphone non vérifié |
+| `/connexion/code` | Code reçu par e-mail | déconnecté |
+| `/completer-profil` | Prénom, nom, téléphone | connecté, profil incomplet |
 | `/accueil` *(onglet 1)* | Passager : « Rechercher un trajet » · Conducteur : « Espace Conducteur » | téléphone vérifié |
 | `/accueil/resultats?…` | « Conducteurs disponibles » (critères dans l'URL, barre du bas visible) | téléphone vérifié |
 | `/accueil/lieu?champ=depart\|arrivee` | Choix d'un lieu connu (plein écran, renvoie un `GeoPlace`) | téléphone vérifié |
@@ -112,6 +114,8 @@ features/<feature>/
 | `/profil/verification/:type/envoye` | « Dossier envoyé » / « Profil vérifié » | téléphone vérifié |
 | `/profil/vehicule` | Déclaration du véhicule | téléphone vérifié |
 | `/profil/devenir-conducteur` | Check-list avant le mode conducteur | téléphone vérifié |
+| `/notifications` | Liste des notifications (cloche des onglets) | téléphone vérifié |
+| `/signaler/:id?nom=…` | Signaler un problème sur une réservation (passager ou conducteur) | téléphone vérifié |
 | `/dev/composants` | Catalogue des composants | dev uniquement |
 
 Les redirections passent **toutes** par `core/router/auth_guard.dart` (fonction pure, testée). Le routeur ne se réévalue que si un champ utile à la garde change (session, téléphone), pas à chaque rafraîchissement de l'utilisateur.
@@ -167,7 +171,7 @@ Tant que les notifications push (S6) ne sont pas branchées, l'écran de suivi r
 - **Heure de Lomé** : les dates saisies (recherche, publication) sont stockées en `DateTime.utc` = heure murale de Lomé, quel que soit le fuseau du téléphone. Ne jamais utiliser `DateTime(...)` local pour une date métier.
 - **Montants** : afficher `prix_place`, `frais_service`, `prix_total` tels que renvoyés par l'API. Ne jamais multiplier un prix par un nombre de places dans l'app.
 - **Cartes** : passer `ref.watch(mapTileProviderProvider)` à toute carte (`MapPreview`, `FlutterMap`) pour qu'elle soit testable.
-- **Deux codes à ne pas confondre** : OTP SMS à **6 chiffres** (vérification du téléphone) ≠ code de départ à **4 chiffres** (prise en charge).
+- **Deux codes à ne pas confondre** : code de connexion à **6 chiffres** (reçu par e-mail) ≠ code de départ à **4 chiffres** (prise en charge).
 - **Paiement** : Espèces, **Flooz** (Moov Africa) ou **Mixx** (Togocom), au choix du passager (D5/D7 tranchées). Paiement mobile **après acceptation** uniquement. Ne jamais afficher « T-Money ».
 - Bouton « Message » de la maquette : hors MVP (D4), ne pas implémenter de logique.
 
@@ -181,8 +185,8 @@ dart run build_runner build --delete-conflicting-outputs   # après toute modifi
 flutter analyze
 flutter test
 flutter run                                                # dev + API simulée
-flutter run --dart-define=USE_MOCK_API=false --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com
-flutter build apk --dart-define=ENV=prod --dart-define=GOOGLE_SERVER_CLIENT_ID=...
+flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://192.168.1.20:8000/api/v1
+flutter build apk --dart-define=ENV=prod
 ```
 
 **API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource branchée sur le `FakeBackend` partagé (`core/mock`), qui respecte les contrats de `docs/api/` et les règles serveur (statuts KYC, droits du mode conducteur). Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123` (KYC passager validé), OTP `123456`. Dans le Profil, des boutons « Valider / Refuser les dossiers » simulent la décision de l'administrateur.
@@ -197,7 +201,7 @@ Ces points sont contradictoires entre la spécification, le PRD et les maquettes
 
 1. Calcul du prix : grille 200/300/500 F par distance (spéc.), aucun prix (PRD), ou formule au km (ancienne version de ce fichier). Dans tous les cas, le mobile **affiche** le prix renvoyé par l'API.
 2. Frais de service Kovoit : 0 F pendant le pilote (spéc., maquettes) ou 10 %.
-3. ~~Authentification~~ → **tranché** : e-mail + mot de passe ou Google, puis OTP SMS.
+3. ~~Authentification~~ → **tranché (révisé le 10/10)** : code à 6 chiffres envoyé par e-mail, aligné sur le backend.
 4. Bouton « Message » (hors MVP selon la spéc.) : non affiché sur le suivi, seul « Appeler » l'est.
 5. Backend : DRF seul ou DRF + FastAPI.
 6. ~~Paiement~~ → **tranché** : espèces ou Flooz / Mixx au choix. Restent ouverts : agrégateur et frais de transaction.

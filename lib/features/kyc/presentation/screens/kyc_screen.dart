@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,7 +30,7 @@ class KycScreen extends ConsumerStatefulWidget {
 }
 
 class _KycScreenState extends ConsumerState<KycScreen> {
-  KycPieceType? _uploading;
+  KycSlot? _uploading;
   bool _submitting = false;
 
   void _showError(Object error) {
@@ -40,8 +40,30 @@ class _KycScreenState extends ConsumerState<KycScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<CaptureSource?> _chooseSource(KycPieceType piece) async {
-    if (piece.requiresLiveCapture) return CaptureSource.frontCamera;
+  /// Carte grise ou assurance : l'utilisateur choisit le document qu'il envoie.
+  Future<KycPieceType?> _choosePiece(KycSlot slot) async {
+    if (!slot.hasChoice) return slot.accepts.single;
+    return showModalBottomSheet<KycPieceType>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final piece in slot.accepts)
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: Text(piece.title),
+                onTap: () => Navigator.pop(context, piece),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<CaptureSource?> _chooseSource(KycSlot slot) async {
+    if (slot.requiresLiveCapture) return CaptureSource.frontCamera;
     return showModalBottomSheet<CaptureSource>(
       context: context,
       showDragHandle: true,
@@ -65,13 +87,15 @@ class _KycScreenState extends ConsumerState<KycScreen> {
     );
   }
 
-  Future<void> _addPiece(KycPieceType piece) async {
-    final source = await _chooseSource(piece);
+  Future<void> _addPiece(KycSlot slot) async {
+    final piece = await _choosePiece(slot);
+    if (piece == null || !mounted) return;
+    final source = await _chooseSource(slot);
     if (source == null || !mounted) return;
     final path = await ref.read(documentCaptureServiceProvider).capture(source);
     if (path == null || !mounted) return;
 
-    setState(() => _uploading = piece);
+    setState(() => _uploading = slot);
     try {
       await ref.read(kycControllerProvider.notifier).uploadPiece(widget.type, piece, path);
     } catch (e) {
@@ -135,9 +159,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
           StepProgress(
             completed: dossier.providedCount,
             total: dossier.pieces.length,
-            stepLabels: widget.type == KycType.passager
-                ? const ['Photo de profil', 'Pièce d’identité', 'Selfie']
-                : const ['Permis', 'Document', 'Véhicule'],
+            stepLabels: [for (final piece in dossier.pieces) piece.type.stepLabel],
           ),
           const SizedBox(height: AppSpacing.md),
           for (final piece in dossier.pieces) ...[

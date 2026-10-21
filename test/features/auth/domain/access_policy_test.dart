@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/features/auth/domain/access_policy.dart';
 import 'package:kovoit/features/auth/domain/entities/app_user.dart';
 
@@ -9,12 +9,11 @@ AppUser _user({
   AccountStatus statut = AccountStatus.actif,
 }) =>
     AppUser(
-      id: 1,
+      id: '1',
       prenom: 'Afi',
       nom: 'Amégan',
       email: 'afi@exemple.com',
       telephone: '+22891234567',
-      telephoneVerifie: true,
       kycPassager: passager,
       kycConducteur: conducteur,
       vehiculeDeclare: vehicule,

@@ -7,7 +7,7 @@ import 'auth_providers.dart';
 
 /// Session courante : `null` = déconnecté. Le routeur s'appuie dessus pour les redirections.
 ///
-/// Les actions (login, register…) ne passent PAS l'état en chargement/erreur :
+/// Les actions (verifyCode, completeProfile…) ne passent PAS l'état en chargement/erreur :
 /// les écrans gèrent leur propre indicateur et affichent l'erreur levée.
 /// L'état ne change qu'en cas de succès, ce qui évite de renvoyer vers le Splash.
 class SessionController extends AsyncNotifier<AppUser?> {
@@ -26,31 +26,13 @@ class SessionController extends AsyncNotifier<AppUser?> {
   /// Relance la restauration (bouton « Réessayer » du Splash).
   void retry() => ref.invalidateSelf();
 
-  Future<void> login({required String email, required String password}) async {
-    state = AsyncData(await _repository.login(email: email, password: password));
+  /// Ouvre la session avec le code reçu par e-mail (compte créé s'il n'existait pas).
+  Future<void> verifyCode({required String email, required String code}) async {
+    state = AsyncData(await _repository.verifyCode(email: email, code: code));
   }
 
-  Future<void> register({
-    required String nomComplet,
-    required String email,
-    required String telephone,
-    required String password,
-  }) async {
-    state = AsyncData(
-      await _repository.register(nomComplet: nomComplet, email: email, telephone: telephone, password: password),
-    );
-  }
-
-  /// Retourne `false` si l'utilisateur a annulé la fenêtre Google.
-  Future<bool> signInWithGoogle() async {
-    final user = await _repository.signInWithGoogle();
-    if (user == null) return false;
-    state = AsyncData(user);
-    return true;
-  }
-
-  Future<void> updatePhone(String telephone) async {
-    state = AsyncData(await _repository.updatePhone(telephone));
+  Future<void> completeProfile({required String prenom, required String nom, required String telephone}) async {
+    state = AsyncData(await _repository.completeProfile(prenom: prenom, nom: nom, telephone: telephone));
   }
 
   /// À appeler après une action qui modifie les statuts (KYC envoyé, véhicule déclaré).
@@ -61,10 +43,6 @@ class SessionController extends AsyncNotifier<AppUser?> {
   /// Bascule de mode. Les droits sont vérifiés avant l'appel (AccessPolicy) et par le backend.
   Future<void> switchMode(UserMode mode) async {
     state = AsyncData(await _repository.updateMode(mode));
-  }
-
-  Future<void> verifyOtp(String code) async {
-    state = AsyncData(await _repository.verifyOtp(code));
   }
 
   Future<void> logout() async {

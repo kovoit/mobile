@@ -1,9 +1,8 @@
-/// Données du mode démo (API simulée, `Env.useMockApi`). Jamais utilisées avec le vrai backend.
+﻿/// Données du mode démo (API simulée, `Env.useMockApi`). Jamais utilisées avec le vrai backend.
 abstract final class DemoAccount {
+  /// Passager de démo : KYC passager validé.
   static const String email = 'demo@kovoit.tg';
-  static const String password = 'kovoit123';
-
-  /// Code OTP SMS accepté par l'API simulée.
+  /// Code de connexion (e-mail) accepté par l'API simulée.
   static const String otpCode = '123456';
 
   /// Conducteur de démo : KYC validés, véhicule déclaré, mode conducteur.

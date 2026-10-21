@@ -1,4 +1,4 @@
-# Kovoit — application mobile
+﻿# Kovoit — application mobile
 
 Covoiturage urbain à Lomé : *« Même trajet, moins cher »*. Application Flutter (passager + conducteur).
 
@@ -24,26 +24,41 @@ En environnement `dev`, l'onglet **Profil** donne accès au **catalogue des comp
 
 Tant que le backend n'est pas prêt, `flutter run` utilise une fausse API en mémoire :
 
-- compte de démo : `demo@kovoit.tg` / `kovoit123` ;
-- code SMS : `123456` ;
-- « Continuer avec Google » simule un compte sans numéro (écran de saisie du numéro) ;
+- connexion sans mot de passe : saisir `demo@kovoit.tg` (passager) ou `conducteur@kovoit.tg` (conducteur), puis le code `123456` ;
+- toute autre adresse crée un nouveau compte, qui passe par l'écran « Votre profil » (prénom, nom, téléphone) ;
 - le compte démo a un KYC passager validé ; un nouvel inscrit arrive sans KYC (macaron orange dans le Profil) ;
 - Profil → « Mode démo » : **Valider / Refuser les dossiers** simule la décision de l'administrateur (KYC en attente) ;
 - recherche de démo : **Carrefour Franciscain → Université de Lomé**, en voiture vers **07:30** (3 trajets) ou en moto vers 07:35. Autres trajets : Agoè-Zongo → Grand Marché (07:15), Bè Kpota → Port (moto, 08:00), Baguida → Déckon (17:30). Fenêtre de ± 15 min.
 
 - réservation de démo : sur « Détails & Réservation », choisir Espèces ou Flooz / Mixx puis « Réserver ma place ». Sur l'écran de suivi, le bloc **Mode démo** joue le conducteur (**Accepter**, **Refuser**, **Saisir le code**). Le paiement Flooz / Mixx passe « en cours » puis « Payé » quelques secondes plus tard.
 
-- conducteur de démo : `conducteur@kovoit.tg` / `kovoit123` (mode conducteur, Toyota Yaris, 18 500 F d'économies ce mois). À chaque publication, deux passagers fictifs envoient une demande ; leur code de départ est `4821`.
+- conducteur de démo : `conducteur@kovoit.tg` (mode conducteur, Toyota Yaris, 18 500 F d'économies ce mois). À chaque publication, deux passagers fictifs envoient une demande ; leur code de départ est `4821`.
 
-Pour viser le vrai backend : `--dart-define=USE_MOCK_API=false`. Contrats : [auth](docs/api/auth.md), [KYC](docs/api/kyc.md), [véhicule](docs/api/vehicle.md), [recherche & trajets](docs/api/trips.md), [réservations & paiement](docs/api/bookings.md), [espace conducteur](docs/api/driver.md).
+## Vrai backend (`kovoit/backend`)
 
-## Connexion Google (à configurer avant le vrai backend)
+```bash
+# côté backend : écouter sur toutes les interfaces et ajouter l'IP du PC à ALLOWED_HOSTS (.env)
+python manage.py runserver 0.0.0.0:8000
+# côté mobile, téléphone sur le même Wi-Fi (IP du PC : ipconfig)
+flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://192.168.1.20:8000/api/v1
+# ou via ngrok
+flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api/v1
+```
 
-1. Google Cloud Console → créer un client OAuth **Web** (son ID = `GOOGLE_SERVER_CLIENT_ID`, audience vérifiée par le backend).
-2. Créer un client OAuth **Android** : package `com.kovoit.kovoit` + empreinte SHA-1 (`cd android && ./gradlew signingReport`).
-3. Lancer avec `--dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com`.
+URL et chemins : [lib/core/constants/api_constants.dart](lib/core/constants/api_constants.dart). Client : [lib/core/network/api_service.dart](lib/core/network/api_service.dart) (enveloppe `{statut, message, reponse}`, JWT + rafraîchissement avec rotation). HTTP en clair autorisé en debug/profile uniquement (`android/app/build.gradle.kts`).
 
-Sans cette configuration, le bouton Google affiche « La connexion Google n’est pas encore disponible ».
+Anciens contrats mobiles (à réaligner sur le backend) : [auth](docs/api/auth.md), [KYC](docs/api/kyc.md), [véhicule](docs/api/vehicle.md), [recherche & trajets](docs/api/trips.md), [réservations & paiement](docs/api/bookings.md), [espace conducteur](docs/api/driver.md), [après le trajet & notifications](docs/api/after_trip.md).
+
+## Notifications push (à configurer avant la mise en production)
+
+Sans configuration, l'app fonctionne : la cloche relit `/notifications/` à l'ouverture, au retour au premier plan et toutes les 60 s. Pour activer le push FCM :
+
+1. Créer un projet Firebase, y ajouter l'app Android `com.kovoit.kovoit` (et l'app iOS).
+2. Placer `google-services.json` dans `android/app/` et `GoogleService-Info.plist` dans `ios/Runner/` (ou lancer `flutterfire configure`).
+3. Ajouter le plugin Gradle `com.google.gms.google-services` (Android) et activer *Push Notifications* + *Background Modes › Remote notifications* dans Xcode (iOS, clé APNs à téléverser dans Firebase).
+4. Lancer avec `--dart-define=PUSH_ENABLED=true`. Le backend envoie les push avec le compte de service Firebase (voir [docs/api/after_trip.md](docs/api/after_trip.md)).
+
+Mode démo : sur l'écran de suivi, **Terminer le trajet** (bloc « Mode démo ») permet de tester la confirmation d'arrivée, la notation et le signalement.
 
 ## Structure
 

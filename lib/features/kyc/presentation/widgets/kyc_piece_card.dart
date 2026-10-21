@@ -21,7 +21,12 @@ class KycPieceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final type = piece.type;
     final hint = type.hint;
-    final description = piece.provided ? 'Ajoutée · $hint' : hint[0].toUpperCase() + hint.substring(1);
+    final sent = piece.providedAs;
+    final description = !piece.provided
+        ? hint[0].toUpperCase() + hint.substring(1)
+        : type.hasChoice && sent != null
+            ? 'Ajoutée · ${sent.title}'
+            : 'Ajoutée · $hint';
 
     return KovoitCard(
       onTap: isUploading ? null : onTap,

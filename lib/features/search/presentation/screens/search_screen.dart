@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -63,7 +64,7 @@ class SearchScreen extends ConsumerWidget {
     final errors = form.errors;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false),
+      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [

@@ -20,6 +20,8 @@ class RequestCard extends StatelessWidget {
     required this.onRefuse,
     required this.onEnterCode,
     required this.onDeclareAbsence,
+    required this.onRate,
+    required this.onReport,
   });
 
   final DriverRequest request;
@@ -31,6 +33,8 @@ class RequestCard extends StatelessWidget {
   final VoidCallback onRefuse;
   final VoidCallback onEnterCode;
   final VoidCallback onDeclareAbsence;
+  final VoidCallback onRate;
+  final VoidCallback onReport;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +51,14 @@ class RequestCard extends StatelessWidget {
           label: 'Déclarer absent',
           icon: Icons.person_off_outlined,
           onPressed: busy ? null : onDeclareAbsence,
+        ),
+      if (request.can(DriverRequestAction.noter))
+        PrimaryButton.outlined(label: 'Noter', icon: Icons.star_outline_rounded, onPressed: busy ? null : onRate),
+      if (request.can(DriverRequestAction.signaler))
+        PrimaryButton.outlined(
+          label: 'Signaler',
+          icon: Icons.report_gmailerrorred_rounded,
+          onPressed: busy ? null : onReport,
         ),
     ];
 

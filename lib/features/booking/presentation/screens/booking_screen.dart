@@ -21,6 +21,7 @@ import '../providers/booking_providers.dart';
 import '../widgets/booking_labels.dart';
 import '../widgets/departure_code_card.dart';
 import '../widgets/payment_card.dart';
+import '../../../rating/presentation/rating_sheet.dart';
 
 /// Maquette « Suivi du trajet & Code de départ ». Le contenu suit le statut renvoyé par l'API,
 /// et seules les actions de `booking.actions` sont proposées (claude.md §4).
@@ -51,6 +52,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   bool _paying = false;
   bool _cancelling = false;
   bool _sharing = false;
+  bool _confirming = false;
 
   BookingController get _controller => ref.read(bookingProvider(widget.bookingId).notifier);
 
@@ -158,6 +160,34 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (!ok && mounted) _snack('Impossible d’ouvrir le téléphone. Numéro : ${Formatters.phone(phone)}');
   }
 
+  /// CA8 : confirmation d'arrivée, puis invitation à noter le conducteur.
+  Future<void> _confirmArrival(Booking booking) async {
+    setState(() => _confirming = true);
+    try {
+      final closed = await _controller.confirmArrival();
+      if (!mounted) return;
+      _snack('Arrivée confirmée. Merci !');
+      if (closed.can(BookingAction.noter)) await _rate(closed);
+    } on ApiException catch (e) {
+      if (mounted) _snack(e.message);
+    } finally {
+      if (mounted) setState(() => _confirming = false);
+    }
+  }
+
+  Future<void> _rate(Booking booking) async {
+    final rated = await RatingSheet.show(context, bookingId: booking.id, personName: booking.trip.driver.prenom);
+    if (rated == true) {
+      await _controller.refresh();
+      if (mounted) _snack('Merci pour votre note !');
+    }
+  }
+
+  Future<void> _report(Booking booking) async {
+    final sent = await context.push<bool>(Routes.report(booking.id, otherName: booking.trip.driver.prenom));
+    if (sent == true) await _controller.refresh();
+  }
+
   @override
   Widget build(BuildContext context) {
     final booking = ref.watch(bookingProvider(widget.bookingId));
@@ -207,7 +237,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       BookingStatus.enCours => ('Trajet en cours', 'Bon voyage avec ${driver.prenom} !'),
       BookingStatus.refusee => ('Demande refusée', '${driver.prenom} ne peut pas vous prendre sur ce trajet.'),
       BookingStatus.annulee => ('Réservation annulée', booking.lateCancellation ? 'Annulation tardive.' : 'La place a été libérée.'),
-      _ => ('Votre réservation', '${trip.depart.displayName} → ${trip.arrivee.displayName}'),
+      BookingStatus.terminee => ('Vous êtes arrivé ?', 'Confirmez votre arrivée avec ${driver.prenom}.'),
+      BookingStatus.cloturee => ('Trajet terminé', 'Merci d’avoir voyagé avec Kovoit.'),
+      BookingStatus.litige => ('Signalement en cours', 'Un administrateur examine la situation.'),
+      BookingStatus.absent => ('Absence déclarée', '${driver.prenom} ne vous a pas trouvé au point de prise en charge.'),
     };
 
     return ListView(
@@ -284,6 +317,42 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             ),
           ),
         ],
+        if (status == BookingStatus.litige) ...[
+          const SizedBox(height: AppSpacing.md),
+          const InfoBanner(
+            icon: Icons.gavel_rounded,
+            tone: InfoBannerTone.accent,
+            title: 'Votre signalement est en cours d’examen',
+            subtitle: 'Le paiement est gelé jusqu’à la décision de l’administrateur.',
+          ),
+        ],
+        if (booking.can(BookingAction.confirmer)) ...[
+          const SizedBox(height: AppSpacing.md),
+          PrimaryButton(
+            label: 'Confirmer mon arrivée',
+            icon: Icons.check_circle_outline_rounded,
+            isLoading: _confirming,
+            onPressed: () => _confirmArrival(booking),
+          ),
+        ],
+        if (booking.can(BookingAction.noter)) ...[
+          const SizedBox(height: AppSpacing.sm),
+          PrimaryButton.outlined(
+            label: 'Noter ${driver.prenom}',
+            icon: Icons.star_outline_rounded,
+            onPressed: () => _rate(booking),
+          ),
+        ],
+        if (booking.can(BookingAction.signaler)) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => _report(booking),
+              icon: const Icon(Icons.report_gmailerrorred_rounded, color: AppColors.error),
+              label: Text('Signaler un problème', style: AppTextStyles.label.copyWith(color: AppColors.error)),
+            ),
+          ),
+        ],
         if (status == BookingStatus.refusee || status == BookingStatus.annulee) ...[
           const SizedBox(height: AppSpacing.md),
           PrimaryButton(
@@ -318,6 +387,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         BookingStatus.demandee => 'Le conducteur doit accepter votre demande · aucune place n’est encore réservée.',
         BookingStatus.acceptee => 'En attente de prise en charge · trajet non démarré.',
         BookingStatus.enCours => 'Trajet démarré : le code de départ a été validé.',
+        BookingStatus.terminee => 'Sans réponse de votre part, le trajet sera clôturé automatiquement.',
         _ => 'Réservation n° ${booking.id}',
       };
 }
@@ -410,6 +480,7 @@ class _DemoDriverTools extends ConsumerWidget {
               button('Accepter', fake.simulateDriverAccepts),
               button('Refuser', fake.simulateDriverRefuses),
               button('Saisir le code', fake.simulatePickup),
+              button('Terminer le trajet', fake.simulateTripFinished),
             ],
           ),
         ],

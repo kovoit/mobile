@@ -118,6 +118,14 @@ class FakeDriver {
         'montant': trip['prix_place'],
         '_essais_code': 0,
       });
+      _backend.notify(
+        driverId,
+        type: 'nouvelle_demande',
+        titre: 'Nouvelle demande de ${passenger['prenom']}',
+        message: '1 place sur votre trajet de ${departure.hour.toString().padLeft(2, '0')}:'
+            '${departure.minute.toString().padLeft(2, '0')}. Acceptez ou refusez la demande.',
+        cible: {'trajet_id': id},
+      );
     }
     return _json(trip);
   }
@@ -274,8 +282,16 @@ class FakeDriver {
   }
 
   List<String> _requestActions(Map<String, dynamic> trip, Map<String, dynamic> request) {
+    final key = '${request['id']}:${trip['conducteur_id']}';
+    final status = request['statut'] as String;
+    // Après le trajet (S6) : noter et signaler le passager, même trajet terminé.
+    final afterTrip = [
+      if (!_backend.ratings.contains(key) && ['terminee', 'cloturee', 'absent'].contains(status)) 'noter',
+      if (!_backend.reports.containsKey(key) && ['en_cours', 'terminee', 'cloturee', 'absent'].contains(status))
+        'signaler',
+    ];
     final tripOpen = ['publie', 'complet', 'en_cours'].contains(trip['statut']);
-    if (!tripOpen) return const [];
+    if (!tripOpen) return afterTrip;
     return switch (request['statut']) {
       'demandee' => [
           if ((trip['places_restantes'] as int) >= (request['nb_places'] as int)) 'accepter',
@@ -285,7 +301,7 @@ class FakeDriver {
           'saisir_code',
           if (!_now.isBefore(_absenceAllowedFrom(trip))) 'declarer_absence',
         ],
-      _ => const [],
+      _ => afterTrip,
     };
   }
 

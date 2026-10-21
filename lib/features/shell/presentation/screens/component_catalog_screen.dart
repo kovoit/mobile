@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -121,9 +121,9 @@ class _ComponentCatalogScreenState extends State<ComponentCatalogScreen> {
           ),
           _section('Progression KYC'),
           const StepProgress(
-            completed: 3,
-            total: 4,
-            stepLabels: ['Photo de profil', "Pièce d'identité", 'Selfie'],
+            completed: 1,
+            total: 2,
+            stepLabels: ['Identité', 'Selfie'],
           ),
           _section('Carte conducteur'),
           DriverCard(

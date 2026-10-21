@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart';
+﻿import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'helpers/test_app.dart';
@@ -10,7 +10,7 @@ void main() {
     await pumpKovoitApp(tester);
 
     expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
-    expect(find.text('Se connecter'), findsOneWidget);
+    expect(find.text('Recevoir le code'), findsOneWidget);
   });
 
   testWidgets('Session existante : arrivée directe sur l’accueil passager', (tester) async {
@@ -27,6 +27,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Kodjo Mensah'), findsOneWidget);
-    expect(find.text('Téléphone vérifié'), findsOneWidget);
+    expect(find.text('demo@kovoit.tg'), findsOneWidget);
   });
 }

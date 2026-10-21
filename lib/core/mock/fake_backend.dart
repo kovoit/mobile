@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/demo_account.dart';
 import '../network/api_exception.dart';
@@ -34,25 +34,48 @@ class FakeBackend {
   /// Économies des conducteurs : lignes `{date, montant, places}` par utilisateur.
   final Map<int, List<Map<String, dynamic>>> savings = {};
 
+  /// Notifications par utilisateur (JSON du contrat docs/api/after_trip.md), récentes d'abord.
+  final Map<int, List<Map<String, dynamic>>> notifications = {};
+  int nextNotificationId = 1;
+
+  /// Notes déjà données : clés `reservationId:auteurId`.
+  final Set<String> ratings = {};
+
+  /// Signalements ouverts : clés `reservationId:auteurId` → motif.
+  final Map<String, String> reports = {};
+
+  /// Appareils enregistrés pour le push : token → utilisateur.
+  final Map<String, int> devices = {};
+
+  /// Crée une notification pour [userId] (ignoré pour les utilisateurs fictifs sans compte).
+  void notify(int userId, {required String type, required String titre, required String message, Map<String, int>? cible}) {
+    if (!_users.containsKey(userId)) return;
+    notifications.putIfAbsent(userId, () => []).insert(0, {
+      'id': nextNotificationId++,
+      'type': type,
+      'titre': titre,
+      'message': message,
+      'cree_le': clock().toUtc().toIso8601String(),
+      'lue': false,
+      'cible': cible ?? const <String, int>{},
+    });
+  }
+
   final Map<int, FakeUserRecord> _users = {};
   final Map<int, Map<String, FakeKycDossier>> _kyc = {};
   final Map<int, Map<String, dynamic>> _vehicles = {};
   int _nextId = 2;
 
-  static const String googleEmail = 'ama.google@gmail.com';
-
   Future<void> wait() => Future<void>.delayed(latency);
 
   void _seedDemoAccount() {
     _users[1] = FakeUserRecord(
-      password: DemoAccount.password,
       fields: {
         'id': 1,
         'prenom': 'Kodjo',
         'nom': 'Mensah',
         'email': DemoAccount.email,
         'telephone': '+22890123456',
-        'telephone_verifie': true,
         'photo': null,
         'mode_actif': 'passager',
         'statut_compte': 'actif',
@@ -64,14 +87,12 @@ class FakeBackend {
 
     // Conducteur de démo : tous les droits, véhicule déclaré, en mode conducteur.
     _users[2] = FakeUserRecord(
-      password: DemoAccount.password,
       fields: {
         'id': 2,
         'prenom': 'Yao',
         'nom': 'Agbodjan',
         'email': DemoAccount.driverEmail,
         'telephone': '+22891000002',
-        'telephone_verifie': true,
         'photo': null,
         'mode_actif': 'conducteur',
         'statut_compte': 'actif',
@@ -100,11 +121,26 @@ class FakeBackend {
     _nextId = 3;
   }
 
-  /// Pièces attendues par type de dossier (voir docs/api/kyc.md).
+  /// Dossiers complets (voir docs/api/kyc.md) : le conducteur fournit aussi identité et selfie,
+  /// et la carte grise OU l'assurance.
   static const Map<String, List<String>> kycPieces = {
-    'passager': ['photo_profil', 'identite_recto', 'identite_verso', 'selfie'],
-    'conducteur': ['permis', 'carte_grise_ou_assurance', 'photo_vehicule'],
+    'passager': ['identite', 'selfie'],
+    'conducteur': ['identite', 'selfie', 'permis', 'carte_grise', 'photo_vehicule'],
   };
+
+  static const Set<String> _kycVehicleDocuments = {'carte_grise', 'assurance'};
+
+  static Set<String> kycAllowedPieces(String type) =>
+      {...kycPieces[type]!.where((p) => !_kycVehicleDocuments.contains(p)), if (type == 'conducteur') ..._kycVehicleDocuments};
+
+  /// Comme `pieces_manquantes` du backend.
+  static List<String> kycMissingPieces(String type, Set<String> pieces) {
+    final required = kycAllowedPieces(type).difference(_kycVehicleDocuments);
+    return [
+      ...required.difference(pieces),
+      if (type == 'conducteur' && pieces.intersection(_kycVehicleDocuments).isEmpty) 'carte_grise_ou_assurance',
+    ];
+  }
 
   // ---------------------------------------------------------------- Utilisateurs
 
@@ -125,13 +161,14 @@ class FakeBackend {
   bool phoneTaken(String telephone, {int? exceptId}) =>
       _users.values.any((u) => u.fields['telephone'] == telephone && u.fields['id'] != exceptId);
 
-  int createUser({required String? password, required Map<String, dynamic> fields}) {
+  /// Crée un compte (premier code valide pour une adresse inconnue). Profil à compléter.
+  int createUser({required Map<String, dynamic> fields}) {
     final id = _nextId++;
     _users[id] = FakeUserRecord(
-      password: password,
       fields: {
+        'prenom': '',
+        'nom': '',
         'telephone': null,
-        'telephone_verifie': false,
         'photo': null,
         'mode_actif': 'passager',
         'statut_compte': 'actif',
@@ -155,8 +192,30 @@ class FakeBackend {
     return id;
   }
 
-  Map<String, dynamic> issueTokens(int id) =>
-      {'access': 'mock-access-$id', 'refresh': 'mock-refresh-$id', 'user': userJson(id)};
+  /// Profil au format du backend (`ProfilSerializer` : `GET /moi/`).
+  Map<String, dynamic> profilJson(int id) {
+    final user = userJson(id);
+    bool filled(String key) => (user[key] as String? ?? '').isNotEmpty;
+    return {
+      ...user,
+      'id': '$id',
+      'telephone': user['telephone'] ?? '',
+      'email_verifie': true,
+      'profil_complet': filled('prenom') && filled('nom') && filled('telephone'),
+      'kyc': {'passager': user['kyc_passager'], 'conducteur': user['kyc_conducteur']},
+      'etat': {
+        'mode_conducteur': {'vehicule_declare': user['vehicule_declare']},
+      },
+    };
+  }
+
+  /// Réponse de `POST /auth/otp/verifier/`.
+  Map<String, dynamic> issueTokens(int id, {bool nouveauCompte = false}) => {
+        'access': 'mock-access-$id',
+        'refresh': 'mock-refresh-$id',
+        'nouveau_compte': nouveauCompte,
+        'utilisateur': profilJson(id),
+      };
 
   // ---------------------------------------------------------------- KYC
 
@@ -170,12 +229,12 @@ class FakeBackend {
   Map<String, dynamic> kycDossierJson(int userId, String type) {
     final dossier = kycDossier(userId, type);
     return {
+      'id': 'dossier-$userId-$type',
       'type': type,
       'statut': dossier.statut,
-      'motif_rejet': dossier.motifRejet,
-      'pieces': [
-        for (final piece in kycPieces[type]!) {'type_piece': piece, 'fournie': dossier.pieces.contains(piece)},
-      ],
+      'motif_rejet': dossier.motifRejet ?? '',
+      'pieces': [for (final piece in dossier.pieces) {'type_piece': piece}],
+      'pieces_manquantes': kycMissingPieces(type, dossier.pieces),
     };
   }
 
@@ -199,14 +258,20 @@ class FakeBackend {
     }
     final vehicle = _vehicles[id];
     if (vehicle != null && approve) vehicle['statut_verification'] = 'verifie';
+    notify(
+      id,
+      type: approve ? 'kyc_valide' : 'kyc_refuse',
+      titre: approve ? 'Dossier validé' : 'Dossier refusé',
+      message: approve
+          ? 'Votre identité est vérifiée. Vous pouvez réserver vos trajets.'
+          : 'Consultez le motif dans votre Profil et renvoyez vos pièces.',
+    );
   }
 }
 
 class FakeUserRecord {
-  FakeUserRecord({required this.password, required this.fields});
+  FakeUserRecord({required this.fields});
 
-  /// `null` pour un compte Google.
-  final String? password;
   final Map<String, dynamic> fields;
 
   int get id => fields['id'] as int;

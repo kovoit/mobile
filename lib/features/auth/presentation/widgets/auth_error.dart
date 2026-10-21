@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/network/api_exception.dart';
-import '../../domain/repositories/auth_repository.dart';
 
 /// Message lisible pour une erreur levée pendant une action d'authentification.
 String authErrorMessage(Object error) => switch (error) {
       ApiException(:final message) => message,
-      GoogleSignInUnavailableException(:final message) => message,
       _ => 'Une erreur inattendue est survenue.',
     };
 

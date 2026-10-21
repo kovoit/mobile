@@ -1,3 +1,5 @@
+﻿import '../constants/api_constants.dart';
+
 /// Environnement d'exécution, choisi au build :
 /// `flutter run --dart-define=ENV=dev` (défaut), `staging` ou `prod`.
 /// L'URL de l'API peut être surchargée avec `--dart-define=API_BASE_URL=...`.
@@ -5,7 +7,6 @@ enum AppEnv { dev, staging, prod }
 
 abstract final class Env {
   static const String _envName = String.fromEnvironment('ENV', defaultValue: 'dev');
-  static const String _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
 
   static AppEnv get current => AppEnv.values.firstWhere(
         (e) => e.name == _envName,
@@ -25,19 +26,15 @@ abstract final class Env {
     return _useMockApi == 'true';
   }
 
-  /// Client OAuth « Web » Google (audience de l'ID token vérifié par le backend).
-  /// `--dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com`
-  static const String googleServerClientId = String.fromEnvironment('GOOGLE_SERVER_CLIENT_ID');
+  /// Notifications push FCM : nécessitent un projet Firebase configuré (voir README).
+  /// `--dart-define=PUSH_ENABLED=true`. Sans push, l'app relit les notifications périodiquement.
+  static const bool pushEnabled = bool.fromEnvironment('PUSH_ENABLED');
 
-  static String get apiBaseUrl {
-    if (_apiBaseUrlOverride.isNotEmpty) return _apiBaseUrlOverride;
-    return switch (current) {
-      // 10.0.2.2 = localhost de la machine hôte vu depuis l'émulateur Android.
-      AppEnv.dev => 'http://10.0.2.2:8000/api/v1',
-      AppEnv.staging => 'https://staging-api.kovoit.tg/api/v1',
-      AppEnv.prod => 'https://api.kovoit.tg/api/v1',
-    };
-  }
+  /// URL du backend : voir [ApiConstants] (surcharge `API_BASE_URL` pour un téléphone ou ngrok).
+  static String get apiBaseUrl => ApiConstants.baseUrlFor(
+        isProd: current == AppEnv.prod,
+        isStaging: current == AppEnv.staging,
+      );
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 20);

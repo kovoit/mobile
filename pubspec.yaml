@@ -27,13 +27,15 @@ dependencies:
   latlong2: ^0.10.1
 
   # Authentification
-  google_sign_in: ^7.2.0
-
   # Capture des pièces KYC (photo / galerie)
   image_picker: ^1.2.4
 
   # Position du conducteur (déclaration d'absence, CA9)
   geolocator: ^14.1.1
+
+  # Notifications push (FCM), activées par --dart-define=PUSH_ENABLED=true une fois Firebase configuré
+  firebase_core: ^4.15.0
+  firebase_messaging: ^16.7.0
 
   # Actions externes : appeler le conducteur, « Partager mon trajet »
   url_launcher: ^6.3.3

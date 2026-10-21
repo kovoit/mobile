@@ -4,24 +4,17 @@ import '../../domain/entities/app_user.dart';
 import '../../domain/entities/otp_challenge.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
-import '../dto/auth_response_dto.dart';
-import '../services/google_auth_service.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  AuthRepositoryImpl({
-    required this._remote,
-    required this._tokenStorage,
-    required this._google,
-  });
+  AuthRepositoryImpl({required this._remote, required this._tokenStorage});
 
   final AuthRemoteDataSource _remote;
   final TokenStorage _tokenStorage;
-  final GoogleAuthService _google;
 
-  Future<AppUser> _openSession(AuthResponseDto response) async {
-    await _tokenStorage.saveTokens(access: response.access, refresh: response.refresh);
-    return response.user.toEntity();
-  }
+  /// Délai entre deux envois (paramètre backend `otp_delai_renvoi_s`, non renvoyé par l'API).
+  static const resendDelay = Duration(seconds: 60);
+
+  static String _normalize(String email) => email.trim().toLowerCase();
 
   @override
   Future<AppUser?> restoreSession() async {
@@ -37,49 +30,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AppUser> login({required String email, required String password}) async =>
-      _openSession(await _remote.login(email: email.trim().toLowerCase(), password: password));
-
-  @override
-  Future<AppUser> register({
-    required String nomComplet,
-    required String email,
-    required String telephone,
-    required String password,
-  }) async =>
-      _openSession(
-        await _remote.register(
-          nomComplet: nomComplet.trim(),
-          email: email.trim().toLowerCase(),
-          telephone: telephone,
-          password: password,
-        ),
-      );
-
-  @override
-  Future<AppUser?> signInWithGoogle() async {
-    final idToken = await _google.getIdToken();
-    if (idToken == null) return null;
-    return _openSession(await _remote.loginWithGoogle(idToken));
+  Future<OtpChallenge> requestCode(String email) async {
+    final normalized = _normalize(email);
+    await _remote.requestCode(normalized);
+    return OtpChallenge(email: normalized, resendIn: resendDelay);
   }
 
   @override
-  Future<AppUser> updatePhone(String telephone) async => (await _remote.updatePhone(telephone)).toEntity();
+  Future<AppUser> verifyCode({required String email, required String code}) async {
+    final connexion = await _remote.verifyCode(email: _normalize(email), code: code);
+    await _tokenStorage.saveTokens(access: connexion.access, refresh: connexion.refresh);
+    return connexion.utilisateur.toEntity();
+  }
+
+  @override
+  Future<AppUser> completeProfile({required String prenom, required String nom, required String telephone}) async =>
+      (await _remote.updateProfile(prenom: prenom.trim(), nom: nom.trim(), telephone: telephone)).toEntity();
 
   @override
   Future<AppUser> refreshUser() async => (await _remote.me()).toEntity();
 
   @override
   Future<AppUser> updateMode(UserMode mode) async => (await _remote.updateMode(mode.apiValue)).toEntity();
-
-  @override
-  Future<OtpChallenge> sendOtp() async => (await _remote.sendOtp()).toEntity();
-
-  @override
-  Future<AppUser> verifyOtp(String code) async => (await _remote.verifyOtp(code)).toEntity();
-
-  @override
-  Future<void> requestPasswordReset(String email) => _remote.requestPasswordReset(email.trim().toLowerCase());
 
   @override
   Future<void> logout() async {
@@ -90,7 +62,6 @@ class AuthRepositoryImpl implements AuthRepository {
       // La déconnexion locale doit réussir même si l'API est injoignable.
     } finally {
       await _tokenStorage.clear();
-      await _google.signOut();
     }
   }
 }

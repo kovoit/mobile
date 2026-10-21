@@ -11,13 +11,12 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/clock.dart';
-import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../providers/otp_controller.dart';
 import '../providers/session_controller.dart';
 import '../widgets/auth_error.dart';
 
-/// Écran Figma « Vérification SMS » : code OTP à 6 chiffres (≠ code de départ à 4 chiffres).
+/// Saisie du code de connexion à 6 chiffres reçu par e-mail (≠ code de départ à 4 chiffres).
 class OtpVerificationScreen extends ConsumerStatefulWidget {
   const OtpVerificationScreen({super.key});
 
@@ -39,7 +38,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _sendIfNeeded());
+    // Ouvert sans code demandé (lien direct, redémarrage) : retour à la saisie de l'e-mail.
+    if (ref.read(otpControllerProvider).email == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go(Routes.login);
+      });
+    }
   }
 
   @override
@@ -49,15 +53,12 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     super.dispose();
   }
 
-  void _sendIfNeeded() {
-    final phone = ref.read(sessionControllerProvider).value?.telephone;
-    if (phone != null) ref.read(otpControllerProvider.notifier).sendIfNeeded(phone);
-  }
-
   Future<void> _verify() async {
+    final email = ref.read(otpControllerProvider).email;
     final code = _code.text;
+    if (email == null) return;
     if (code.length != OtpVerificationScreen.codeLength) {
-      setState(() => _codeError = 'Saisissez les ${OtpVerificationScreen.codeLength} chiffres reçus par SMS.');
+      setState(() => _codeError = 'Saisissez les ${OtpVerificationScreen.codeLength} chiffres reçus par e-mail.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -66,7 +67,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       _codeError = null;
     });
     try {
-      await ref.read(sessionControllerProvider.notifier).verifyOtp(code);
+      await ref.read(sessionControllerProvider.notifier).verifyCode(email: email, code: code);
       ref.read(otpControllerProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
@@ -77,47 +78,36 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     }
   }
 
-  Future<void> _logout() => ref.read(sessionControllerProvider.notifier).logout();
-
   @override
   Widget build(BuildContext context) {
-    final phone = ref.watch(sessionControllerProvider).value?.telephone;
     final otp = ref.watch(otpControllerProvider);
     final remaining = otp.remaining(ref.read(clockProvider)());
 
     return Scaffold(
-      appBar: KovoitAppBar(onBack: _logout),
+      appBar: KovoitAppBar(onBack: () => context.go(Routes.login)),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
-          const ScreenHeader(title: 'Vérification SMS', subtitle: 'Une dernière étape pour sécuriser votre numéro.'),
+          const ScreenHeader(title: 'Vérification', subtitle: 'Consultez votre boîte de réception.'),
           const SizedBox(height: AppSpacing.xl),
           Center(
             child: Container(
               width: 84,
               height: 84,
               decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(AppRadius.card)),
-              child: const Icon(Icons.mark_chat_read_outlined, size: 36, color: AppColors.primary),
+              child: const Icon(Icons.mark_email_read_outlined, size: 36, color: AppColors.primary),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          const Center(child: StatusChip(label: 'INSCRIPTION · CODE SMS', tone: StatusTone.info)),
+          const Center(child: StatusChip(label: 'CONNEXION · CODE E-MAIL', tone: StatusTone.info)),
           const SizedBox(height: AppSpacing.md),
-          const Text(
-            'Saisissez le code à 6 chiffres envoyé au',
-            textAlign: TextAlign.center,
-            style: AppTextStyles.subtitle,
-          ),
+          const Text('Saisissez le code à 6 chiffres envoyé à', textAlign: TextAlign.center, style: AppTextStyles.subtitle),
           const SizedBox(height: AppSpacing.xs),
-          Text(
-            phone == null ? '—' : Formatters.phone(phone),
-            textAlign: TextAlign.center,
-            style: AppTextStyles.title.copyWith(fontSize: 22),
-          ),
+          Text(otp.email ?? '—', textAlign: TextAlign.center, style: AppTextStyles.title),
           Center(
             child: TextButton(
-              onPressed: _verifying ? null : () => context.go(Routes.phone),
-              child: Text('Modifier mon numéro', style: AppTextStyles.label.copyWith(color: AppColors.textPrimary)),
+              onPressed: _verifying ? null : () => context.go(Routes.login),
+              child: Text('Modifier mon e-mail', style: AppTextStyles.label.copyWith(color: AppColors.textPrimary)),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -125,7 +115,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Code de vérification', style: AppTextStyles.label),
+                const Text('Code de connexion', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.sm),
                 OtpCodeInput(
                   controller: _code,
@@ -150,11 +140,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   remaining: remaining,
                   isSending: otp.isSending,
                   error: otp.error,
-                  onResend: () => ref.read(otpControllerProvider.notifier).send(),
+                  onResend: () => ref.read(otpControllerProvider.notifier).resend(),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 PrimaryButton(
-                  label: 'Vérifier mon numéro',
+                  label: 'Se connecter',
                   icon: Icons.arrow_forward_rounded,
                   isLoading: _verifying,
                   onPressed: _verify,
@@ -170,7 +160,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
               SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
-                  'Ce code vérifie votre téléphone. Il est différent du code de départ à 4 chiffres de vos trajets.',
+                  'Ce code est valable 10 minutes. Il est différent du code de départ à 4 chiffres de vos trajets.',
                   style: AppTextStyles.caption,
                 ),
               ),
@@ -208,7 +198,7 @@ class _ResendSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Text('Vous n’avez pas reçu le SMS ?', style: AppTextStyles.subtitle),
+        const Text('Vous n’avez pas reçu l’e-mail ? Pensez aux spams.', textAlign: TextAlign.center, style: AppTextStyles.subtitle),
         const SizedBox(height: AppSpacing.xxs),
         if (isSending)
           const Text('Envoi du code…', style: AppTextStyles.subtitle)

@@ -5,10 +5,16 @@ import '../../domain/entities/kyc_dossier.dart';
 
 part 'kyc_dossier_dto.g.dart';
 
-/// Objet `dossier` de l'API (voir docs/api/kyc.md).
-@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+/// `DossierSerializer` du backend (`GET /kyc/`, `POST /kyc/<type>/pieces/`, `POST /kyc/<type>/soumettre/`).
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class KycDossierDto {
-  const KycDossierDto({required this.type, required this.statut, required this.pieces, this.motifRejet});
+  const KycDossierDto({
+    required this.type,
+    required this.statut,
+    this.pieces = const [],
+    this.piecesManquantes = const [],
+    this.motifRejet = '',
+  });
 
   factory KycDossierDto.fromJson(Map<String, dynamic> json) => _$KycDossierDtoFromJson(json);
 
@@ -17,27 +23,38 @@ class KycDossierDto {
   final String? motifRejet;
   final List<KycPieceDto> pieces;
 
-  Map<String, dynamic> toJson() => _$KycDossierDtoToJson(this);
+  /// Emplacements encore vides (`carte_grise_ou_assurance` pour le document du véhicule).
+  final List<String> piecesManquantes;
 
-  KycDossier toEntity() => KycDossier(
-        type: KycType.fromApi(type) ?? KycType.passager,
-        status: KycStatus.fromApi(statut),
-        motifRejet: motifRejet,
-        pieces: [
-          for (final piece in pieces)
-            if (KycPieceType.fromApi(piece.typePiece) case final type?) KycPiece(type: type, provided: piece.fournie),
-        ],
-      );
+  KycDossier toEntity() {
+    // Les types inconnus du mobile sont ignorés.
+    final provided = <KycSlot, KycPieceType>{};
+    for (final piece in pieces) {
+      final type = KycPieceType.fromApi(piece.typePiece);
+      final slot = type == null ? null : KycSlot.fromPiece(type);
+      if (slot != null) provided[slot] = type!;
+    }
+    final missing = piecesManquantes.map(KycSlot.fromMissing).nonNulls.toSet();
+    return KycDossier(
+      type: KycType.fromApi(type) ?? KycType.passager,
+      status: KycStatus.fromApi(statut),
+      motifRejet: (motifRejet ?? '').isEmpty ? null : motifRejet,
+      pieces: [
+        for (final slot in KycSlot.values)
+          if (provided.containsKey(slot))
+            KycPiece(type: slot, provided: true, providedAs: provided[slot])
+          else if (missing.contains(slot))
+            KycPiece(type: slot, provided: false),
+      ],
+    );
+  }
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake)
+@JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class KycPieceDto {
-  const KycPieceDto({required this.typePiece, required this.fournie});
+  const KycPieceDto({required this.typePiece});
 
   factory KycPieceDto.fromJson(Map<String, dynamic> json) => _$KycPieceDtoFromJson(json);
 
   final String typePiece;
-  final bool fournie;
-
-  Map<String, dynamic> toJson() => _$KycPieceDtoToJson(this);
 }

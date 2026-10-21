@@ -6,11 +6,14 @@ import '../theme/app_text_styles.dart';
 import 'kovoit_logo.dart';
 
 /// En-tête commun des maquettes : bouton retour, logo + « Kovoit », badge de ville « Lomé ».
+/// Sur les écrans racines (sans retour), [leading] occupe l'emplacement du bouton retour
+/// (ex. la cloche des notifications).
 class KovoitAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const KovoitAppBar({super.key, this.showBack = true, this.onBack, this.city = 'Lomé'});
+  const KovoitAppBar({super.key, this.showBack = true, this.onBack, this.leading, this.city = 'Lomé'});
 
   final bool showBack;
   final VoidCallback? onBack;
+  final Widget? leading;
   final String city;
 
   @override
@@ -26,10 +29,13 @@ class KovoitAppBar extends StatelessWidget implements PreferredSizeWidget {
         child: Row(
           children: [
             SizedBox(
-              width: 40,
+              width: 48,
               child: showBack && (onBack != null || canPop)
-                  ? _BackButton(onPressed: onBack ?? () => Navigator.of(context).maybePop())
-                  : null,
+                  ? Align(
+                      alignment: Alignment.centerLeft,
+                      child: _BackButton(onPressed: onBack ?? () => Navigator.of(context).maybePop()),
+                    )
+                  : leading,
             ),
             const Expanded(
               child: Row(

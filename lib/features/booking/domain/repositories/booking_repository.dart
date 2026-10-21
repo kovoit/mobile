@@ -21,4 +21,7 @@ abstract interface class BookingRepository {
   Future<Booking> pay(int id, {required String telephone});
 
   Future<ShareLink> shareLink(int id);
+
+  /// Le passager confirme son arrivée (CA8) : la réservation passe `cloturee`.
+  Future<Booking> confirmArrival(int id);
 }

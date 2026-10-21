@@ -77,6 +77,13 @@ class BookingController extends AsyncNotifier<Booking> {
   Future<void> pay(String telephone) async => _set(await _repository.pay(bookingId, telephone: telephone));
 
   Future<ShareLink> shareLink() => _repository.shareLink(bookingId);
+
+  /// Confirmation d'arrivée (CA8) : `terminee` → `cloturee`.
+  Future<Booking> confirmArrival() async {
+    final booking = await _repository.confirmArrival(bookingId);
+    _set(booking);
+    return booking;
+  }
 }
 
 final bookingProvider = AsyncNotifierProvider.autoDispose.family<BookingController, Booking, int>(BookingController.new);

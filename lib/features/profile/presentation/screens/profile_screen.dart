@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/router/routes.dart';
@@ -66,7 +67,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final kycDenial = AccessPolicy.needsKycAttention(user) ? AccessPolicy.canBook(user) : null;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false),
+      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
@@ -166,8 +167,6 @@ class _IdentityCard extends StatelessWidget {
                   spacing: AppSpacing.xs,
                   runSpacing: AppSpacing.xxs,
                   children: [
-                    if (user.telephoneVerifie)
-                      const StatusChip(label: 'Téléphone vérifié', tone: StatusTone.success, icon: Icons.check_rounded),
                     if (user.kycPassager == KycStatus.verifie) const VerifiedBadge(),
                     StatusChip(
                       label: user.isDriverMode ? 'Mode conducteur' : 'Mode passager',

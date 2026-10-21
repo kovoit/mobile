@@ -151,11 +151,20 @@ class FakeBookings {
         'maj_le': _now.toIso8601String(),
       }
       ..['arrivee_conducteur_min'] = 3;
+    final pickupLabel = pickup['libelle'];
+    _notify(
+      booking,
+      'reservation_acceptee',
+      '${_driverName(booking)} a accepté votre demande',
+      'Rendez-vous à $pickupLabel. Votre code de départ est disponible dans l’application.',
+    );
   }
 
   Future<void> simulateDriverRefuses(int id) async {
     final booking = _backend.bookings[id]!;
-    if (booking['statut'] == 'demandee') booking['statut'] = 'refusee';
+    if (booking['statut'] != 'demandee') return;
+    booking['statut'] = 'refusee';
+    _notify(booking, 'reservation_refusee', 'Demande refusée', '${_driverName(booking)} ne peut pas vous prendre sur ce trajet.');
   }
 
   /// Le conducteur a saisi le bon code de départ (CA7).
@@ -166,7 +175,38 @@ class FakeBookings {
       ..['statut'] = 'en_cours'
       ..['code_depart'] = null
       ..['arrivee_conducteur_min'] = null;
+    _notify(booking, 'prise_en_charge', 'Trajet démarré', 'Bon voyage avec ${_driverName(booking)} !');
   }
+
+  /// Le conducteur a terminé le trajet : le passager doit confirmer son arrivée (CA8).
+  Future<void> simulateTripFinished(int id) async {
+    final booking = _backend.bookings[id]!;
+    if (booking['statut'] != 'en_cours') return;
+    booking['statut'] = 'terminee';
+    _notify(booking, 'trajet_termine', 'Vous êtes arrivé ?', 'Confirmez votre arrivée et notez ${_driverName(booking)}.');
+  }
+
+  // ------------------------------------------------------------------ Après le trajet (S6)
+
+  /// Confirmation d'arrivée par le passager : `terminee` → `cloturee`.
+  Future<Map<String, dynamic>> confirm(int id) async {
+    await _backend.wait();
+    final booking = await _owned(id);
+    if (booking['statut'] != 'terminee') throw const ConflictApiException('Ce trajet n’est pas encore terminé.');
+    booking['statut'] = 'cloturee';
+    return _json(id);
+  }
+
+  String _driverName(Map<String, dynamic> booking) =>
+      (FakeTrips.tripById(booking['trajet_id'] as int)!['conducteur'] as Map)['prenom'] as String;
+
+  void _notify(Map<String, dynamic> booking, String type, String titre, String message) => _backend.notify(
+        booking['passager_id'] as int,
+        type: type,
+        titre: titre,
+        message: message,
+        cible: {'reservation_id': booking['id'] as int},
+      );
 
   // ------------------------------------------------------------------ Outils
 
@@ -192,6 +232,7 @@ class FakeBookings {
     payment
       ..['statut'] = 'reussi'
       ..['message'] = null;
+    _notify(booking, 'paiement_reussi', 'Paiement reçu', 'Votre paiement de ${payment['montant']} FCFA est confirmé.');
   }
 
   Map<String, dynamic> _pickup(Map<String, dynamic> booking) {
@@ -210,6 +251,9 @@ class FakeBookings {
     final driverId = (trip['conducteur'] as Map)['id'];
     final accepted = status == 'acceptee';
     final ongoing = accepted || status == 'en_cours';
+    final author = b['passager_id'];
+    final rated = _backend.ratings.contains('$id:$author');
+    final reported = _backend.reports.containsKey('$id:$author');
 
     return {
       'id': id,
@@ -231,6 +275,9 @@ class FakeBookings {
         if (accepted && ['a_payer', 'echoue'].contains(payment['statut'])) 'payer',
         if (ongoing) 'partager',
         if (ongoing) 'appeler',
+        if (status == 'terminee') 'confirmer',
+        if (!rated && ['terminee', 'cloturee'].contains(status)) 'noter',
+        if (!reported && ['en_cours', 'terminee', 'cloturee'].contains(status)) 'signaler',
       ],
       'cree_le': b['cree_le'],
     };

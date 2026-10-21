@@ -3,10 +3,13 @@
     <!-- Position du conducteur au moment d'une déclaration d'absence (au premier plan uniquement). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- usesCleartextTraffic : HTTP non chiffré autorisé pour joindre le backend sur le réseau local
+         (http://192.168.x.x:8000). Vrai en debug/profile, faux en release (voir app/build.gradle.kts). -->
     <application
         android:label="Kovoit"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="${usesCleartextTraffic}">
         <activity
             android:name=".MainActivity"
             android:exported="true"

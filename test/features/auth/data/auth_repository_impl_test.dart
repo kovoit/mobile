@@ -1,10 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/network/api_exception.dart';
 import 'package:kovoit/features/auth/data/datasources/auth_remote_data_source.dart';
-import 'package:kovoit/features/auth/data/dto/auth_response_dto.dart';
-import 'package:kovoit/features/auth/data/dto/user_dto.dart';
+import 'package:kovoit/features/auth/data/dto/connexion_dto.dart';
+import 'package:kovoit/features/auth/data/dto/profil_dto.dart';
 import 'package:kovoit/features/auth/data/repositories/auth_repository_impl.dart';
-import 'package:kovoit/features/auth/data/services/google_auth_service.dart';
 import 'package:kovoit/features/auth/domain/entities/app_user.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -12,42 +11,49 @@ import '../../../helpers/test_app.dart';
 
 class _MockRemote extends Mock implements AuthRemoteDataSource {}
 
-class _MockGoogle extends Mock implements GoogleAuthService {}
-
-const _userDto = UserDto(
-  id: 7,
+const _profil = ProfilDto(
+  id: 'b5a1-uuid',
+  email: 'afi@exemple.com',
   prenom: 'Afi',
   nom: 'Amégan',
-  email: 'afi@exemple.com',
   telephone: '+22891234567',
-  telephoneVerifie: true,
-  kycPassager: 'en_attente',
+  profilComplet: true,
+  kyc: {'passager': 'en_attente', 'conducteur': 'non_verifie'},
 );
 
 void main() {
   late _MockRemote remote;
-  late _MockGoogle google;
   late InMemoryTokenStorage storage;
   late AuthRepositoryImpl repository;
 
   setUp(() {
     remote = _MockRemote();
-    google = _MockGoogle();
     storage = InMemoryTokenStorage();
-    repository = AuthRepositoryImpl(remote: remote, tokenStorage: storage, google: google);
-    when(() => google.signOut()).thenAnswer((_) async {});
+    repository = AuthRepositoryImpl(remote: remote, tokenStorage: storage);
   });
 
-  test('login normalise l’e-mail, stocke les jetons et mappe l’utilisateur', () async {
-    when(() => remote.login(email: 'afi@exemple.com', password: 'secret123'))
-        .thenAnswer((_) async => const AuthResponseDto(access: 'a', refresh: 'r', user: _userDto));
+  test('requestCode normalise l’e-mail et renvoie le délai de renvoi', () async {
+    when(() => remote.requestCode('afi@exemple.com')).thenAnswer((_) async {});
 
-    final user = await repository.login(email: '  AFI@exemple.com ', password: 'secret123');
+    final challenge = await repository.requestCode('  AFI@exemple.com ');
+
+    expect(challenge.email, 'afi@exemple.com');
+    expect(challenge.resendIn, AuthRepositoryImpl.resendDelay);
+  });
+
+  test('verifyCode stocke les jetons et mappe l’utilisateur', () async {
+    when(() => remote.verifyCode(email: 'afi@exemple.com', code: '123456')).thenAnswer(
+      (_) async => const ConnexionDto(utilisateur: _profil, access: 'a', refresh: 'r'),
+    );
+
+    final user = await repository.verifyCode(email: ' Afi@exemple.com', code: '123456');
 
     expect(storage.access, 'a');
     expect(storage.refresh, 'r');
+    expect(user.id, 'b5a1-uuid');
     expect(user.nomComplet, 'Afi Amégan');
     expect(user.kycPassager, KycStatus.enAttente);
+    expect(user.profilComplet, isTrue);
   });
 
   test('restoreSession sans jeton ne fait aucun appel', () async {
@@ -71,24 +77,6 @@ void main() {
     expect(repository.restoreSession(), throwsA(isA<NetworkApiException>()));
   });
 
-  test('Google annulé : aucun appel au backend', () async {
-    when(() => google.getIdToken()).thenAnswer((_) async => null);
-
-    expect(await repository.signInWithGoogle(), isNull);
-    verifyNever(() => remote.loginWithGoogle(any()));
-  });
-
-  test('Google : l’ID token est échangé contre une session', () async {
-    when(() => google.getIdToken()).thenAnswer((_) async => 'id-token');
-    when(() => remote.loginWithGoogle('id-token'))
-        .thenAnswer((_) async => const AuthResponseDto(access: 'a', refresh: 'r', user: _userDto));
-
-    final user = await repository.signInWithGoogle();
-
-    expect(user?.email, 'afi@exemple.com');
-    expect(storage.access, 'a');
-  });
-
   test('logout efface la session locale même si l’API échoue', () async {
     storage.access = 'a';
     storage.refresh = 'r';
@@ -98,6 +86,5 @@ void main() {
 
     expect(storage.access, isNull);
     expect(storage.refresh, isNull);
-    verify(() => google.signOut()).called(1);
   });
 }

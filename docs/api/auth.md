@@ -1,72 +1,57 @@
-# Contrat API — Authentification (Sprint S1)
+# Contrat API — Authentification et profil (backend `kovoit/backend`, app `accounts`)
 
-Contrat attendu par l'application mobile. Base : `/api/v1`. JSON, champs en `snake_case`.
-Jetons : JWT (format `djangorestframework-simplejwt`). Header : `Authorization: Bearer <access>`.
+Base : `/api/v1`. Réponses enveloppées : `{"statut": "success" | "failed", "message", "reponse"}`.
+Erreur : `reponse = {"code", "erreurs"}`. Jetons JWT (simplejwt) : access 15 min, refresh 7 jours, rotation + liste noire.
 
-Décision D3 (PRD §14) : **email + mot de passe, ou Google**, puis **vérification du téléphone par OTP SMS** (6 chiffres).
+**Décision D3 (révisée le 10/10/2026)** : connexion **sans mot de passe**, par un **code à 6 chiffres envoyé par e-mail**.
+Le compte est créé au premier code valide. Plus de mot de passe, de Google ni d'OTP SMS.
 
-## Objet `user`
+## Parcours mobile
+
+1. `/connexion` : saisie de l'e-mail → `POST /auth/otp/demander/`.
+2. `/connexion/code` : saisie du code → `POST /auth/otp/verifier/` (jetons stockés dans `flutter_secure_storage`).
+3. `/completer-profil` si `profil_complet = false` : prénom, nom, téléphone → `PATCH /moi/`.
+4. Application. Le KYC se fait ensuite depuis le Profil (non bloquant, retour UX du 08/10).
+
+## Objet `profil` (`ProfilSerializer`)
 
 ```json
 {
-  "id": 42,
-  "prenom": "Kodjo",
-  "nom": "Mensah",
-  "email": "kodjo@exemple.com",
-  "telephone": "+22890123456",
-  "telephone_verifie": true,
-  "photo": "https://.../photo.jpg",
-  "mode_actif": "passager",
-  "statut_compte": "actif",
-  "suspendu_jusqu_au": null,
-  "kyc_passager": "non_verifie",
-  "kyc_conducteur": "non_verifie",
-  "vehicule_declare": false
+  "id": "3f1c2b9e-…", "email": "kodjo@exemple.com", "telephone": "+22890123456",
+  "nom": "Mensah", "prenom": "Kodjo", "photo": null, "email_verifie": true,
+  "mode_actif": "passager", "statut_compte": "actif", "suspendu_jusqu_au": null,
+  "profil_complet": true,
+  "kyc": { "passager": "verifie", "conducteur": "non_verifie" },
+  "etat": {
+    "badge_kyc": false,
+    "acces": { "peut_rechercher": true, "peut_reserver": true, "peut_publier": false },
+    "mode_conducteur": { "disponible": false, "kyc_conducteur_verifie": false, "vehicule_declare": false },
+    "alertes": [ { "code": "KYC_CONDUCTEUR_NON_VERIFIE", "message": "…", "action_requise": false } ]
+  }
 }
 ```
 
-- `telephone` peut être `null` (compte créé via Google sans numéro).
-- `mode_actif` : `passager` | `conducteur`.
-- `statut_compte` : `actif` | `suspendu`.
-- `kyc_*` : `non_verifie` | `en_attente` | `verifie` | `rejete` (calculés depuis les dossiers, voir [kyc.md](kyc.md)).
-- `vehicule_declare` : `true` dès qu'un véhicule est enregistré (voir [vehicle.md](vehicle.md)).
-
-> **Retour UX du 08/10 :** l'inscription ne bloque plus sur le KYC. Un compte au téléphone vérifié accède à l'application ; seules les actions sensibles sont refusées (403) tant que le KYC n'est pas `verifie`.
-
-## Réponse d'authentification
-
-Renvoyée par `register`, `login` et `google` :
-
-```json
-{ "access": "<jwt>", "refresh": "<jwt>", "user": { ... } }
-```
+Mapping mobile : `ProfilDto` → `AppUser` (`features/auth/data/dto/profil_dto.dart`).
 
 ## Endpoints
 
 | Méthode | Chemin | Corps | Réponse | Erreurs |
 |---|---|---|---|---|
-| POST | `/auth/register/` | `nom_complet`, `email`, `telephone` (E.164 `+228…`), `password`, `cgu_acceptees` (true) | 201 + réponse d'auth | 400 avec erreurs par champ (`email`, `telephone`, `password`…) |
-| POST | `/auth/login/` | `email`, `password` | 200 + réponse d'auth | 400/401 `{"detail": "Email ou mot de passe incorrect."}` |
-| POST | `/auth/google/` | `id_token` (Google ID token) | 200 + réponse d'auth (compte créé si inexistant) | 400 jeton invalide |
-| POST | `/auth/token/refresh/` | `refresh` | 200 `{"access", "refresh"?}` | 401 |
-| POST | `/auth/logout/` | `refresh` | 205 (refresh mis en liste noire) | — |
-| GET | `/auth/me/` | — | 200 `user` | 401 |
-| PATCH | `/auth/me/mode/` | `mode_actif` (`passager` \| `conducteur`) | 200 `user` | 403 `{"detail"}` si vers `conducteur` sans `kyc_passager` + `kyc_conducteur` = `verifie` et `vehicule_declare`, ou compte suspendu |
-| PATCH | `/auth/me/telephone/` | `telephone` | 200 `user` (`telephone_verifie` repasse à false) | 400 numéro invalide ou déjà utilisé |
-| POST | `/auth/otp/send/` | — (numéro du compte) | 200 `{"telephone", "expire_dans": 300, "renvoi_dans": 30}` | 429 `{"detail", "renvoi_dans"}` trop de demandes |
-| POST | `/auth/otp/verify/` | `code` (6 chiffres) | 200 `user` (`telephone_verifie: true`) | 400 code invalide ou expiré |
-| POST | `/auth/password/reset/` | `email` | 204 (toujours, même si l'email est inconnu) | — |
+| POST | `/auth/otp/demander/` | `email` | message seul | 429 `TROP_DE_REQUETES` (délai de 60 s entre deux envois, 5 par heure) |
+| POST | `/auth/otp/verifier/` | `email`, `code` (6 chiffres) | `{utilisateur, nouveau_compte, access, refresh}` | 400 `CODE_OTP_INVALIDE` (valable 10 min, 5 essais) · compte désactivé |
+| POST | `/auth/jeton/rafraichir/` | `refresh` | `{access, refresh}` (nouveau refresh) | 401 `SESSION_EXPIREE` |
+| POST | `/auth/deconnexion/` | `refresh` | message seul | — |
+| GET | `/moi/` | — | `profil` | 401 |
+| PATCH | `/moi/` | `prenom`, `nom`, `telephone`, `photo` (multipart) | `profil` | 400 par champ |
+| PATCH | `/moi/mode/` | `mode_actif` | `profil` | 403 `KYC_CONDUCTEUR_REQUIS`, `VEHICULE_REQUIS` |
 
-## Notes pour le backend
-
-- `nom_complet` (champ unique de la maquette « Inscription ») est découpé côté serveur en `prenom` / `nom`.
-- Le code OTP SMS (6 chiffres) est **distinct** du code de départ (4 chiffres) des réservations.
-- L'OTP n'est envoyé que sur appel explicite à `/auth/otp/send/` (pas d'envoi automatique à l'inscription) pour éviter les doublons de SMS.
-- `/auth/google/` vérifie l'`id_token` auprès de Google (audience = client OAuth « Web » du projet).
+- Le code de connexion (6 chiffres) est **distinct** du code de départ (4 chiffres) des réservations.
+- Le délai de renvoi (60 s, paramètre `otp_delai_renvoi_s`) n'est pas renvoyé par l'API : le mobile l'applique (`AuthRepositoryImpl.resendDelay`).
 
 ## Mode mock (application)
 
-Tant que le backend n'est pas disponible, l'app tourne avec une fausse API en mémoire (`USE_MOCK_API`, activé par défaut en `dev`) :
+`USE_MOCK_API` (activé par défaut en `dev`) :
 
-- compte de démonstration : `demo@kovoit.tg` / `kovoit123` (téléphone vérifié) ;
-- code OTP accepté : `123456`.
+- `demo@kovoit.tg` (passager, KYC passager validé) et `conducteur@kovoit.tg` (conducteur) ;
+- code accepté : `123456` ;
+- toute autre adresse crée un compte neuf, qui passe par la complétion du profil.

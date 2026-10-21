@@ -35,6 +35,15 @@ abstract final class Formatters {
   /// `07:30`
   static String time(DateTime dateTime) => DateFormat('HH:mm', 'fr').format(toLome(dateTime));
 
+  /// `à l'instant`, `il y a 5 min`, `il y a 2 h`, puis `Jeu. 08 oct. · 07:30`.
+  static String relative(DateTime dateTime, {required DateTime now}) {
+    final diff = now.toUtc().difference(dateTime.toUtc());
+    if (diff.inMinutes < 1) return 'à l’instant';
+    if (diff.inMinutes < 60) return 'il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'il y a ${diff.inHours} h';
+    return '${shortDate(dateTime)} · ${time(dateTime)}';
+  }
+
   /// `1,2 km` / `850 m` : affichage d'une distance renvoyée par l'API (virgule décimale française).
   static String distanceKm(double km) {
     if (km < 1) return '${(km * 1000).round()} m';

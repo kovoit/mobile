@@ -1,13 +1,10 @@
-/// Résultat d'un envoi de code OTP SMS.
+/// Code de connexion envoyé par e-mail.
 class OtpChallenge {
-  const OtpChallenge({required this.telephone, required this.resendIn, required this.expiresIn});
+  const OtpChallenge({required this.email, required this.resendIn});
 
-  /// Numéro auquel le SMS a été envoyé (format E.164).
-  final String telephone;
+  /// Adresse à laquelle le code a été envoyé (normalisée).
+  final String email;
 
   /// Délai avant de pouvoir redemander un code.
   final Duration resendIn;
-
-  /// Durée de validité du code.
-  final Duration expiresIn;
 }

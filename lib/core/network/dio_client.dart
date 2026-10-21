@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
+import '../constants/api_constants.dart';
 import '../storage/token_storage.dart';
 import '../utils/app_logger.dart';
 import 'auth_interceptor.dart';
@@ -10,7 +11,7 @@ BaseOptions _baseOptions() => BaseOptions(
       baseUrl: Env.apiBaseUrl,
       connectTimeout: Env.connectTimeout,
       receiveTimeout: Env.receiveTimeout,
-      headers: {'Accept': 'application/json'},
+      headers: ApiConstants.defaultHeaders,
     );
 
 /// Signal émis quand la session ne peut plus être rafraîchie.

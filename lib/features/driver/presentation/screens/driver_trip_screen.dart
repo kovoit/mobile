@@ -12,6 +12,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
+import '../../../rating/presentation/rating_sheet.dart';
 import '../../domain/entities/driver_trip.dart';
 import '../providers/driver_providers.dart';
 import '../widgets/departure_code_dialog.dart';
@@ -105,6 +106,20 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
     }
   }
 
+  /// CA8 : le conducteur note son passager après le trajet.
+  Future<void> _rate(DriverRequest request) async {
+    final rated = await RatingSheet.show(context, bookingId: request.id, personName: request.passenger.prenom);
+    if (rated == true) {
+      await _controller.refresh();
+      if (mounted) _snack('Merci pour votre note !');
+    }
+  }
+
+  Future<void> _report(DriverRequest request) async {
+    final sent = await context.push<bool>(Routes.report(request.id, otherName: request.passenger.prenom));
+    if (sent == true) await _controller.refresh();
+  }
+
   Future<void> _tripAction(Future<void> Function() action, String success) async {
     setState(() => _busyTrip = true);
     try {
@@ -181,6 +196,8 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
             onRefuse: () => _onRequest(r, () => _controller.refuse(r.id), success: 'Demande refusée.'),
             onEnterCode: () => _enterCode(r),
             onDeclareAbsence: () => _declareAbsence(r),
+            onRate: () => _rate(r),
+            onReport: () => _report(r),
           ),
         );
 

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kovoit/features/kyc/data/services/document_capture_service.dart';
@@ -33,18 +33,16 @@ void main() {
     expect(find.text('Sans cette étape, vous ne pouvez ni réserver ni proposer de trajet.'), findsOneWidget);
 
     await _tap(tester, find.text('Vérification d’identité'));
-    expect(find.text('Étape 1 sur 4'), findsOneWidget);
+    expect(find.text('Étape 1 sur 2'), findsOneWidget);
 
-    // Photo de profil, recto, verso : choix appareil photo / galerie.
-    for (final piece in ['Photo de profil', 'Pièce d’identité avant', 'Pièce d’identité arrière']) {
-      await _tap(tester, find.text('Ajouter : $piece'));
-      await _tap(tester, find.text('Prendre une photo'));
-    }
+    // Pièce d'identité : choix appareil photo / galerie.
+    await _tap(tester, find.text('Ajouter : Pièce d’identité'));
+    await _tap(tester, find.text('Prendre une photo'));
     // Selfie : caméra frontale directement, sans galerie.
     await _tap(tester, find.text('Capturer le selfie'));
     expect(env.camera.requests.last, CaptureSource.frontCamera);
-    expect(find.text('Envoyer mon dossier'), findsOneWidget, reason: 'les 4 pièces sont fournies');
-    expect(env.camera.discarded, hasLength(4), reason: 'aucune pièce ne reste sur l’appareil');
+    expect(find.text('Envoyer mon dossier'), findsOneWidget, reason: 'les 2 pièces sont fournies');
+    expect(env.camera.discarded, hasLength(2), reason: 'aucune pièce ne reste sur l’appareil');
 
     await _tap(tester, find.text('Envoyer mon dossier'));
     expect(find.text('Dossier envoyé'), findsOneWidget);
@@ -63,7 +61,7 @@ void main() {
     final env = TestEnv.newUserSession();
     final userId = int.parse(env.storage.access!.replaceFirst('mock-access-', ''));
     env.backend.kycDossier(userId, 'passager')
-      ..pieces.addAll(['photo_profil', 'identite_recto', 'identite_verso', 'selfie'])
+      ..pieces.addAll(['identite', 'selfie'])
       ..statut = 'en_attente';
     await env.backend.simulateAdminDecision(approve: false);
     await pumpKovoitApp(tester, env: env);
@@ -75,7 +73,35 @@ void main() {
     await _tap(tester, find.text('Vérification d’identité'));
     expect(find.text('Dossier refusé'), findsOneWidget);
     expect(find.textContaining('Photo de la pièce illisible'), findsOneWidget);
-    expect(find.text('Ajouter : Photo de profil'), findsOneWidget, reason: 'les pièces sont à renvoyer');
+    expect(find.text('Ajouter : Pièce d’identité'), findsOneWidget, reason: 'les pièces sont à renvoyer');
+  });
+
+  testWidgets('Dossier conducteur : 5 pièces, carte grise OU assurance au choix', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.demoSession());
+    await _openProfile(tester);
+    await _tap(tester, find.text('Passer en mode conducteur'));
+    await _tap(tester, find.text('Dossier conducteur'));
+    expect(find.text('Étape 1 sur 5'), findsOneWidget);
+
+    await _tap(tester, find.text('Ajouter : Pièce d’identité'));
+    await _tap(tester, find.text('Choisir dans la galerie'));
+    await _tap(tester, find.text('Capturer le selfie'));
+    await _tap(tester, find.text('Ajouter : Permis de conduire'));
+    await _tap(tester, find.text('Prendre une photo'));
+
+    // Document du véhicule : l'utilisateur choisit d'abord lequel il envoie.
+    await _tap(tester, find.text('Ajouter : Carte grise ou assurance'));
+    await _tap(tester, find.text('Attestation d’assurance'));
+    await _tap(tester, find.text('Prendre une photo'));
+    await tester.scrollUntilVisible(find.text('Ajoutée · Attestation d’assurance'), 150, scrollable: find.byType(Scrollable).first);
+    expect(find.text('Ajoutée · Attestation d’assurance'), findsOneWidget);
+
+    await _tap(tester, find.text('Ajouter : Photo du véhicule'));
+    await _tap(tester, find.text('Prendre une photo'));
+    expect(env.backend.kycDossier(1, 'conducteur').pieces, {'identite', 'selfie', 'permis', 'assurance', 'photo_vehicule'});
+
+    await _tap(tester, find.text('Envoyer mon dossier'));
+    expect(find.text('Dossier envoyé'), findsOneWidget);
   });
 
   testWidgets('Mode conducteur refusé sans droits → check-list « Devenir conducteur »', (tester) async {
@@ -94,7 +120,7 @@ void main() {
   testWidgets('Conducteur complet : véhicule déclaré puis bascule vers l’Espace Conducteur et retour', (tester) async {
     final env = TestEnv.demoSession();
     env.backend.kycDossier(1, 'conducteur')
-      ..pieces.addAll(['permis', 'carte_grise_ou_assurance', 'photo_vehicule'])
+      ..pieces.addAll(['identite', 'selfie', 'permis', 'carte_grise', 'photo_vehicule'])
       ..statut = 'verifie';
     await pumpKovoitApp(tester, env: env);
     await _openProfile(tester);

@@ -5,13 +5,13 @@ import 'package:kovoit/core/router/auth_guard.dart';
 import 'package:kovoit/core/router/routes.dart';
 import 'package:kovoit/features/auth/domain/entities/app_user.dart';
 
-AppUser _user({String? telephone = '+22890123456', bool verified = true}) => AppUser(
-      id: 1,
-      prenom: 'Kodjo',
-      nom: 'Mensah',
+AppUser _user({bool complete = true}) => AppUser(
+      id: '1',
+      prenom: complete ? 'Kodjo' : '',
+      nom: complete ? 'Mensah' : '',
       email: 'kodjo@exemple.com',
-      telephone: telephone,
-      telephoneVerifie: verified,
+      telephone: complete ? '+22890123456' : null,
+      profilComplet: complete,
     );
 
 void main() {
@@ -26,17 +26,23 @@ void main() {
   group('déconnecté', () {
     const session = AsyncData<AppUser?>(null);
 
-    test('accède aux écrans publics', () {
-      for (final route in Routes.publicAuth) {
-        expect(authRedirect(session, route), isNull, reason: route);
-      }
+    test('accède à la saisie de l’e-mail et du code', () {
+      expect(authRedirect(session, Routes.login), isNull);
+      expect(authRedirect(session, Routes.otp), isNull);
     });
 
     test('est renvoyé vers la connexion ailleurs', () {
       expect(authRedirect(session, Routes.splash), Routes.login);
       expect(authRedirect(session, Routes.home), Routes.login);
-      expect(authRedirect(session, Routes.otp), Routes.login);
+      expect(authRedirect(session, Routes.completeProfile), Routes.login);
     });
+  });
+
+  test('nouveau compte : profil à compléter avant l’application', () {
+    final session = AsyncData<AppUser?>(_user(complete: false));
+    expect(authRedirect(session, Routes.home), Routes.completeProfile);
+    expect(authRedirect(session, Routes.otp), Routes.completeProfile);
+    expect(authRedirect(session, Routes.completeProfile), isNull);
   });
 
   test('KYC non vérifié : la navigation reste ouverte (contrôle au moment de l’action)', () {
@@ -46,22 +52,7 @@ void main() {
     expect(authRedirect(session, Routes.kyc('passager')), isNull);
   });
 
-  test('compte Google sans numéro → saisie du numéro', () {
-    final session = AsyncData<AppUser?>(_user(telephone: null, verified: false));
-    expect(authRedirect(session, Routes.home), Routes.phone);
-    expect(authRedirect(session, Routes.otp), Routes.phone);
-    expect(authRedirect(session, Routes.phone), isNull);
-  });
-
-  test('numéro non vérifié → code SMS (modification du numéro autorisée)', () {
-    final session = AsyncData<AppUser?>(_user(verified: false));
-    expect(authRedirect(session, Routes.home), Routes.otp);
-    expect(authRedirect(session, Routes.login), Routes.otp);
-    expect(authRedirect(session, Routes.otp), isNull);
-    expect(authRedirect(session, Routes.phone), isNull);
-  });
-
-  test('téléphone vérifié → application, écrans d’entrée renvoyés vers l’accueil', () {
+  test('profil complet → application, écrans d’entrée renvoyés vers l’accueil', () {
     final session = AsyncData<AppUser?>(_user());
     expect(authRedirect(session, Routes.home), isNull);
     expect(authRedirect(session, Routes.vehicle), isNull);
@@ -69,5 +60,6 @@ void main() {
     expect(authRedirect(session, Routes.splash), Routes.home);
     expect(authRedirect(session, Routes.login), Routes.home);
     expect(authRedirect(session, Routes.otp), Routes.home);
+    expect(authRedirect(session, Routes.completeProfile), Routes.home);
   });
 }

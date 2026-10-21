@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/api_service.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
 import '../../data/datasources/kyc_remote_data_source.dart';
 import '../../data/repositories/kyc_repository_impl.dart';
@@ -12,7 +12,7 @@ import '../../domain/repositories/kyc_repository.dart';
 
 final kycRemoteDataSourceProvider = Provider<KycRemoteDataSource>((ref) {
   if (Env.useMockApi) return FakeKycRemoteDataSource(ref.watch(fakeBackendProvider));
-  return DioKycRemoteDataSource(ref.watch(dioProvider));
+  return ApiKycRemoteDataSource(ref.watch(apiServiceProvider));
 });
 
 final documentCaptureServiceProvider = Provider<DocumentCaptureService>((ref) => ImagePickerCaptureService());

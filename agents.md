@@ -1,4 +1,4 @@
-# agents.md — Agents spécialisés Kovoit Mobile
+﻿# agents.md — Agents spécialisés Kovoit Mobile
 
 Chaque agent a un périmètre, des fichiers dont il est responsable, des règles et une définition de « terminé ». Tous respectent [claude.md](claude.md) (méthode) et [PRD.md](PRD.md) (métier).
 
@@ -47,11 +47,11 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 
 ## 5. `auth-kyc` : authentification, KYC, véhicule
 
-**Mission :** sprints S1–S2 : splash, inscription, connexion, OTP SMS, parcours KYC, déclaration du véhicule, guards d'accès.
+**Mission :** sprints S1–S2 : splash, connexion par code e-mail, profil à compléter, parcours KYC, déclaration du véhicule, guards d'accès.
 
 - **Responsable de :** `features/auth`, `features/kyc`, `features/vehicle`, guards dans `core/router`.
-- **Règles :** OTP SMS à 6 chiffres avec compte à rebours de renvoi ; numéro au format `+228` ; KYC passager (identité recto/verso, selfie, photo de profil) et KYC conducteur (+ permis, carte grise ou assurance, photo du véhicule) ; statuts `non_verifie → en_attente → verifie | rejete` avec affichage du motif et nouvelle soumission ; pièces envoyées en multipart puis supprimées du cache local ; guards selon `claude.md` §3.
-- **Décision D3 :** e-mail + mot de passe ou Google, puis OTP SMS. Toute redirection d'accès passe par `core/router/auth_guard.dart` (fonction pure, testée).
+- **Règles :** code e-mail à 6 chiffres avec compte à rebours de renvoi (60 s) ; numéro au format `+228` ; KYC passager (pièce d'identité, selfie) et KYC conducteur (identité, selfie, permis, carte grise ou assurance au choix, photo du véhicule) ; statuts `non_verifie → en_attente → verifie | rejete` avec affichage du motif et nouvelle soumission ; pièces envoyées en multipart puis supprimées du cache local ; guards selon `claude.md` §3.
+- **Décision D3 (révisée le 10/10) :** connexion par code e-mail, alignée sur le backend. Toute redirection d'accès passe par `core/router/auth_guard.dart` (fonction pure, testée).
 - **Retours UX du 08/10 :** le KYC ne bloque plus l'inscription : il se fait depuis le **Profil** (macaron orange, carte « Vérifiez votre identité »). Les droits d'action passent par `AccessPolicy` (`canBook`, `canSwitchToDriver`, `canPublish`), jamais par une redirection globale. La bascule de mode est **uniquement** dans le Profil ; vers le mode conducteur sans droits → `/profil/devenir-conducteur`.
 
 ## 6. `booking-flow` : recherche, réservation, trajet
@@ -69,6 +69,8 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
   - Mises à jour : rafraîchissement à la réception d'une notification push et au retour sur l'écran.
   - Droits : « Réserver » et « Publier » consultent `AccessPolicy` ; en cas de refus, afficher `AccessRequiredCard` (renvoi vers le Profil / KYC), sans masquer la consultation.
   - Paiement (écran Détails & Réservation) : Espèces, **Flooz** (Moov Africa) ou **Mixx** (Togocom), au choix du passager (D5/D7). Paiement mobile après acceptation seulement. Jamais « T-Money ».
+  - Après le trajet : `confirmer`, `noter`, `signaler` (réservation) et `noter`, `signaler` (demande vue par le conducteur), toujours selon `actions`. Notation via `RatingSheet`, signalement via la route `/signaler/:id`.
+  - Notifications : toute nouvelle notification rafraîchit l'écran concerné (`NotificationsController`) ; le push passe par `PushService`, jamais directement par Firebase dans un écran.
   - Actions d'une réservation : uniquement celles du champ `actions` de l'API (`Booking.can`). Appel et partage via `ExternalActions` (simulable en test).
   - Espace Conducteur : pas de toggle Passager/Conducteur (la bascule est dans le Profil). Prix recommandé fourni par l'API (`/trajets/prix/`), jamais saisi. Le conducteur **saisit** le code de départ (`DepartureCodeDialog`), il ne le voit jamais. Absence : position via `LocationService`.
 - **Terminé quand :** les critères CA1–CA6 du PRD concernés sont couverts par des tests.

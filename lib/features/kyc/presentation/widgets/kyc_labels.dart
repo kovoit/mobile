@@ -1,38 +1,53 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../../../../core/widgets/status_chip.dart';
 import '../../../auth/domain/entities/app_user.dart';
 import '../../domain/entities/kyc_dossier.dart';
 
-/// Libellés d'affichage des pièces (maquette « Vérification d'identité »).
-extension KycPieceTypeLabels on KycPieceType {
+/// Libellés d'affichage des emplacements de pièces (maquette « Vérification d'identité »).
+extension KycSlotLabels on KycSlot {
   String get title => switch (this) {
-        KycPieceType.photoProfil => 'Photo de profil',
-        KycPieceType.identiteRecto => 'Pièce d’identité avant',
-        KycPieceType.identiteVerso => 'Pièce d’identité arrière',
-        KycPieceType.selfie => 'Selfie',
-        KycPieceType.permis => 'Permis de conduire',
-        KycPieceType.carteGriseOuAssurance => 'Carte grise ou assurance',
-        KycPieceType.photoVehicule => 'Photo du véhicule',
+        KycSlot.identite => 'Pièce d’identité',
+        KycSlot.selfie => 'Selfie',
+        KycSlot.permis => 'Permis de conduire',
+        KycSlot.vehiculeDocument => 'Carte grise ou assurance',
+        KycSlot.photoVehicule => 'Photo du véhicule',
+      };
+
+  /// Libellé court de la barre d'avancement.
+  String get stepLabel => switch (this) {
+        KycSlot.identite => 'Identité',
+        KycSlot.selfie => 'Selfie',
+        KycSlot.permis => 'Permis',
+        KycSlot.vehiculeDocument => 'Document',
+        KycSlot.photoVehicule => 'Véhicule',
       };
 
   String get hint => switch (this) {
-        KycPieceType.photoProfil => 'votre visage doit être bien visible.',
-        KycPieceType.identiteRecto => 'recto de votre carte d’identité.',
-        KycPieceType.identiteVerso => 'verso de votre carte d’identité.',
-        KycPieceType.selfie => 'capturez un selfie en direct pour confirmer votre identité.',
-        KycPieceType.permis => 'recto de votre permis, bien lisible.',
-        KycPieceType.carteGriseOuAssurance => 'document du véhicule que vous conduisez.',
-        KycPieceType.photoVehicule => 'véhicule entier, immatriculation visible.',
+        KycSlot.identite => 'carte d’identité, passeport ou carte d’électeur, bien lisible.',
+        KycSlot.selfie => 'capturez un selfie en direct pour confirmer votre identité.',
+        KycSlot.permis => 'recto de votre permis, bien lisible.',
+        KycSlot.vehiculeDocument => 'l’un des deux documents du véhicule que vous conduisez.',
+        KycSlot.photoVehicule => 'véhicule entier, immatriculation visible.',
       };
 
   IconData get icon => switch (this) {
-        KycPieceType.photoProfil => Icons.person_outline_rounded,
-        KycPieceType.identiteRecto || KycPieceType.identiteVerso => Icons.credit_card_rounded,
-        KycPieceType.selfie => Icons.photo_camera_outlined,
-        KycPieceType.permis => Icons.badge_outlined,
-        KycPieceType.carteGriseOuAssurance => Icons.description_outlined,
-        KycPieceType.photoVehicule => Icons.directions_car_filled_outlined,
+        KycSlot.identite => Icons.credit_card_rounded,
+        KycSlot.selfie => Icons.photo_camera_outlined,
+        KycSlot.permis => Icons.badge_outlined,
+        KycSlot.vehiculeDocument => Icons.description_outlined,
+        KycSlot.photoVehicule => Icons.directions_car_filled_outlined,
+      };
+}
+
+extension KycPieceTypeLabels on KycPieceType {
+  String get title => switch (this) {
+        KycPieceType.identite => 'Pièce d’identité',
+        KycPieceType.selfie => 'Selfie',
+        KycPieceType.permis => 'Permis de conduire',
+        KycPieceType.carteGrise => 'Carte grise',
+        KycPieceType.assurance => 'Attestation d’assurance',
+        KycPieceType.photoVehicule => 'Photo du véhicule',
       };
 }
 
@@ -44,7 +59,7 @@ extension KycTypeLabels on KycType {
 
   String get subtitle => switch (this) {
         KycType.passager => 'Pour plus de sécurité, nous avons besoin de vérifier votre identité.',
-        KycType.conducteur => 'Ces pièces nous permettent de vérifier votre véhicule avant vos premiers trajets.',
+        KycType.conducteur => 'Votre identité, votre permis et votre véhicule sont vérifiés avant vos premiers trajets.',
       };
 }
 

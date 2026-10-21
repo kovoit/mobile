@@ -1,13 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/session_controller.dart';
-import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/complete_profile_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
-import '../../features/auth/presentation/screens/phone_number_screen.dart';
-import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/booking/presentation/screens/booking_screen.dart';
 import '../../features/booking/presentation/screens/my_trips_screen.dart';
@@ -15,7 +13,9 @@ import '../../features/driver/presentation/screens/driver_trip_screen.dart';
 import '../../features/kyc/domain/entities/kyc_dossier.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_submitted_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/screens/become_driver_screen.dart';
+import '../../features/report/presentation/report_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/search/domain/entities/search_query.dart';
 import '../../features/search/presentation/screens/map_picker_screen.dart';
@@ -45,8 +45,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         s.isLoading,
         s.hasError,
         s.value == null,
-        s.value?.hasTelephone,
-        s.value?.telephoneVerifie,
+        s.value?.profilComplet,
       ),
     ),
     (_, _) => sessionChanges.value++,
@@ -62,10 +61,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(path: Routes.splash, builder: (context, state) => const SplashScreen()),
       GoRoute(path: Routes.login, builder: (context, state) => const LoginScreen()),
-      GoRoute(path: Routes.register, builder: (context, state) => const RegisterScreen()),
-      GoRoute(path: Routes.forgotPassword, builder: (context, state) => const ForgotPasswordScreen()),
-      GoRoute(path: Routes.phone, builder: (context, state) => const PhoneNumberScreen()),
       GoRoute(path: Routes.otp, builder: (context, state) => const OtpVerificationScreen()),
+      GoRoute(path: Routes.completeProfile, builder: (context, state) => const CompleteProfileScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => HomeShell(navigationShell: navigationShell),
         branches: [
@@ -170,6 +167,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+      GoRoute(path: Routes.notifications, builder: (context, state) => const NotificationsScreen()),
+      GoRoute(
+        path: Routes.reportPattern,
+        redirect: (context, state) => int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.home : null,
+        builder: (context, state) => ReportScreen(
+          bookingId: int.parse(state.pathParameters['id']!),
+          otherName: state.uri.queryParameters['nom'] ?? 'votre trajet',
+        ),
       ),
       if (Env.isDev)
         GoRoute(

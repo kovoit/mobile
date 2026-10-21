@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kovoit/core/network/api_exception.dart';
 import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/features/auth/domain/entities/otp_challenge.dart';
 import 'package:kovoit/features/auth/domain/repositories/auth_repository.dart';
@@ -17,11 +18,10 @@ void main() {
   setUp(() {
     repository = _MockRepository();
     now = DateTime(2026, 10, 8, 7, 30);
-    when(() => repository.sendOtp()).thenAnswer(
-      (_) async => const OtpChallenge(
-        telephone: '+22890123456',
-        resendIn: Duration(seconds: 30),
-        expiresIn: Duration(minutes: 5),
+    when(() => repository.requestCode(any())).thenAnswer(
+      (invocation) async => OtpChallenge(
+        email: (invocation.positionalArguments.first as String).trim().toLowerCase(),
+        resendIn: const Duration(seconds: 60),
       ),
     );
     container = ProviderContainer(
@@ -35,27 +35,39 @@ void main() {
 
   OtpController controller() => container.read(otpControllerProvider.notifier);
 
-  test('n’envoie pas un second SMS pendant le délai de renvoi', () async {
-    await controller().sendIfNeeded('+22890123456');
+  test('n’envoie pas un second e-mail à la même adresse pendant le délai de renvoi', () async {
+    await controller().request('afi@exemple.com');
     now = now.add(const Duration(seconds: 10));
-    await controller().sendIfNeeded('+22890123456');
+    await controller().request(' AFI@exemple.com ');
 
-    verify(() => repository.sendOtp()).called(1);
-    expect(container.read(otpControllerProvider).remaining(now), const Duration(seconds: 20));
+    verify(() => repository.requestCode(any())).called(1);
+    expect(container.read(otpControllerProvider).remaining(now), const Duration(seconds: 50));
   });
 
-  test('renvoie après le délai', () async {
-    await controller().sendIfNeeded('+22890123456');
-    now = now.add(const Duration(seconds: 31));
-    await controller().sendIfNeeded('+22890123456');
+  test('envoie immédiatement si l’adresse a changé', () async {
+    await controller().request('afi@exemple.com');
+    await controller().request('kodjo@exemple.com');
 
-    verify(() => repository.sendOtp()).called(2);
+    verify(() => repository.requestCode(any())).called(2);
+    expect(container.read(otpControllerProvider).email, 'kodjo@exemple.com');
   });
 
-  test('renvoie immédiatement si le numéro a changé', () async {
-    await controller().sendIfNeeded('+22890123456');
-    await controller().sendIfNeeded('+22891111111');
+  test('renvoi : une erreur reste affichée dans l’état', () async {
+    await controller().request('afi@exemple.com');
+    when(() => repository.requestCode(any()))
+        .thenThrow(const TooManyAttemptsApiException('Patientez 60 secondes avant de demander un nouveau code.'));
 
-    verify(() => repository.sendOtp()).called(2);
+    await controller().resend();
+
+    final state = container.read(otpControllerProvider);
+    expect(state.error, 'Patientez 60 secondes avant de demander un nouveau code.');
+    expect(state.isSending, isFalse);
+  });
+
+  test('premier envoi : l’erreur est levée pour l’écran e-mail', () async {
+    when(() => repository.requestCode(any())).thenThrow(const NetworkApiException());
+
+    await expectLater(controller().request('afi@exemple.com'), throwsA(isA<NetworkApiException>()));
+    expect(container.read(otpControllerProvider).email, isNull);
   });
 }

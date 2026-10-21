@@ -1,25 +1,21 @@
 import '../entities/app_user.dart';
 import '../entities/otp_challenge.dart';
 
-/// Contrat d'authentification (décision D3 : email + mot de passe ou Google, puis OTP SMS).
+/// Contrat d'authentification : connexion sans mot de passe, par un code à 6 chiffres reçu par e-mail.
+/// Le compte est créé au premier code valide ; le profil (prénom, nom, téléphone) est complété ensuite.
 /// Les erreurs remontent en `ApiException` (voir core/network).
 abstract interface class AuthRepository {
   /// Restaure la session depuis les jetons stockés. `null` si aucune session valide.
   Future<AppUser?> restoreSession();
 
-  Future<AppUser> login({required String email, required String password});
+  /// Envoie un code à [email]. `TooManyAttemptsApiException` si un code vient d'être envoyé.
+  Future<OtpChallenge> requestCode(String email);
 
-  Future<AppUser> register({
-    required String nomComplet,
-    required String email,
-    required String telephone,
-    required String password,
-  });
+  /// Ouvre la session. `BadRequestApiException` (code `CODE_OTP_INVALIDE`) si le code est faux ou expiré.
+  Future<AppUser> verifyCode({required String email, required String code});
 
-  /// `null` si l'utilisateur a annulé la fenêtre Google.
-  Future<AppUser?> signInWithGoogle();
-
-  Future<AppUser> updatePhone(String telephone);
+  /// Erreurs par champ dans `BadRequestApiException.fieldErrors`.
+  Future<AppUser> completeProfile({required String prenom, required String nom, required String telephone});
 
   /// Relit l'utilisateur (après un envoi KYC, une déclaration de véhicule…).
   Future<AppUser> refreshUser();
@@ -27,21 +23,5 @@ abstract interface class AuthRepository {
   /// Bascule passager ↔ conducteur. Lève `ForbiddenApiException` si le mode conducteur est refusé.
   Future<AppUser> updateMode(UserMode mode);
 
-  Future<OtpChallenge> sendOtp();
-
-  Future<AppUser> verifyOtp(String code);
-
-  Future<void> requestPasswordReset(String email);
-
   Future<void> logout();
-}
-
-/// Levée quand Google Sign-In n'est pas configuré (client OAuth manquant).
-class GoogleSignInUnavailableException implements Exception {
-  const GoogleSignInUnavailableException([this.message = 'La connexion Google n’est pas encore disponible.']);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }

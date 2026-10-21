@@ -1,4 +1,4 @@
-# PRD — Kovoit Mobile (MVP)
+﻿# PRD — Kovoit Mobile (MVP)
 
 > Sources : `docs/Kovoit Spécification du MVP (1).docx`, `docs/Nana Tech.zip` (11 maquettes Figma). Méthode de dev : [claude.md](claude.md). Agents : [agents.md](agents.md).
 
@@ -28,7 +28,7 @@ Le mode conducteur s'active depuis le **Profil** (« Passer en mode conducteur �
 ## 3. Fonctionnalités du MVP (mobile)
 
 **Passager**
-- Créer un compte et vérifier son téléphone (OTP SMS)
+- Se connecter avec un code reçu par e-mail (compte créé automatiquement), puis compléter son profil
 - Soumettre son KYC passager
 - Chercher un trajet : départ, arrivée, date, heure (type Moto/Voiture, nombre de places)
 - Voir le profil du conducteur : statut vérifié, note, taux de fiabilité, véhicule, photo, immatriculation
@@ -77,7 +77,9 @@ Le mode conducteur s'active depuis le **Profil** (« Passer en mode conducteur �
 
 **CA7 ter — Demandes et fin de trajet.** Le conducteur accepte ou refuse chaque demande (plus d'« Accepter » quand le trajet est complet), saisit le code de chaque passager, puis « Terminer le trajet » (les passagers `en_cours` passent `terminee`). L'économie du trajet et le cumul du mois sont calculés par le backend.
 
-**CA8 — Fin de trajet.** Après `terminee`, le passager peut confirmer (→ `cloturee`) ou signaler un problème (→ `litige`). Sans action, la clôture est automatique après `delai_confirmation_auto_h`. Les deux parties peuvent noter (1 à 5 ★ + commentaire optionnel).
+**CA8 — Fin de trajet.** Après `terminee`, le passager peut confirmer son arrivée (→ `cloturee`, la notation lui est aussitôt proposée) ou signaler un problème (→ `litige`, paiement gelé). Sans action, la clôture est automatique après `delai_confirmation_auto_h` (serveur). Les deux parties peuvent noter une fois (1 à 5 ★ + commentaire optionnel de 300 caractères) ; le signalement (motif + description) est possible pendant et après le trajet, des deux côtés.
+
+**CA10 — Notifications.** Chaque changement de statut crée une notification (cloche avec pastille orange dans l'en-tête des onglets, liste, ouverture de l'écran concerné). Le message ne contient jamais le code de départ. Push FCM si Firebase est configuré, sinon relecture à l'ouverture, au retour au premier plan et toutes les 60 s ; le serveur bascule en SMS si le push n'est pas livré.
 
 **CA9 — Absence.** Après l'heure de départ + `tolerance_retard_min`, le conducteur peut déclarer un passager `absent` depuis le point de prise en charge, après confirmation. Sa position GPS est envoyée comme preuve ; sans localisation (désactivée ou refusée), la déclaration n'est pas envoyée et l'app l'explique.
 
@@ -86,9 +88,9 @@ Le mode conducteur s'active depuis le **Profil** (« Passer en mode conducteur �
 | # | Écran Figma | Feature | Contenu clé |
 |---|---|---|---|
 | 1 | Splash | auth | Logo, slogan « Même trajet, moins cher », barre de chargement |
-| 2 | Connexion | auth | Onglets Connexion/Inscription, identifiants, mot de passe oublié, Google* |
-| 3 | Inscription | auth | Nom complet, email, téléphone +228, mot de passe, CGU, Google* |
-| 4 | Vérification SMS | auth | OTP 6 chiffres, numéro affiché, modifier le numéro, renvoi après 30 s |
+| 2 | Connexion | auth | Saisie de l'e-mail (connexion et inscription confondues) |
+| 3 | Profil à compléter | auth | Prénom, nom, téléphone +228 (nouveau compte) |
+| 4 | Vérification | auth | Code 6 chiffres reçu par e-mail, e-mail affiché, modifier l'e-mail, renvoi après 60 s |
 | 5 | Vérification d'identité | kyc | Ouvert depuis le Profil. 4 étapes : photo de profil, pièce recto, pièce verso, selfie (caméra frontale) ; progression ; même écran pour le dossier conducteur |
 | 6 | Profil vérifié | kyc | Récapitulatif des pièces ; « Dossier envoyé » tant que le statut est `en_attente`, « Profil vérifié » une fois validé |
 | 7 | Rechercher un trajet | search | Toggle Moto/Voiture, départ, destination, date, heure, places, trajet du quotidien |
@@ -129,7 +131,7 @@ Chaque changement de statut notifie l'autre partie (push, ou SMS si l'applicatio
 | Entité | Champs principaux |
 |---|---|
 | User | id, telephone, nom, prenom, email, photo, mode_actif (passager/conducteur), statut_compte, suspendu_jusqu_au, kyc_passager, kyc_conducteur, vehicule_declare, note, fiabilite, nb_trajets |
-| KycDossier | type (passager/conducteur), statut, motif_rejet, pièces (passager : photo_profil, identite_recto, identite_verso, selfie · conducteur : permis, carte_grise_ou_assurance, photo_vehicule) — `docs/api/kyc.md` |
+| KycDossier | type (passager/conducteur), statut, motif_rejet, pièces (passager : identite, selfie · conducteur : identite, selfie, permis, carte_grise ou assurance, photo_vehicule) — `docs/api/kyc.md` |
 | Vehicle | id, type (moto/voiture), marque, modele, couleur, immatriculation, nb_places, photo, statut_verification |
 | Trip | id, conducteur, vehicule, depart (lat, lng, libelle), arrivee (lat, lng, libelle), points_prise_en_charge[1..3], depart_le, places_total, places_restantes, distance_km, prix_place, statut |
 | Booking | id, trajet, passager, point_prise_en_charge, nb_places, prix, frais_service, statut, code_depart (**visible passager uniquement**), horodatages |
@@ -190,7 +192,7 @@ Plus tard : portefeuille Kovoit rechargé par Flooz / Mixx, versements groupés 
 ## 13. Sécurité & confiance
 
 - Profil vérifié (badge), photo du conducteur, photo et immatriculation du véhicule visibles avant la prise en charge.
-- **Code de départ à 4 chiffres** par réservation, stocké haché côté backend, jamais affiché au conducteur. Ne pas le confondre avec l'OTP SMS à 6 chiffres.
+- **Code de départ à 4 chiffres** par réservation, stocké haché côté backend, jamais affiché au conducteur. Ne pas le confondre avec le code de connexion à 6 chiffres reçu par e-mail.
 - « Partager mon trajet » : lien public temporaire avec la position du véhicule, valable jusqu'à la clôture.
 - « Signaler un problème » pendant et après le trajet.
 - Notes des deux côtés après chaque trajet.
@@ -204,7 +206,7 @@ Contradictions relevées entre la spécification, l'ancien PRD et les maquettes.
 |---|---|---|
 | D1 | Calcul du prix | Grille 200/300/500 F par distance (spéc.) · pas de calcul dans le MVP (ancien PRD) · formule au km (ancien claude.md). Les maquettes affichent un « prix recommandé calculé automatiquement ». Quelle que soit l'option, le mobile **affiche** le prix de l'API. |
 | D2 | Frais de service | 0 F pendant le pilote (spéc., maquettes « 0 FCFA ») · 10 % · frais fixes 50 F |
-| D3 | Authentification | ✅ **Tranché (08/10/2026)** : e-mail + mot de passe **ou** Google, puis vérification du téléphone par OTP SMS (6 chiffres). Contrat : `docs/api/auth.md` |
+| D3 | Authentification | ✅ **Révisé (10/10/2026)** : connexion sans mot de passe par code à 6 chiffres envoyé par e-mail (backend). Plus de mot de passe, Google ni OTP SMS. Contrat : `docs/api/auth.md` |
 | D4 | Bouton « Message » (écran 10) | Hors MVP (messagerie) : masquer, désactiver ou remplacer par SMS natif ? |
 | D5 | Paiement mobile (écran 9) | ✅ **Tranché (09/10/2026)** : Flooz et Mixx réellement proposés, au choix avec les espèces (§12). |
 | D6 | Backend | DRF seul · DRF + FastAPI |
@@ -224,7 +226,7 @@ Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique
 | Cartographie | OpenStreetMap (`flutter_map`) ; distances par la route via OSRM côté backend |
 | Backend | Django / Django REST Framework (voir D6) |
 | Base de données | PostgreSQL + PostGIS |
-| Authentification | E-mail/mot de passe ou Google, JWT, OTP SMS (D3) |
+| Authentification | Code à 6 chiffres par e-mail, JWT avec rotation (D3) |
 | Notifications | Firebase Cloud Messaging (push) + SMS de repli |
 | Administration | React |
 
@@ -233,12 +235,12 @@ Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique
 | Sprint | Contenu |
 |---|---|
 | S0 Socle | Projet Flutter, arborescence, thème Figma, widgets communs, Dio, router, environnements, mocks API |
-| S1 Auth | Splash, inscription, connexion, OTP SMS, tokens |
+| S1 Auth | Splash, connexion par code e-mail, profil à compléter, tokens |
 | S2 KYC + Véhicule + Profil | KYC depuis le Profil (passager 4 pièces, conducteur 3 pièces), statut et motif de rejet, déclaration du véhicule, macaron orange, accès restreint sur l'accueil, bascule de mode |
 | S3 Recherche | Formulaire (lieux connus ou point sur la carte, Moto/Voiture, date/heure de Lomé, places), recherches récentes, résultats + carte OSM de l'itinéraire, détail du trajet en consultation (profil conducteur, fiabilité, véhicule, prix renvoyés par l'API) |
 | S4 Réservation passager | Choix du paiement (Espèces / Flooz / Mixx), demande de place, suivi (statuts, code de départ, arrivée du conducteur), paiement mobile après acceptation, appel du conducteur, partage du trajet, annulation (gratuite / tardive), onglet « Mes trajets ». Statuts relus par sondage en attendant les push (S6). |
 | S5 Conducteur | Espace conducteur (économies du mois, publication avec 1–3 carrefours et prix recommandé par l'API), gestion d'un trajet (demandes accepter/refuser, saisie du code de départ, absence avec position GPS, terminer, annuler), trajets publiés dans « Mes trajets ». Contrat : `docs/api/driver.md` |
-| S6 Après trajet | Confirmation, notation, signalement, notifications push |
+| S6 Après trajet | Confirmation d'arrivée, notation des deux côtés, signalement (→ litige), notifications (cloche, liste, ouverture de l'écran concerné), push FCM prêt derrière `PUSH_ENABLED` (projet Firebase à créer). Contrat : `docs/api/after_trip.md` |
 | S7 Qualité | Tests CA1–CA9, erreurs et hors-ligne, accessibilité, APK de démo |
 
 ## 18. Retours UX du 08/10/2026 (intégrés en S2)

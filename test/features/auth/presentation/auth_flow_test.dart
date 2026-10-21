@@ -12,99 +12,91 @@ Finder _field(String label) => find.descendant(
 
 Future<void> _tapButton(WidgetTester tester, String label) => scrollAndTap(tester, find.text(label));
 
+Future<void> _requestCode(WidgetTester tester, String email) async {
+  await tester.enterText(_field('Adresse e-mail'), email);
+  await _tapButton(tester, 'Recevoir le code');
+}
+
+Future<void> _enterCode(WidgetTester tester, String code) async {
+  await tester.enterText(find.byType(TextField).first, code);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
 
-  testWidgets('Connexion e-mail + mot de passe → Rechercher', (tester) async {
+  testWidgets('Compte existant : e-mail → code → Rechercher', (tester) async {
     await pumpKovoitApp(tester);
 
-    await tester.enterText(_field('Email'), DemoAccount.email);
-    await tester.enterText(_field('Mot de passe'), DemoAccount.password);
-    await _tapButton(tester, 'Se connecter');
+    await _requestCode(tester, DemoAccount.email);
+    expect(find.text('Vérification'), findsOneWidget);
+    expect(find.text(DemoAccount.email), findsOneWidget);
+    expect(find.textContaining('Renvoyer le code dans'), findsOneWidget);
+
+    await _enterCode(tester, DemoAccount.otpCode);
 
     expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
   });
 
-  testWidgets('Connexion refusée : message d’erreur, reste sur l’écran', (tester) async {
+  testWidgets('Code faux : message d’erreur, reste sur l’écran du code', (tester) async {
     await pumpKovoitApp(tester);
+    await _requestCode(tester, DemoAccount.email);
 
-    await tester.enterText(_field('Email'), DemoAccount.email);
-    await tester.enterText(_field('Mot de passe'), 'mauvais-mdp');
-    await _tapButton(tester, 'Se connecter');
+    await _enterCode(tester, '000000');
 
-    expect(find.text('Email ou mot de passe incorrect.'), findsOneWidget);
-    expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
+    expect(find.text('Code incorrect ou expiré.'), findsOneWidget);
+    expect(find.text('Vérification'), findsOneWidget);
   });
 
-  testWidgets('Validation locale avant tout appel', (tester) async {
+  testWidgets('Validation locale de l’e-mail avant tout appel', (tester) async {
     await pumpKovoitApp(tester);
 
-    await _tapButton(tester, 'Se connecter');
+    await _tapButton(tester, 'Recevoir le code');
 
     expect(find.text("L'adresse e-mail est obligatoire."), findsOneWidget);
-    expect(find.text('Le mot de passe est obligatoire.'), findsOneWidget);
   });
 
-  testWidgets('Inscription → Vérification SMS → code faux puis bon → Rechercher', (tester) async {
+  testWidgets('Modifier mon e-mail : retour à la saisie, adresse conservée', (tester) async {
     await pumpKovoitApp(tester);
-    await tester.tap(find.text('Inscription'));
-    await tester.pumpAndSettle();
+    await _requestCode(tester, 'afi@exemple.com');
 
-    await tester.enterText(_field('Nom complet'), 'Afi Amégan');
-    await tester.enterText(_field('Adresse e-mail'), 'afi@exemple.com');
+    await _tapButton(tester, 'Modifier mon e-mail');
+
+    expect(find.text('Recevoir le code'), findsOneWidget);
+    expect(find.text('afi@exemple.com'), findsOneWidget);
+  });
+
+  testWidgets('Nouveau compte : code → profil à compléter → Rechercher (KYC à faire)', (tester) async {
+    await pumpKovoitApp(tester);
+    await _requestCode(tester, 'afi@exemple.com');
+    await _enterCode(tester, DemoAccount.otpCode);
+
+    expect(find.text('Votre profil'), findsOneWidget);
+    await _tapButton(tester, 'Continuer');
+    expect(find.text('Le prénom est obligatoire.'), findsOneWidget);
+
+    await tester.enterText(_field('Prénom'), 'Afi');
+    await tester.enterText(_field('Nom'), 'Amégan');
     await tester.enterText(_field('Numéro de téléphone'), '91 23 45 67');
-    await tester.enterText(_field('Mot de passe'), 'motdepasse');
+    await _tapButton(tester, 'Continuer');
 
-    // CGU non acceptées : bloqué.
-    await _tapButton(tester, 'Créer mon compte');
-    expect(find.text('Vous devez accepter les conditions pour créer un compte.'), findsOneWidget);
-
-    await tester.tap(find.byType(Checkbox));
-    await _tapButton(tester, 'Créer mon compte');
-
-    expect(find.text('Vérification SMS'), findsOneWidget);
-    expect(find.text('+228 91 23 45 67'), findsOneWidget);
-    expect(find.textContaining('Renvoyer le code dans'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, '000000');
-    await tester.pumpAndSettle();
-    expect(find.text('Code invalide ou expiré.'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextField).first, DemoAccount.otpCode);
-    await tester.pumpAndSettle();
-
-    // Retour UX : plus de blocage KYC à l'inscription. L'accueil s'ouvre avec la restriction affichée.
+    // Retour UX : pas de blocage KYC à l'inscription. L'accueil s'ouvre avec la restriction affichée.
     expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
     expect(find.text('Vérifiez votre identité'), findsOneWidget);
   });
 
-  testWidgets('Inscription avec un e-mail déjà utilisé : erreur sous le champ', (tester) async {
+  testWidgets('Profil : numéro déjà utilisé → erreur sous le champ', (tester) async {
     await pumpKovoitApp(tester);
-    await tester.tap(find.text('Inscription'));
-    await tester.pumpAndSettle();
+    await _requestCode(tester, 'afi@exemple.com');
+    await _enterCode(tester, DemoAccount.otpCode);
 
-    await tester.enterText(_field('Nom complet'), 'Kodjo Mensah');
-    await tester.enterText(_field('Adresse e-mail'), DemoAccount.email);
-    await tester.enterText(_field('Numéro de téléphone'), '99 88 77 66');
-    await tester.enterText(_field('Mot de passe'), 'motdepasse');
-    await tester.tap(find.byType(Checkbox));
-    await _tapButton(tester, 'Créer mon compte');
+    await tester.enterText(_field('Prénom'), 'Afi');
+    await tester.enterText(_field('Nom'), 'Amégan');
+    await tester.enterText(_field('Numéro de téléphone'), '90 12 34 56'); // numéro du compte démo
+    await _tapButton(tester, 'Continuer');
 
-    expect(find.text('Un compte existe déjà avec cet e-mail.'), findsOneWidget);
-    expect(find.text('Créez votre compte'), findsOneWidget);
-  });
-
-  testWidgets('Google sans numéro → saisie du numéro → Vérification SMS', (tester) async {
-    await pumpKovoitApp(tester);
-
-    await _tapButton(tester, 'Continuer avec Google');
-    expect(find.text('Votre numéro'), findsOneWidget);
-
-    await tester.enterText(_field('Numéro de téléphone'), '70 11 22 33');
-    await _tapButton(tester, 'Recevoir le code');
-
-    expect(find.text('Vérification SMS'), findsOneWidget);
-    expect(find.text('+228 70 11 22 33'), findsOneWidget);
+    expect(find.text('Ce numéro est déjà utilisé.'), findsOneWidget);
+    expect(find.text('Votre profil'), findsOneWidget);
   });
 
   testWidgets('Déconnexion depuis le Profil → connexion', (tester) async {

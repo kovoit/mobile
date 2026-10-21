@@ -3,12 +3,10 @@
 abstract final class Routes {
   static const String splash = '/';
 
-  // Authentification (S1)
+  // Authentification : e-mail → code reçu par e-mail → profil à compléter (nouveau compte)
   static const String login = '/connexion';
-  static const String register = '/inscription';
-  static const String forgotPassword = '/mot-de-passe-oublie';
-  static const String phone = '/telephone';
-  static const String otp = '/verification-sms';
+  static const String otp = '/connexion/code';
+  static const String completeProfile = '/completer-profil';
 
   // Onglets de la barre du bas
   /// Tableau de bord selon le mode : Rechercher (passager) ou Espace conducteur (conducteur).
@@ -61,12 +59,17 @@ abstract final class Routes {
   static const String vehicle = '$profile/$vehicleSegment';
   static const String becomeDriver = '$profile/$becomeDriverSegment';
 
+  // Après le trajet et notifications (S6), plein écran
+  static const String notifications = '/notifications';
+
+  /// Signaler un problème sur une réservation (passager ou conducteur).
+  static String report(int bookingId, {required String otherName}) =>
+      Uri(path: '/signaler/$bookingId', queryParameters: {'nom': otherName}).toString();
+  static const String reportPattern = '/signaler/:id';
+
   /// Catalogue des composants (environnement dev uniquement).
   static const String componentCatalog = '/dev/composants';
 
   /// Accessibles sans être connecté.
-  static const Set<String> publicAuth = {login, register, forgotPassword};
-
-  /// Étapes de vérification du téléphone.
-  static const Set<String> phoneVerification = {phone, otp};
+  static const Set<String> publicAuth = {login, otp};
 }

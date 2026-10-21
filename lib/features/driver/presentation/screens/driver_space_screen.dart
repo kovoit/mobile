@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -84,7 +85,7 @@ class _DriverSpaceScreenState extends ConsumerState<DriverSpaceScreen> {
     final vehicle = ref.watch(myVehicleProvider).value;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false),
+      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(driverSavingsProvider);

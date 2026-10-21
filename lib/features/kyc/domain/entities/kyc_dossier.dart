@@ -11,31 +11,56 @@ enum KycType {
   static KycType? fromApi(String? value) => values.where((t) => t.apiValue == value).firstOrNull;
 }
 
-/// Pièces demandées (spéc. §KYC + maquette « Vérification d'identité »).
+/// Type de pièce envoyé au backend (`type_piece`).
 enum KycPieceType {
-  photoProfil('photo_profil'),
-  identiteRecto('identite_recto'),
-  identiteVerso('identite_verso'),
+  identite('identite'),
   selfie('selfie'),
   permis('permis'),
-  carteGriseOuAssurance('carte_grise_ou_assurance'),
+  carteGrise('carte_grise'),
+  assurance('assurance'),
   photoVehicule('photo_vehicule');
 
   const KycPieceType(this.apiValue);
 
   final String apiValue;
 
-  /// Le selfie se prend en direct (caméra frontale), jamais depuis la galerie.
-  bool get requiresLiveCapture => this == KycPieceType.selfie;
-
   static KycPieceType? fromApi(String? value) => values.where((p) => p.apiValue == value).firstOrNull;
 }
 
-class KycPiece {
-  const KycPiece({required this.type, required this.provided});
+/// Emplacement à remplir dans un dossier, dans l'ordre d'affichage.
+/// `vehiculeDocument` accepte la carte grise OU l'assurance (une seule suffit côté backend).
+enum KycSlot {
+  identite('identite', [KycPieceType.identite]),
+  selfie('selfie', [KycPieceType.selfie]),
+  permis('permis', [KycPieceType.permis]),
+  vehiculeDocument('carte_grise_ou_assurance', [KycPieceType.carteGrise, KycPieceType.assurance]),
+  photoVehicule('photo_vehicule', [KycPieceType.photoVehicule]);
 
-  final KycPieceType type;
+  const KycSlot(this.apiValue, this.accepts);
+
+  /// Valeur dans `pieces_manquantes`.
+  final String apiValue;
+  final List<KycPieceType> accepts;
+
+  /// Le selfie se prend en direct (caméra frontale), jamais depuis la galerie.
+  bool get requiresLiveCapture => this == KycSlot.selfie;
+
+  /// Plusieurs types de pièce possibles : l'utilisateur choisit lequel il envoie.
+  bool get hasChoice => accepts.length > 1;
+
+  static KycSlot? fromMissing(String value) => values.where((s) => s.apiValue == value).firstOrNull;
+
+  static KycSlot? fromPiece(KycPieceType piece) => values.where((s) => s.accepts.contains(piece)).firstOrNull;
+}
+
+class KycPiece {
+  const KycPiece({required this.type, required this.provided, this.providedAs});
+
+  final KycSlot type;
   final bool provided;
+
+  /// Pièce effectivement envoyée (ex. assurance plutôt que carte grise).
+  final KycPieceType? providedAs;
 }
 
 /// Dossier KYC tel que renvoyé par l'API. Le statut est décidé par l'administrateur.
@@ -44,6 +69,8 @@ class KycDossier {
 
   final KycType type;
   final KycStatus status;
+
+  /// Pièces fournies et pièces manquantes (`pieces_manquantes`), dans l'ordre d'affichage.
   final List<KycPiece> pieces;
   final String? motifRejet;
 
@@ -51,7 +78,7 @@ class KycDossier {
 
   bool get isComplete => pieces.isNotEmpty && providedCount == pieces.length;
 
-  /// Première pièce manquante, dans l'ordre de la maquette.
+  /// Première pièce manquante, dans l'ordre d'affichage.
   KycPiece? get nextMissing => pieces.where((p) => !p.provided).firstOrNull;
 
   /// Les pièces ne sont modifiables que tant que le dossier n'est pas envoyé (ou s'il a été rejeté).

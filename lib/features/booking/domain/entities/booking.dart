@@ -80,7 +80,10 @@ enum BookingAction {
   annuler('annuler'),
   payer('payer'),
   partager('partager'),
-  appeler('appeler');
+  appeler('appeler'),
+  confirmer('confirmer'),
+  noter('noter'),
+  signaler('signaler');
 
   const BookingAction(this.apiValue);
 

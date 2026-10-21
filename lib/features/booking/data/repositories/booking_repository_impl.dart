@@ -31,6 +31,9 @@ class BookingRepositoryImpl implements BookingRepository {
       (await _remote.pay(id, telephone: telephone)).toEntity();
 
   @override
+  Future<Booking> confirmArrival(int id) async => (await _remote.confirm(id)).toEntity();
+
+  @override
   Future<ShareLink> shareLink(int id) async {
     final json = await _remote.share(id);
     return ShareLink(

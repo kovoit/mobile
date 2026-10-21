@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -8,14 +8,15 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/app.dart';
 import 'package:kovoit/core/mock/fake_backend.dart';
+import 'package:kovoit/core/mock/fake_after_trip.dart';
 import 'package:kovoit/core/mock/fake_bookings.dart';
+import 'package:kovoit/core/services/push_service.dart';
 import 'package:kovoit/core/mock/fake_driver.dart';
 import 'package:kovoit/core/services/location_service.dart';
 import 'package:kovoit/core/services/external_actions.dart';
 import 'package:kovoit/core/storage/token_storage.dart';
 import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/core/widgets/map_preview.dart';
-import 'package:kovoit/features/auth/data/services/google_auth_service.dart';
 import 'package:kovoit/features/auth/presentation/providers/auth_providers.dart';
 import 'package:kovoit/features/kyc/data/services/document_capture_service.dart';
 import 'package:kovoit/features/kyc/presentation/providers/kyc_providers.dart';
@@ -66,6 +67,42 @@ class RecordingExternalActions implements ExternalActions {
 
   @override
   Future<void> share(String text, {String? subject}) async => shares.add(text);
+}
+
+/// Push simulé : garde les callbacks pour déclencher jeton, message ou ouverture depuis le test.
+class FakePushService implements PushService {
+  int starts = 0;
+  void Function(String token, String platform)? _onToken;
+  void Function(PushData data)? _onMessage;
+  void Function(PushData data)? _onOpened;
+  String? token;
+
+  @override
+  Future<void> start({
+    required void Function(String token, String platform) onToken,
+    required void Function(PushData data) onMessage,
+    required void Function(PushData data) onOpened,
+  }) async {
+    starts++;
+    _onToken = onToken;
+    _onMessage = onMessage;
+    _onOpened = onOpened;
+  }
+
+  void emitToken(String value) {
+    token = value;
+    _onToken!(value, 'android');
+  }
+
+  void emitMessage(PushData data) => _onMessage!(data);
+
+  void emitOpened(PushData data) => _onOpened!(data);
+
+  @override
+  Future<String?> currentToken() async => token;
+
+  @override
+  Future<void> stop() async {}
 }
 
 /// Position simulée (Carrefour Franciscain par défaut).
@@ -139,17 +176,15 @@ class TestEnv {
   /// Session du compte démo (Kodjo Mensah, téléphone et KYC passager vérifiés).
   factory TestEnv.demoSession() => TestEnv(accessToken: 'mock-access-1');
 
-  /// Session d'un compte tout juste inscrit : téléphone vérifié, aucun KYC, pas de véhicule.
+  /// Session d'un compte tout juste inscrit : profil complet, aucun KYC, pas de véhicule.
   factory TestEnv.newUserSession() {
     final env = TestEnv();
     final id = env.backend.createUser(
-      password: 'motdepasse',
       fields: {
         'prenom': 'Afi',
         'nom': 'Amégan',
         'email': 'afi@exemple.com',
         'telephone': '+22891234567',
-        'telephone_verifie': true,
       },
     );
     env.storage.access = 'mock-access-$id';
@@ -165,6 +200,8 @@ class TestEnv {
   /// Règles conducteur simulées (trajets publiés, demandes fictives).
   late final FakeDriver driver;
   final FakeLocationService location = FakeLocationService();
+  final FakePushService push = FakePushService();
+  late final FakeAfterTrip afterTrip = FakeAfterTrip(backend);
   final RecordingExternalActions externalActions = RecordingExternalActions();
   final FakeCaptureService camera = FakeCaptureService();
   final InMemoryRecentSearches recentSearches = InMemoryRecentSearches();
@@ -175,7 +212,6 @@ class TestEnv {
   List<Override> get overrides => [
         tokenStorageProvider.overrideWithValue(storage),
         fakeBackendProvider.overrideWithValue(backend),
-        googleAuthServiceProvider.overrideWithValue(FakeGoogleAuthService()),
         documentCaptureServiceProvider.overrideWithValue(camera),
         splashMinDurationProvider.overrideWithValue(Duration.zero),
         recentSearchRepositoryProvider.overrideWithValue(recentSearches),
@@ -184,6 +220,8 @@ class TestEnv {
         fakeBookingsProvider.overrideWithValue(bookings),
         fakeDriverProvider.overrideWithValue(driver),
         locationServiceProvider.overrideWithValue(location),
+        pushServiceProvider.overrideWithValue(push),
+        fakeAfterTripProvider.overrideWithValue(afterTrip),
         externalActionsProvider.overrideWithValue(externalActions),
       ];
 }

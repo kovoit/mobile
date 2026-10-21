@@ -37,7 +37,9 @@ enum DriverRequestAction {
   accepter('accepter'),
   refuser('refuser'),
   saisirCode('saisir_code'),
-  declarerAbsence('declarer_absence');
+  declarerAbsence('declarer_absence'),
+  noter('noter'),
+  signaler('signaler');
 
   const DriverRequestAction(this.apiValue);
 

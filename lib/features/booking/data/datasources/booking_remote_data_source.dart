@@ -22,6 +22,8 @@ abstract interface class BookingRemoteDataSource {
 
   /// `{url, expire_le}`
   Future<Map<String, dynamic>> share(int id);
+
+  Future<BookingDto> confirm(int id);
 }
 
 class DioBookingRemoteDataSource implements BookingRemoteDataSource {
@@ -80,6 +82,9 @@ class DioBookingRemoteDataSource implements BookingRemoteDataSource {
         final res = await _dio.post<Map<String, dynamic>>('/reservations/$id/partage/');
         return res.data!;
       });
+
+  @override
+  Future<BookingDto> confirm(int id) => _post('/reservations/$id/confirmer/');
 }
 
 /// Fausse API (`Env.useMockApi`) : règles serveur simulées dans [FakeBookings].
@@ -114,4 +119,7 @@ class FakeBookingRemoteDataSource implements BookingRemoteDataSource {
 
   @override
   Future<Map<String, dynamic>> share(int id) => _fake.share(id);
+
+  @override
+  Future<BookingDto> confirm(int id) async => BookingDto.fromJson(await _fake.confirm(id));
 }

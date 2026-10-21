@@ -23,10 +23,16 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // HTTP en clair vers le backend local (debug/profile). Voir AndroidManifest.xml.
+        manifestPlaceholders["usesCleartextTraffic"] = "true"
     }
 
     buildTypes {
         release {
+            // Production en HTTPS uniquement. Pour tester une APK release sur le réseau local :
+            // ajouter `kovoit.cleartext=true` dans android/gradle.properties (sans le committer).
+            manifestPlaceholders["usesCleartextTraffic"] =
+                (project.findProperty("kovoit.cleartext") ?: "false").toString()
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
