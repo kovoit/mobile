@@ -1,4 +1,4 @@
-/// Motifs de signalement (docs/api/after_trip.md).
+/// Motifs proposés ; le backend reçoit un texte libre (`motif`) qui commence par le libellé.
 enum ReportReason {
   retard('retard', 'Retard important'),
   comportement('comportement', 'Comportement inapproprié'),
@@ -17,5 +17,5 @@ enum ReportReason {
 abstract interface class ReportRepository {
   static const int maxDescriptionLength = 1000;
 
-  Future<void> report({required int bookingId, required ReportReason reason, required String description});
+  Future<void> report({required String bookingId, required ReportReason reason, required String description});
 }

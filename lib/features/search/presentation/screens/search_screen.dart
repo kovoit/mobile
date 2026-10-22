@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -14,7 +13,6 @@ import '../../../auth/domain/access_policy.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
 import '../../../kyc/presentation/widgets/access_required_card.dart';
 import '../../../trip/domain/entities/geo_place.dart';
-import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../providers/search_providers.dart';
 
@@ -64,7 +62,7 @@ class SearchScreen extends ConsumerWidget {
     final errors = form.errors;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
+      appBar: const KovoitAppBar(showBack: false),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
@@ -74,15 +72,6 @@ class SearchScreen extends ConsumerWidget {
             AccessRequiredCard(denial: bookingDenial, suspendedUntil: user?.suspenduJusquAu),
             const SizedBox(height: AppSpacing.md),
           ],
-          SegmentedToggle<VehicleType>(
-            selected: form.vehicleType,
-            onChanged: ref.read(searchFormProvider.notifier).setVehicleType,
-            options: const [
-              SegmentedOption(value: VehicleType.moto, label: 'Moto', icon: Icons.two_wheeler_rounded),
-              SegmentedOption(value: VehicleType.voiture, label: 'Voiture', icon: Icons.directions_car_filled_outlined),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
           KovoitCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -147,17 +136,6 @@ class SearchScreen extends ConsumerWidget {
                     style: AppTextStyles.caption.copyWith(color: AppColors.error),
                   ),
                 ],
-                const Padding(padding: EdgeInsets.symmetric(vertical: AppSpacing.md), child: Divider()),
-                Row(
-                  children: [
-                    const Expanded(child: Text('Nombre de places', style: AppTextStyles.label)),
-                    PlaceStepper(
-                      value: form.places,
-                      max: form.maxPlaces,
-                      onChanged: ref.read(searchFormProvider.notifier).setPlaces,
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
@@ -195,7 +173,6 @@ class _RecentSearchTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMoto = VehicleType.fromApi(recent.vehicleTypeApi) == VehicleType.moto;
     return KovoitCard(
       onTap: onTap,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
@@ -212,7 +189,6 @@ class _RecentSearchTile extends StatelessWidget {
                   style: AppTextStyles.label,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(isMoto ? 'En moto' : 'En voiture', style: AppTextStyles.caption),
               ],
             ),
           ),

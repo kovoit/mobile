@@ -4,10 +4,10 @@ import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/features/driver/presentation/providers/driver_providers.dart';
 import 'package:kovoit/features/trip/domain/entities/geo_place.dart';
 
-const _a = GeoPlace(id: 1, libelle: 'Carrefour Franciscain', quartier: 'Adidogomé', lat: 6.166, lng: 1.165);
-const _b = GeoPlace(id: 2, libelle: 'Carrefour Avedji', quartier: 'Avedji', lat: 6.169, lng: 1.184);
-const _c = GeoPlace(id: 3, libelle: 'Carrefour Totsi', quartier: 'Totsi', lat: 6.178, lng: 1.198);
-const _d = GeoPlace(id: 4, libelle: 'Université de Lomé', quartier: 'Tokoin', lat: 6.168, lng: 1.214);
+const _a = GeoPlace(id: 'lieu-1', libelle: 'Carrefour Franciscain', quartier: 'Adidogomé', lat: 6.166, lng: 1.165);
+const _b = GeoPlace(id: 'lieu-2', libelle: 'Carrefour Avedji', quartier: 'Avedji', lat: 6.169, lng: 1.184);
+const _c = GeoPlace(id: 'lieu-3', libelle: 'Carrefour Totsi', quartier: 'Totsi', lat: 6.178, lng: 1.198);
+const _d = GeoPlace(id: 'lieu-4', libelle: 'Université de Lomé', quartier: 'Tokoin', lat: 6.168, lng: 1.214);
 
 void main() {
   late ProviderContainer container;
@@ -67,7 +67,7 @@ void main() {
   });
 
   test('erreurs du serveur reportées sur les champs', () {
-    form().applyServerErrors({'places_total': 'Entre 1 et 4 places.', 'inconnu': 'x'});
+    form().applyServerErrors({'places': 'Entre 1 et 4 places.', 'inconnu': 'x'});
     expect(state().errors, {PublishField.places: 'Entre 1 et 4 places.'});
   });
 }

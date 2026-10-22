@@ -2,163 +2,134 @@ import 'package:json_annotation/json_annotation.dart';
 
 import '../../../booking/domain/entities/booking.dart';
 import '../../../trip/data/dto/trip_dto.dart';
+import '../../../trip/domain/entities/geo_place.dart';
 import '../../domain/entities/driver_trip.dart';
 
 part 'driver_dto.g.dart';
 
-@JsonSerializable(fieldRename: FieldRename.snake)
-class PassengerSummaryDto {
-  const PassengerSummaryDto({
-    required this.id,
-    required this.prenom,
-    required this.nom,
-    this.verifie = false,
-    this.photo,
-    this.note,
-  });
-
-  factory PassengerSummaryDto.fromJson(Map<String, dynamic> json) => _$PassengerSummaryDtoFromJson(json);
-
-  final int id;
-  final String prenom;
-  final String nom;
-  final bool verifie;
-  final String? photo;
-  final double? note;
-
-  Map<String, dynamic> toJson() => _$PassengerSummaryDtoToJson(this);
-
-  PassengerSummary toEntity() =>
-      PassengerSummary(id: id, prenom: prenom, nom: nom, verifie: verifie, photoUrl: photo, note: note);
-}
-
-/// Objet `demande_conducteur` : volontairement sans champ `code_depart`.
+/// Réservation vue par le conducteur (backend : ReservationConducteurSerializer).
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class DriverRequestDto {
   const DriverRequestDto({
     required this.id,
     required this.passager,
-    required this.nbPlaces,
     required this.statut,
-    required this.methodePaiement,
-    required this.statutPaiement,
-    required this.montant,
-    this.pointPriseEnChargeId,
-    this.actions = const [],
+    required this.montantTotal,
+    this.point,
+    this.prix,
+    this.essaisCode = 0,
   });
 
   factory DriverRequestDto.fromJson(Map<String, dynamic> json) => _$DriverRequestDtoFromJson(json);
 
-  final int id;
-  final PassengerSummaryDto passager;
-  final int nbPlaces;
+  final String id;
+  final PersonDto passager;
   final String statut;
-  final String methodePaiement;
-  final String statutPaiement;
-  final int montant;
-  final int? pointPriseEnChargeId;
-  final List<String> actions;
+  final PickupPointDto? point;
+  final int? prix;
+  final int montantTotal;
+  final int essaisCode;
 
   Map<String, dynamic> toJson() => _$DriverRequestDtoToJson(this);
 
   DriverRequest toEntity() => DriverRequest(
         id: id,
-        passenger: passager.toEntity(),
-        places: nbPlaces,
+        passenger: PassengerSummary(
+          id: passager.id,
+          prenom: passager.prenom,
+          nom: passager.nom,
+          verifie: passager.confiance.passagerVerifie,
+          photoUrl: passager.photo,
+          note: passager.confiance.noteMoyenne,
+        ),
         status: BookingStatus.fromApi(statut),
-        paymentMethod: PaymentMethod.fromApi(methodePaiement),
-        paymentStatus: PaymentStatus.fromApi(statutPaiement),
-        montant: montant,
-        pickupPointId: pointPriseEnChargeId,
-        actions: {for (final a in actions) ?DriverRequestAction.fromApi(a)},
+        montant: prix ?? montantTotal,
+        pickupPointId: point?.id,
+        essaisCode: essaisCode,
       );
 }
 
-/// Objet `trajet_conducteur` (docs/api/driver.md).
-@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+/// Trajet du conducteur (backend : TrajetConducteurSerializer = TrajetSerializer + `nb_demandes`).
 class DriverTripDto {
-  const DriverTripDto({
-    required this.id,
+  const DriverTripDto({required this.trajet, this.nbDemandes = 0});
+
+  factory DriverTripDto.fromJson(Map<String, dynamic> json) =>
+      DriverTripDto(trajet: TripDto.fromJson(json), nbDemandes: json['nb_demandes'] as int? ?? 0);
+
+  final TripDto trajet;
+  final int nbDemandes;
+
+  DriverTrip toEntity() {
+    final trip = trajet.toEntity();
+    return DriverTrip(
+      id: trip.id,
+      depart: trip.depart,
+      arrivee: trip.arrivee,
+      pickupPoints: trip.pickupPoints,
+      departureAt: trip.departureAt,
+      placesTotal: trajet.placesTotal,
+      placesRestantes: trip.placesRestantes,
+      prixPlace: trip.prixPlace,
+      status: TripStatus.fromApi(trip.statut),
+      nbDemandes: nbDemandes,
+    );
+  }
+}
+
+@JsonSerializable(fieldRename: FieldRename.snake)
+class TripSavingDto {
+  const TripSavingDto({
+    required this.trajetId,
+    required this.departLe,
     required this.depart,
     required this.arrivee,
-    required this.pointsPriseEnCharge,
-    required this.departLe,
-    required this.placesTotal,
-    required this.placesRestantes,
-    required this.prixPlace,
-    required this.statut,
-    this.economie = 0,
-    this.demandes = const [],
-    this.actions = const [],
+    required this.montant,
   });
 
-  factory DriverTripDto.fromJson(Map<String, dynamic> json) => _$DriverTripDtoFromJson(json);
+  factory TripSavingDto.fromJson(Map<String, dynamic> json) => _$TripSavingDtoFromJson(json);
 
-  final int id;
-  final GeoPlaceDto depart;
-  final GeoPlaceDto arrivee;
-  final List<PickupPointDto> pointsPriseEnCharge;
+  final String trajetId;
   final DateTime departLe;
-  final int placesTotal;
-  final int placesRestantes;
-  final int prixPlace;
-  final String statut;
-  final int economie;
-  final List<DriverRequestDto> demandes;
-  final List<String> actions;
+  final String depart;
+  final String arrivee;
+  final int montant;
 
-  Map<String, dynamic> toJson() => _$DriverTripDtoToJson(this);
+  Map<String, dynamic> toJson() => _$TripSavingDtoToJson(this);
 
-  DriverTrip toEntity() => DriverTrip(
-        id: id,
-        depart: depart.toEntity(),
-        arrivee: arrivee.toEntity(),
-        pickupPoints: [for (final p in pointsPriseEnCharge) p.toEntity()]..sort((a, b) => a.ordre.compareTo(b.ordre)),
-        departureAt: departLe,
-        placesTotal: placesTotal,
-        placesRestantes: placesRestantes,
-        prixPlace: prixPlace,
-        status: TripStatus.fromApi(statut),
-        economie: economie,
-        requests: [for (final d in demandes) d.toEntity()],
-        actions: {for (final a in actions) ?DriverTripAction.fromApi(a)},
-      );
+  TripSaving toEntity() =>
+      TripSaving(tripId: trajetId, departureAt: departLe, depart: depart, arrivee: arrivee, montant: montant);
 }
 
-@JsonSerializable(fieldRename: FieldRename.snake)
-class PriceEstimateDto {
-  const PriceEstimateDto({required this.prixPlace, required this.distanceKm, required this.dureeMin});
-
-  factory PriceEstimateDto.fromJson(Map<String, dynamic> json) => _$PriceEstimateDtoFromJson(json);
-
-  final int prixPlace;
-  final double distanceKm;
-  final int dureeMin;
-
-  Map<String, dynamic> toJson() => _$PriceEstimateDtoToJson(this);
-
-  PriceEstimate toEntity() => PriceEstimate(prixPlace: prixPlace, distanceKm: distanceKm, durationMin: dureeMin);
-}
-
-@JsonSerializable(fieldRename: FieldRename.snake)
+/// `GET /moi/economies/` (backend : EconomiesSerializer).
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class SavingsDto {
-  const SavingsDto({required this.mois, required this.total, required this.places});
+  const SavingsDto({required this.moisEnCours, required this.total, this.parTrajet = const []});
 
   factory SavingsDto.fromJson(Map<String, dynamic> json) => _$SavingsDtoFromJson(json);
 
-  /// `AAAA-MM`
-  final String mois;
+  final int moisEnCours;
   final int total;
-  final int places;
+  final List<TripSavingDto> parTrajet;
 
   Map<String, dynamic> toJson() => _$SavingsDtoToJson(this);
 
-  DriverSavings toEntity() {
-    final parts = mois.split('-');
-    return DriverSavings(
-      month: DateTime.utc(int.parse(parts[0]), int.parse(parts[1])),
-      total: total,
-      places: places,
-    );
-  }
+  DriverSavings toEntity() =>
+      DriverSavings(moisEnCours: moisEnCours, total: total, parTrajet: [for (final t in parTrajet) t.toEntity()]);
+}
+
+/// Corps de `POST /trajets/` (backend : PublicationSerializer).
+Map<String, dynamic> publicationBody(TripDraft draft, {required String vehiculeId}) {
+  Map<String, dynamic> point(GeoPlace p) => {'lat': p.lat, 'lng': p.lng, 'libelle': p.libelle};
+  return {
+    'vehicule_id': vehiculeId,
+    'depart_lat': draft.depart.lat,
+    'depart_lng': draft.depart.lng,
+    'depart_libelle': draft.depart.libelle,
+    'arrivee_lat': draft.arrivee.lat,
+    'arrivee_lng': draft.arrivee.lng,
+    'arrivee_libelle': draft.arrivee.libelle,
+    'depart_le': draft.departureAt.toUtc().toIso8601String(),
+    'places': draft.places,
+    'points': [for (final p in draft.pickupPoints) point(p)],
+  };
 }

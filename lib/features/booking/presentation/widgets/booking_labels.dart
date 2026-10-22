@@ -26,38 +26,3 @@ extension BookingStatusLabels on BookingStatus {
         BookingStatus.annulee || BookingStatus.cloturee => StatusChip(label: label),
       };
 }
-
-extension PaymentMethodLabels on PaymentMethod {
-  /// « Flooz » / « Mixx » / « Espèces » (jamais « T-Money », retour UX du 08/10).
-  String get label => switch (this) {
-        PaymentMethod.especes => 'Espèces',
-        PaymentMethod.flooz => 'Flooz',
-        PaymentMethod.mixx => 'Mixx',
-      };
-
-  String get operator => switch (this) {
-        PaymentMethod.especes => 'Au conducteur',
-        PaymentMethod.flooz => 'Moov Africa',
-        PaymentMethod.mixx => 'Togocom',
-      };
-
-  IconData get icon => isMobileMoney ? Icons.phone_iphone_rounded : Icons.payments_outlined;
-}
-
-extension PaymentStatusLabels on PaymentStatus {
-  String get label => switch (this) {
-        PaymentStatus.nonRequis => 'À régler au conducteur',
-        PaymentStatus.aPayer => 'À payer',
-        PaymentStatus.enAttente => 'Paiement en cours',
-        PaymentStatus.reussi => 'Payé',
-        PaymentStatus.echoue => 'Paiement échoué',
-        PaymentStatus.rembourse => 'Remboursé',
-      };
-
-  StatusTone get tone => switch (this) {
-        PaymentStatus.reussi || PaymentStatus.rembourse => StatusTone.success,
-        PaymentStatus.echoue => StatusTone.error,
-        PaymentStatus.aPayer || PaymentStatus.enAttente => StatusTone.warning,
-        PaymentStatus.nonRequis => StatusTone.neutral,
-      };
-}

@@ -1,35 +1,28 @@
-import '../../../trip/domain/entities/geo_place.dart';
-import '../../../vehicle/domain/entities/vehicle.dart';
 import '../entities/driver_trip.dart';
 
-/// Espace conducteur (docs/api/driver.md). Toutes les règles (prix, places, droits) sont côté backend.
+/// Espace conducteur. Toutes les règles (prix, places, droits) sont côté backend.
 abstract interface class DriverRepository {
-  Future<PriceEstimate> estimatePrice({
-    required GeoPlace depart,
-    required GeoPlace arrivee,
-    required List<GeoPlace> pickupPoints,
-    required VehicleType vehicleType,
-  });
-
-  Future<DriverTrip> publish(TripDraft draft);
+  /// Le prix par place est fixé par Kovoit et renvoyé dans le trajet publié.
+  Future<DriverTrip> publish(TripDraft draft, {required String vehiculeId});
 
   Future<List<DriverTrip>> myTrips();
 
-  Future<DriverTrip> trip(int id);
+  /// Le trajet et ses demandes.
+  Future<DriverTrip> trip(String id);
 
-  Future<DriverTrip> cancelTrip(int id);
+  Future<DriverTrip> cancelTrip(String id);
 
-  Future<DriverTrip> finishTrip(int id);
+  Future<DriverTrip> finishTrip(String id);
 
-  Future<void> accept(int bookingId);
+  Future<void> accept(String bookingId);
 
-  Future<void> refuse(int bookingId);
+  Future<void> refuse(String bookingId);
 
-  /// Code de départ donné par le passager (CA7). `BadRequestApiException` si incorrect.
-  Future<void> submitDepartureCode(int bookingId, String code);
+  /// Code de départ donné par le passager. `BadRequestApiException` si incorrect.
+  Future<void> submitDepartureCode(String bookingId, String code);
 
-  /// Absence du passager, avec la position du conducteur comme preuve (CA9).
-  Future<void> declareAbsence(int bookingId, {required double lat, required double lng});
+  /// Absence du passager, avec la position du conducteur comme preuve.
+  Future<void> declareAbsence(String bookingId, {required double lat, required double lng});
 
   Future<DriverSavings> savings();
 }

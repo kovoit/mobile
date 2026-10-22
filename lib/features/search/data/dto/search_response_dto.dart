@@ -1,49 +1,30 @@
 import 'package:json_annotation/json_annotation.dart';
 
 import '../../../trip/data/dto/trip_dto.dart';
-import '../../domain/entities/search_query.dart';
-import '../../domain/entities/search_result.dart';
+import '../../../trip/domain/entities/trip.dart';
 
 part 'search_response_dto.g.dart';
 
-@JsonSerializable(fieldRename: FieldRename.snake)
-class ItineraryDto {
-  const ItineraryDto({required this.distanceKm, required this.dureeMin, this.points = const []});
-
-  factory ItineraryDto.fromJson(Map<String, dynamic> json) => _$ItineraryDtoFromJson(json);
-
-  final double distanceKm;
-  final int dureeMin;
-
-  /// `[[lat, lng], …]`
-  final List<List<double>> points;
-
-  Map<String, dynamic> toJson() => _$ItineraryDtoToJson(this);
-
-  Itinerary toEntity() => Itinerary(
-        distanceKm: distanceKm,
-        durationMin: dureeMin,
-        points: [
-          for (final p in points)
-            if (p.length == 2) (p[0], p[1]),
-        ],
-      );
-}
-
-/// Réponse de `GET /trajets/recherche/`.
+/// Un résultat de `GET /trajets/recherche/` (backend : ResultatRechercheSerializer).
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
-class SearchResponseDto {
-  const SearchResponseDto({required this.itineraire, required this.resultats});
+class SearchMatchDto {
+  const SearchMatchDto({
+    required this.trajet,
+    required this.pointPropose,
+    required this.distanceMarcheKm,
+    this.ecartMinutes = 0,
+  });
 
-  factory SearchResponseDto.fromJson(Map<String, dynamic> json) => _$SearchResponseDtoFromJson(json);
+  factory SearchMatchDto.fromJson(Map<String, dynamic> json) => _$SearchMatchDtoFromJson(json);
 
-  final ItineraryDto itineraire;
-  final List<TripDto> resultats;
+  final TripDto trajet;
 
-  Map<String, dynamic> toJson() => _$SearchResponseDtoToJson(this);
+  /// Point de prise en charge le plus proche du départ du passager (choisi par le backend).
+  final PickupPointDto pointPropose;
+  final double distanceMarcheKm;
+  final int ecartMinutes;
 
-  SearchResult toEntity() => SearchResult(
-        itinerary: itineraire.toEntity(),
-        trips: [for (final t in resultats) t.toEntity()],
-      );
+  Map<String, dynamic> toJson() => _$SearchMatchDtoToJson(this);
+
+  Trip toEntity() => trajet.toEntity().withMatch(pickupId: pointPropose.id, walkingDistanceKm: distanceMarcheKm);
 }

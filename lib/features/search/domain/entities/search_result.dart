@@ -1,11 +1,10 @@
 import '../../../trip/domain/entities/trip.dart';
-import 'search_query.dart';
 
-/// Réponse de la recherche : itinéraire du passager + trajets triés par le backend.
+/// Trajets correspondants, triés par le backend (heure de départ, puis distance de marche).
+/// Chaque trajet porte le point de prise en charge proposé et la distance de marche.
 class SearchResult {
-  const SearchResult({required this.itinerary, required this.trips});
+  const SearchResult({required this.trips});
 
-  final Itinerary itinerary;
   final List<Trip> trips;
 
   /// Départ le plus tôt parmi les résultats (« Départ dès 07:30 »).

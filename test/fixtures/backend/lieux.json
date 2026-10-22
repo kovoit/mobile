@@ -1,0 +1,14 @@
+{
+  "statut": "success",
+  "message": "Lieux récupérés.",
+  "reponse": [
+    {
+      "id": "98de5112-8330-42fc-855e-91c0ef484ecb",
+      "libelle": "Université de Lomé · Entrée sud",
+      "quartier": "Tokoin",
+      "type": "repere",
+      "lat": 6.168,
+      "lng": 1.214
+    }
+  ]
+}

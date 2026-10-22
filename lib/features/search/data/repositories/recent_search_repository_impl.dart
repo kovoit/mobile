@@ -11,7 +11,8 @@ class RecentSearchRepositoryImpl implements RecentSearchRepository {
 
   final SharedPreferencesAsync _prefs;
 
-  static const _key = 'kovoit_recent_searches';
+  // v2 : identifiants de lieux en UUID (l'ancien format est abandonné)
+  static const _key = 'kovoit_recent_searches_v2';
   static const int maxItems = 3;
 
   @override
@@ -25,7 +26,6 @@ class RecentSearchRepositoryImpl implements RecentSearchRepository {
           RecentSearch(
             depart: GeoPlaceDto.fromJson(item['depart'] as Map<String, dynamic>).toEntity(),
             arrivee: GeoPlaceDto.fromJson(item['arrivee'] as Map<String, dynamic>).toEntity(),
-            vehicleTypeApi: item['type'] as String? ?? 'voiture',
           ),
       ];
     } on Object {
@@ -37,8 +37,7 @@ class RecentSearchRepositoryImpl implements RecentSearchRepository {
 
   @override
   Future<List<RecentSearch>> remember(RecentSearch search) async {
-    bool same(RecentSearch r) =>
-        r.depart == search.depart && r.arrivee == search.arrivee && r.vehicleTypeApi == search.vehicleTypeApi;
+    bool same(RecentSearch r) => r.depart == search.depart && r.arrivee == search.arrivee;
     final updated = [search, ...(await load()).where((r) => !same(r))].take(maxItems).toList();
     await _prefs.setString(
       _key,
@@ -47,7 +46,6 @@ class RecentSearchRepositoryImpl implements RecentSearchRepository {
           {
             'depart': GeoPlaceDto.fromEntity(r.depart).toJson(),
             'arrivee': GeoPlaceDto.fromEntity(r.arrivee).toJson(),
-            'type': r.vehicleTypeApi,
           },
       ]),
     );

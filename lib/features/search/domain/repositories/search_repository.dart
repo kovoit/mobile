@@ -12,11 +12,10 @@ abstract interface class SearchRepository {
 
 /// Recherches récentes, stockées sur l'appareil (non sensibles).
 class RecentSearch {
-  const RecentSearch({required this.depart, required this.arrivee, required this.vehicleTypeApi});
+  const RecentSearch({required this.depart, required this.arrivee});
 
   final GeoPlace depart;
   final GeoPlace arrivee;
-  final String vehicleTypeApi;
 }
 
 abstract interface class RecentSearchRepository {

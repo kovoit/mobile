@@ -6,126 +6,61 @@ part of 'driver_dto.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-PassengerSummaryDto _$PassengerSummaryDtoFromJson(Map<String, dynamic> json) =>
-    PassengerSummaryDto(
-      id: (json['id'] as num).toInt(),
-      prenom: json['prenom'] as String,
-      nom: json['nom'] as String,
-      verifie: json['verifie'] as bool? ?? false,
-      photo: json['photo'] as String?,
-      note: (json['note'] as num?)?.toDouble(),
-    );
-
-Map<String, dynamic> _$PassengerSummaryDtoToJson(
-  PassengerSummaryDto instance,
-) => <String, dynamic>{
-  'id': instance.id,
-  'prenom': instance.prenom,
-  'nom': instance.nom,
-  'verifie': instance.verifie,
-  'photo': instance.photo,
-  'note': instance.note,
-};
-
 DriverRequestDto _$DriverRequestDtoFromJson(Map<String, dynamic> json) =>
     DriverRequestDto(
-      id: (json['id'] as num).toInt(),
-      passager: PassengerSummaryDto.fromJson(
-        json['passager'] as Map<String, dynamic>,
-      ),
-      nbPlaces: (json['nb_places'] as num).toInt(),
+      id: json['id'] as String,
+      passager: PersonDto.fromJson(json['passager'] as Map<String, dynamic>),
       statut: json['statut'] as String,
-      methodePaiement: json['methode_paiement'] as String,
-      statutPaiement: json['statut_paiement'] as String,
-      montant: (json['montant'] as num).toInt(),
-      pointPriseEnChargeId: (json['point_prise_en_charge_id'] as num?)?.toInt(),
-      actions:
-          (json['actions'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
+      montantTotal: (json['montant_total'] as num).toInt(),
+      point: json['point'] == null
+          ? null
+          : PickupPointDto.fromJson(json['point'] as Map<String, dynamic>),
+      prix: (json['prix'] as num?)?.toInt(),
+      essaisCode: (json['essais_code'] as num?)?.toInt() ?? 0,
     );
 
 Map<String, dynamic> _$DriverRequestDtoToJson(DriverRequestDto instance) =>
     <String, dynamic>{
       'id': instance.id,
       'passager': instance.passager.toJson(),
-      'nb_places': instance.nbPlaces,
       'statut': instance.statut,
-      'methode_paiement': instance.methodePaiement,
-      'statut_paiement': instance.statutPaiement,
-      'montant': instance.montant,
-      'point_prise_en_charge_id': instance.pointPriseEnChargeId,
-      'actions': instance.actions,
+      'point': instance.point?.toJson(),
+      'prix': instance.prix,
+      'montant_total': instance.montantTotal,
+      'essais_code': instance.essaisCode,
     };
 
-DriverTripDto _$DriverTripDtoFromJson(Map<String, dynamic> json) =>
-    DriverTripDto(
-      id: (json['id'] as num).toInt(),
-      depart: GeoPlaceDto.fromJson(json['depart'] as Map<String, dynamic>),
-      arrivee: GeoPlaceDto.fromJson(json['arrivee'] as Map<String, dynamic>),
-      pointsPriseEnCharge: (json['points_prise_en_charge'] as List<dynamic>)
-          .map((e) => PickupPointDto.fromJson(e as Map<String, dynamic>))
-          .toList(),
+TripSavingDto _$TripSavingDtoFromJson(Map<String, dynamic> json) =>
+    TripSavingDto(
+      trajetId: json['trajet_id'] as String,
       departLe: DateTime.parse(json['depart_le'] as String),
-      placesTotal: (json['places_total'] as num).toInt(),
-      placesRestantes: (json['places_restantes'] as num).toInt(),
-      prixPlace: (json['prix_place'] as num).toInt(),
-      statut: json['statut'] as String,
-      economie: (json['economie'] as num?)?.toInt() ?? 0,
-      demandes:
-          (json['demandes'] as List<dynamic>?)
-              ?.map((e) => DriverRequestDto.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
-      actions:
-          (json['actions'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          const [],
+      depart: json['depart'] as String,
+      arrivee: json['arrivee'] as String,
+      montant: (json['montant'] as num).toInt(),
     );
 
-Map<String, dynamic> _$DriverTripDtoToJson(DriverTripDto instance) =>
+Map<String, dynamic> _$TripSavingDtoToJson(TripSavingDto instance) =>
     <String, dynamic>{
-      'id': instance.id,
-      'depart': instance.depart.toJson(),
-      'arrivee': instance.arrivee.toJson(),
-      'points_prise_en_charge': instance.pointsPriseEnCharge
-          .map((e) => e.toJson())
-          .toList(),
+      'trajet_id': instance.trajetId,
       'depart_le': instance.departLe.toIso8601String(),
-      'places_total': instance.placesTotal,
-      'places_restantes': instance.placesRestantes,
-      'prix_place': instance.prixPlace,
-      'statut': instance.statut,
-      'economie': instance.economie,
-      'demandes': instance.demandes.map((e) => e.toJson()).toList(),
-      'actions': instance.actions,
-    };
-
-PriceEstimateDto _$PriceEstimateDtoFromJson(Map<String, dynamic> json) =>
-    PriceEstimateDto(
-      prixPlace: (json['prix_place'] as num).toInt(),
-      distanceKm: (json['distance_km'] as num).toDouble(),
-      dureeMin: (json['duree_min'] as num).toInt(),
-    );
-
-Map<String, dynamic> _$PriceEstimateDtoToJson(PriceEstimateDto instance) =>
-    <String, dynamic>{
-      'prix_place': instance.prixPlace,
-      'distance_km': instance.distanceKm,
-      'duree_min': instance.dureeMin,
+      'depart': instance.depart,
+      'arrivee': instance.arrivee,
+      'montant': instance.montant,
     };
 
 SavingsDto _$SavingsDtoFromJson(Map<String, dynamic> json) => SavingsDto(
-  mois: json['mois'] as String,
+  moisEnCours: (json['mois_en_cours'] as num).toInt(),
   total: (json['total'] as num).toInt(),
-  places: (json['places'] as num).toInt(),
+  parTrajet:
+      (json['par_trajet'] as List<dynamic>?)
+          ?.map((e) => TripSavingDto.fromJson(e as Map<String, dynamic>))
+          .toList() ??
+      const [],
 );
 
 Map<String, dynamic> _$SavingsDtoToJson(SavingsDto instance) =>
     <String, dynamic>{
-      'mois': instance.mois,
+      'mois_en_cours': instance.moisEnCours,
       'total': instance.total,
-      'places': instance.places,
+      'par_trajet': instance.parTrajet.map((e) => e.toJson()).toList(),
     };

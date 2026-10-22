@@ -1,21 +1,13 @@
 import '../../../trip/domain/entities/geo_place.dart';
-import '../../../vehicle/domain/entities/vehicle.dart';
 
 /// Critères de recherche du passager (maquette « Rechercher un trajet »).
+/// Une réservation = une place ; le type de véhicule n'est pas un critère (décisions MVP).
 class SearchQuery {
-  const SearchQuery({
-    required this.depart,
-    required this.arrivee,
-    required this.dateTime,
-    this.places = 1,
-    this.vehicleType = VehicleType.voiture,
-  });
+  const SearchQuery({required this.depart, required this.arrivee, required this.dateTime});
 
   final GeoPlace depart;
   final GeoPlace arrivee;
   final DateTime dateTime;
-  final int places;
-  final VehicleType vehicleType;
 
   /// Sérialisation dans l'URL des résultats (lien partageable, survit à une reconstruction).
   Map<String, String> toQueryParameters() => {
@@ -30,8 +22,6 @@ class SearchQuery {
         'alat': arrivee.lat.toString(),
         'alng': arrivee.lng.toString(),
         'quand': dateTime.toUtc().toIso8601String(),
-        'places': '$places',
-        'type': vehicleType.apiValue,
       };
 
   /// `null` si un paramètre manque ou est invalide (lien abîmé).
@@ -60,8 +50,6 @@ class SearchQuery {
         lng: alng!,
       ),
       dateTime: when!,
-      places: (int.tryParse(params['places'] ?? '') ?? 1).clamp(1, 8),
-      vehicleType: VehicleType.fromApi(params['type']),
     );
   }
 
@@ -71,21 +59,8 @@ class SearchQuery {
       other is SearchQuery &&
       other.depart == depart &&
       other.arrivee == arrivee &&
-      other.dateTime.isAtSameMomentAs(dateTime) &&
-      other.places == places &&
-      other.vehicleType == vehicleType;
+      other.dateTime.isAtSameMomentAs(dateTime);
 
   @override
-  int get hashCode => Object.hash(depart, arrivee, dateTime.millisecondsSinceEpoch, places, vehicleType);
-}
-
-/// Itinéraire par la route du passager (OSRM côté backend), pour la carte des résultats.
-class Itinerary {
-  const Itinerary({required this.distanceKm, required this.durationMin, required this.points});
-
-  final double distanceKm;
-  final int durationMin;
-
-  /// Polyligne (lat, lng).
-  final List<(double lat, double lng)> points;
+  int get hashCode => Object.hash(depart, arrivee, dateTime.millisecondsSinceEpoch);
 }

@@ -1,0 +1,9 @@
+{
+  "statut": "success",
+  "message": "Solde récupéré.",
+  "reponse": {
+    "total": 5000,
+    "bloque": 300,
+    "disponible": 4700
+  }
+}

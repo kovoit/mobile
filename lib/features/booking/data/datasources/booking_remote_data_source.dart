@@ -1,90 +1,65 @@
-import 'package:dio/dio.dart';
-
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/mock/fake_bookings.dart';
-import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_service.dart';
 import '../dto/booking_dto.dart';
 
+/// Destination du passager envoyée avec la demande de place.
+typedef Destination = ({String libelle, double lat, double lng});
+
 abstract interface class BookingRemoteDataSource {
-  Future<BookingDto> request({
-    required int tripId,
-    required int places,
-    required int pickupPointId,
-    required String method,
-  });
+  Future<BookingDto> request({required String tripId, required String pickupPointId, required Destination arrivee});
 
   Future<List<BookingDto>> fetchMine();
 
-  Future<BookingDto> fetch(int id);
+  Future<BookingDto> fetch(String id);
 
-  Future<BookingDto> cancel(int id);
+  Future<BookingDto> cancel(String id);
 
-  Future<BookingDto> pay(int id, {required String telephone});
+  /// `{jeton, chemin}` : `chemin` est relatif au serveur de l'API.
+  Future<Map<String, dynamic>> share(String id);
 
-  /// `{url, expire_le}`
-  Future<Map<String, dynamic>> share(int id);
-
-  Future<BookingDto> confirm(int id);
+  Future<BookingDto> confirm(String id);
 }
 
-class DioBookingRemoteDataSource implements BookingRemoteDataSource {
-  DioBookingRemoteDataSource(this._dio);
+class ApiBookingRemoteDataSource implements BookingRemoteDataSource {
+  const ApiBookingRemoteDataSource(this._api);
 
-  final Dio _dio;
+  final ApiService _api;
 
-  Future<T> _call<T>(Future<T> Function() request) async {
-    try {
-      return await request();
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
-
-  Future<BookingDto> _post(String path, [Map<String, dynamic>? data]) => _call(() async {
-        final res = await _dio.post<Map<String, dynamic>>(path, data: data);
-        return BookingDto.fromJson(res.data!);
-      });
+  static BookingDto _booking(Object? json) => BookingDto.fromJson(ApiService.asMap(json));
 
   @override
-  Future<BookingDto> request({
-    required int tripId,
-    required int places,
-    required int pickupPointId,
-    required String method,
-  }) =>
-      _post('/reservations/', {
-        'trajet_id': tripId,
-        'nb_places': places,
-        'point_prise_en_charge_id': pickupPointId,
-        'methode_paiement': method,
-      });
+  Future<BookingDto> request({required String tripId, required String pickupPointId, required Destination arrivee}) =>
+      _api.post(
+        ApiEndpoints.reservations,
+        body: {
+          'trajet_id': tripId,
+          'point_id': pickupPointId,
+          'arrivee_lat': arrivee.lat,
+          'arrivee_lng': arrivee.lng,
+          'arrivee_libelle': arrivee.libelle,
+        },
+        parse: _booking,
+      );
+
+  /// Réservations du passager, plus récentes d'abord (50 dernières).
+  @override
+  Future<List<BookingDto>> fetchMine() async =>
+      (await _api.getPage(ApiEndpoints.reservations, pageSize: 50, item: BookingDto.fromJson)).results;
 
   @override
-  Future<List<BookingDto>> fetchMine() => _call(() async {
-        final res = await _dio.get<List<dynamic>>('/reservations/', queryParameters: {'role': 'passager'});
-        return [for (final item in res.data!) BookingDto.fromJson(item as Map<String, dynamic>)];
-      });
+  Future<BookingDto> fetch(String id) => _api.get(ApiEndpoints.reservation(id), parse: _booking);
 
   @override
-  Future<BookingDto> fetch(int id) => _call(() async {
-        final res = await _dio.get<Map<String, dynamic>>('/reservations/$id/');
-        return BookingDto.fromJson(res.data!);
-      });
+  Future<BookingDto> cancel(String id) => _api.post(ApiEndpoints.reservationAnnuler(id), parse: _booking);
 
   @override
-  Future<BookingDto> cancel(int id) => _post('/reservations/$id/annuler/');
+  Future<Map<String, dynamic>> share(String id) =>
+      _api.post(ApiEndpoints.reservationPartage(id), parse: ApiService.asMap);
 
   @override
-  Future<BookingDto> pay(int id, {required String telephone}) =>
-      _post('/reservations/$id/paiement/', {'telephone': telephone});
-
-  @override
-  Future<Map<String, dynamic>> share(int id) => _call(() async {
-        final res = await _dio.post<Map<String, dynamic>>('/reservations/$id/partage/');
-        return res.data!;
-      });
-
-  @override
-  Future<BookingDto> confirm(int id) => _post('/reservations/$id/confirmer/');
+  Future<BookingDto> confirm(String id) =>
+      _api.post(ApiEndpoints.reservationConfirmerArrivee(id), parse: _booking);
 }
 
 /// Fausse API (`Env.useMockApi`) : règles serveur simulées dans [FakeBookings].
@@ -94,32 +69,29 @@ class FakeBookingRemoteDataSource implements BookingRemoteDataSource {
   final FakeBookings _fake;
 
   @override
-  Future<BookingDto> request({
-    required int tripId,
-    required int places,
-    required int pickupPointId,
-    required String method,
-  }) async =>
+  Future<BookingDto> request({required String tripId, required String pickupPointId, required Destination arrivee}) async =>
       BookingDto.fromJson(
-        await _fake.request(tripId: tripId, places: places, pickupPointId: pickupPointId, method: method),
+        await _fake.request(
+          tripId: tripId,
+          pickupPointId: pickupPointId,
+          arriveeLat: arrivee.lat,
+          arriveeLng: arrivee.lng,
+          arriveeLibelle: arrivee.libelle,
+        ),
       );
 
   @override
   Future<List<BookingDto>> fetchMine() async => [for (final json in await _fake.listMine()) BookingDto.fromJson(json)];
 
   @override
-  Future<BookingDto> fetch(int id) async => BookingDto.fromJson(await _fake.get(id));
+  Future<BookingDto> fetch(String id) async => BookingDto.fromJson(await _fake.get(id));
 
   @override
-  Future<BookingDto> cancel(int id) async => BookingDto.fromJson(await _fake.cancel(id));
+  Future<BookingDto> cancel(String id) async => BookingDto.fromJson(await _fake.cancel(id));
 
   @override
-  Future<BookingDto> pay(int id, {required String telephone}) async =>
-      BookingDto.fromJson(await _fake.pay(id, telephone: telephone));
+  Future<Map<String, dynamic>> share(String id) => _fake.share(id);
 
   @override
-  Future<Map<String, dynamic>> share(int id) => _fake.share(id);
-
-  @override
-  Future<BookingDto> confirm(int id) async => BookingDto.fromJson(await _fake.confirm(id));
+  Future<BookingDto> confirm(String id) async => BookingDto.fromJson(await _fake.confirm(id));
 }

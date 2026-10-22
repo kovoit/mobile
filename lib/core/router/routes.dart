@@ -29,20 +29,25 @@ abstract final class Routes {
   /// Choix d'un point sur la carte. Renvoie un `GeoPlace` via `pop`.
   static const String mapPicker = '$home/$placePickerSegment/$mapPickerSegment';
 
-  /// Détail d'un trajet (maquette « Détails & Réservation »).
-  static String tripDetail(int id, {int places = 1}) => '$home/trajets/$id?places=$places';
+  /// Détail d'un trajet (maquette « Détails & Réservation »). Depuis la recherche : point de
+  /// prise en charge proposé (`pt`) et destination du passager (`alib`, `alat`, `alng`).
+  static String tripDetail(String id, {String? pickupId, ({String libelle, double lat, double lng})? arrivee}) =>
+      Uri(path: '$home/trajets/$id', queryParameters: {
+        'pt': ?pickupId,
+        if (arrivee != null) ...{'alib': arrivee.libelle, 'alat': '${arrivee.lat}', 'alng': '${arrivee.lng}'},
+      }).toString();
 
   // Réservations (S4), sous l'onglet Mes trajets
   static const String bookingSegment = 'reservations/:id';
 
   /// Suivi d'une réservation (maquette « Suivi du trajet & Code de départ »), plein écran.
-  static String booking(int id) => '$myTrips/reservations/$id';
+  static String booking(String id) => '$myTrips/reservations/$id';
 
   // Espace conducteur (S5), sous l'onglet Mes trajets
   static const String driverTripSegment = 'publies/:id';
 
   /// Gestion d'un trajet publié : demandes, code de départ, absence, fin du trajet. Plein écran.
-  static String driverTrip(int id) => '$myTrips/publies/$id';
+  static String driverTrip(String id) => '$myTrips/publies/$id';
 
   // Sous-écrans du Profil (S2), plein écran sans barre du bas
   static const String kycSegment = 'verification/:type';
@@ -59,11 +64,19 @@ abstract final class Routes {
   static const String vehicle = '$profile/$vehicleSegment';
   static const String becomeDriver = '$profile/$becomeDriverSegment';
 
-  // Après le trajet et notifications (S6), plein écran
-  static const String notifications = '/notifications';
+  // Portefeuille (recharge Flooz / Mixx via PayGate), plein écran
+  static const String wallet = '/portefeuille';
+  static const String walletRechargePath = '/portefeuille/recharger';
+  static const String walletWithdraw = '/portefeuille/retirer';
 
+  /// Recharge, avec un montant proposé (ex. complément avant une réservation). Renvoie `true`
+  /// (pop) une fois le portefeuille crédité.
+  static String walletRecharge({int? montant}) =>
+      montant == null ? walletRechargePath : '$walletRechargePath?montant=$montant';
+
+  // Après le trajet (S6), plein écran
   /// Signaler un problème sur une réservation (passager ou conducteur).
-  static String report(int bookingId, {required String otherName}) =>
+  static String report(String bookingId, {required String otherName}) =>
       Uri(path: '/signaler/$bookingId', queryParameters: {'nom': otherName}).toString();
   static const String reportPattern = '/signaler/:id';
 

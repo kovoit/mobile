@@ -1,0 +1,9 @@
+{
+  "statut": "success",
+  "message": "Économies calculées.",
+  "reponse": {
+    "mois_en_cours": 0,
+    "total": 0,
+    "par_trajet": []
+  }
+}

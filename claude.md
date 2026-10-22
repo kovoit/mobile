@@ -17,15 +17,15 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 | Navigation | `go_router` avec guards |
 | Réseau | `dio` + intercepteurs (JWT, refresh, erreurs) |
 | Modèles | DTO `json_serializable` (code généré `*.g.dart`, versionné) ; entités `domain` écrites à la main, immuables (pas de `freezed` : seule une préversion est compatible avec Dart 3.12) |
-| Authentification | Sans mot de passe : code à 6 chiffres envoyé par e-mail (backend), puis profil à compléter — décision D3 révisée le 10/10 ; contrat : [docs/api/auth.md](docs/api/auth.md) |
+| Authentification | Sans mot de passe : code à 6 chiffres envoyé par e-mail (backend), puis profil à compléter — décision D3 révisée le 10/10 ; contrat : [docs/api/auth.md](docs/api/README.md) |
 | Stockage sécurisé | `flutter_secure_storage` (tokens) |
 | Cartographie | **OpenStreetMap gratuit** : `flutter_map` + `latlong2`, tuiles OSM ; itinéraires/distances fournis par le backend (OSRM) |
 | Géolocalisation | `geolocator` |
-| Photos KYC | `image_picker` (selfie : caméra frontale uniquement) ; contrats : [docs/api/kyc.md](docs/api/kyc.md), [docs/api/vehicle.md](docs/api/vehicle.md) |
-| Recherche | Lieux connus + recherche + détail : [docs/api/trips.md](docs/api/trips.md) ; recherches récentes dans `shared_preferences` (données non sensibles) |
-| Espace conducteur | Publication, demandes, code, absence, économies : [docs/api/driver.md](docs/api/driver.md) ; `geolocator` derrière `LocationService` (`core/services`), position au premier plan uniquement |
-| Réservation & paiement | Espèces / Flooz / Mixx au choix (D5/D7) : [docs/api/bookings.md](docs/api/bookings.md) ; `url_launcher` (appeler) et `share_plus` (partager) derrière `ExternalActions` (`core/services`) |
-| Notifications | Liste in-app (`/notifications/`) + push FCM (`firebase_messaging`) derrière `PushService` (`core/services`), activé par `--dart-define=PUSH_ENABLED=true` une fois Firebase configuré ; contrat : [docs/api/after_trip.md](docs/api/after_trip.md) |
+| Photos KYC | `image_picker` (selfie : caméra frontale uniquement) ; contrats : [docs/api/kyc.md](docs/api/README.md), [docs/api/vehicle.md](docs/api/README.md) |
+| Recherche | Lieux connus + recherche + détail : [docs/api/trips.md](docs/api/README.md) ; recherches récentes dans `shared_preferences` (données non sensibles) |
+| Espace conducteur | Publication, demandes, code, absence, économies : [docs/api/driver.md](docs/api/README.md) ; `geolocator` derrière `LocationService` (`core/services`), position au premier plan uniquement |
+| Réservation & paiement | **Portefeuille** rechargé par Flooz / Mixx via **PayGate**, pas d'espèces (décision du 22/10) ; une place par réservation : [docs/api/README.md](docs/api/README.md) ; `share_plus` (partager) derrière `ExternalActions` (`core/services`) |
+| Notifications | Push FCM (`firebase_messaging`) derrière `PushService` (`core/services`), activé par `--dart-define=PUSH_ENABLED=true` une fois Firebase configuré. **Pas de liste in-app** (décision du 22/10) : le backend envoie push et email |
 | Partage | `share_plus` (« Partager mon trajet ») |
 | Formats | `intl` (FCFA, dates, fuseau `Africa/Lome`) |
 | Backend consommé | `kovoit/backend` : Django REST Framework, JWT (rotation), code e-mail, réponses `{statut, message, reponse}` ; client `core/network/api_service.dart` |
@@ -35,7 +35,7 @@ Ce dépôt contient **uniquement l'application mobile Flutter** (passager + cond
 ## 1. Méthode & règles de développement
 
 1. **Lire le PRD et le code existant** avant toute modification. Vérifier l'écran Figma correspondant.
-2. **Rien de hors MVP** : pas de messagerie, pas de Mobile Money/portefeuille, pas de KYC automatique (OCR), pas de trajets interurbains, pas de trajets récurrents, pas d'IA.
+2. **Rien de hors MVP** : pas de messagerie, pas d'espèces, pas de KYC automatique (OCR), pas de trajets interurbains, pas de trajets récurrents, pas d'IA.
 3. **Aucune logique métier dans Flutter** : prix, frais de service, distance, correspondance des trajets, taux de fiabilité, transitions de statut sont **calculés par le backend**. Le mobile affiche les valeurs renvoyées par l'API et envoie des actions.
 4. **Aucun paramètre métier en dur** (prix du litre, rayons, délais, seuils…). S'ils sont nécessaires à l'affichage, ils viennent de l'API.
 5. **Code de départ (4 chiffres)** : affiché **uniquement** sur l'écran passager. Le conducteur ne fait que le **saisir**. Ne jamais le logger, le mettre en cache en clair ni l'envoyer dans des analytics.
@@ -54,7 +54,7 @@ lib/
 ├── app.dart                  # MaterialApp.router, thème
 ├── core/
 │   ├── config/               # Env (dev/staging/prod), baseUrl, compte démo
-│   ├── mock/                 # FakeBackend : API simulée partagée (JSON des contrats docs/api)
+│   ├── mock/                 # FakeBackend : API simulée partagée (JSON identique au vrai backend)
 │   ├── network/              # DioClient, AuthInterceptor, ApiException, Result
 │   ├── storage/              # SecureStorage (access/refresh tokens)
 │   ├── router/               # app_router.dart, routes.dart, guards
@@ -71,7 +71,8 @@ lib/
     ├── driver/               # espace conducteur, demandes, saisie code, absence, clôture, économies
     ├── rating/               # notation 1–5 ★ (RatingSheet, passager et conducteur)
     ├── report/               # signalement (motif + description → litige)
-    ├── notifications/        # cloche, liste, coordination du push
+    ├── notifications/        # coordination du push (enregistrement de l'appareil)
+    ├── wallet/               # portefeuille : solde, recharge PayGate (suivi de confirmation), retrait
     ├── profile/              # profil (KYC, véhicule, macaron), bascule de mode, « Devenir conducteur »
     └── shell/                # BottomNav : Rechercher|Publier / Mes trajets / Profil, accueil selon le mode
 ```
@@ -105,7 +106,8 @@ features/<feature>/
 | `/accueil/resultats?…` | « Conducteurs disponibles » (critères dans l'URL, barre du bas visible) | téléphone vérifié |
 | `/accueil/lieu?champ=depart\|arrivee` | Choix d'un lieu connu (plein écran, renvoie un `GeoPlace`) | téléphone vérifié |
 | `/accueil/lieu/carte` | Choix d'un point sur la carte OSM (plein écran) | téléphone vérifié |
-| `/accueil/trajets/:id?places=n` | « Détails & Réservation » (consultation en S3, réservation en S4) | téléphone vérifié |
+| `/accueil/trajets/:id?pt=&alib=&alat=&alng=` | « Détails & Réservation » : point proposé et destination du passager (depuis la recherche) | téléphone vérifié |
+| `/portefeuille`, `/portefeuille/recharger?montant=`, `/portefeuille/retirer` | Portefeuille, recharge Flooz / Mixx (PayGate), retrait | téléphone vérifié |
 | `/mes-trajets` *(onglet 2)* | Réservations du passager (à venir, historique) ; trajets publiés en S5 | téléphone vérifié |
 | `/mes-trajets/reservations/:id` | « Suivi du trajet & Code de départ » (plein écran) | téléphone vérifié |
 | `/mes-trajets/publies/:id` | Gestion d'un trajet publié : demandes, code, absence, fin (plein écran) | mode conducteur |
@@ -114,7 +116,6 @@ features/<feature>/
 | `/profil/verification/:type/envoye` | « Dossier envoyé » / « Profil vérifié » | téléphone vérifié |
 | `/profil/vehicule` | Déclaration du véhicule | téléphone vérifié |
 | `/profil/devenir-conducteur` | Check-list avant le mode conducteur | téléphone vérifié |
-| `/notifications` | Liste des notifications (cloche des onglets) | téléphone vérifié |
 | `/signaler/:id?nom=…` | Signaler un problème sur une réservation (passager ou conducteur) | téléphone vérifié |
 | `/dev/composants` | Catalogue des composants | dev uniquement |
 
@@ -157,7 +158,7 @@ demandee ──► acceptee ──► en_cours ──► terminee ──► clot
 
 Le mobile propose seulement les actions autorisées pour le statut courant, tel que renvoyé par l'API : champ `actions` de la réservation (`annuler`, `payer`, `partager`, `appeler`, testé via `Booking.can(...)`), de la demande vue par le conducteur (`accepter`, `refuser`, `saisir_code`, `declarer_absence`) et du trajet publié (`annuler`, `terminer`). Ne jamais déduire une action du seul statut.
 
-Tant que les notifications push (S6) ne sont pas branchées, l'écran de suivi relit la réservation toutes les 15 s, et toutes les 3 s pendant un paiement mobile (2 min au plus). Le sondage compte les ticks du minuteur, pas l'horloge murale.
+L'écran de suivi relit la réservation toutes les 15 s tant qu'elle est en cours de vie (en complément du push). Une recharge PayGate en attente est revérifiée toutes les 3 s (environ 5 min au plus), puis le solde se met à jour dès la confirmation.
 
 ---
 
@@ -169,10 +170,10 @@ Tant que les notifications push (S6) ne sont pas branchées, l'écran de suivi r
 - **Bascule de mode** : uniquement dans le Profil (bouton « Passer en mode conducteur / passager »). Ne pas reproduire le toggle Passager/Conducteur de la maquette « Espace Conducteur ».
 - **Macaron orange** (`AppColors.accent`) : action attendue de l'utilisateur (KYC), sur l'onglet Profil et la ligne concernée.
 - **Heure de Lomé** : les dates saisies (recherche, publication) sont stockées en `DateTime.utc` = heure murale de Lomé, quel que soit le fuseau du téléphone. Ne jamais utiliser `DateTime(...)` local pour une date métier.
-- **Montants** : afficher `prix_place`, `frais_service`, `prix_total` tels que renvoyés par l'API. Ne jamais multiplier un prix par un nombre de places dans l'app.
+- **Montants** : afficher `prix_place`, `frais_service` et `paiement.montant_total` / `complement_a_payer` / `recharge_suggeree` tels que renvoyés par l'API. Aucun calcul de prix dans l'app.
 - **Cartes** : passer `ref.watch(mapTileProviderProvider)` à toute carte (`MapPreview`, `FlutterMap`) pour qu'elle soit testable.
 - **Deux codes à ne pas confondre** : code de connexion à **6 chiffres** (reçu par e-mail) ≠ code de départ à **4 chiffres** (prise en charge).
-- **Paiement** : Espèces, **Flooz** (Moov Africa) ou **Mixx** (Togocom), au choix du passager (D5/D7 tranchées). Paiement mobile **après acceptation** uniquement. Ne jamais afficher « T-Money ».
+- **Paiement** : par le **portefeuille**, rechargé par **Flooz** (Moov Africa) ou **Mixx** (Togocom) via PayGate (décision du 22/10, pas d'espèces). Montant bloqué à la demande, débité à la prise en charge. Ne jamais afficher « T-Money » (PayGate l'appelle encore `TMONEY` côté serveur).
 - Bouton « Message » de la maquette : hors MVP (D4), ne pas implémenter de logique.
 
 ---
@@ -189,7 +190,7 @@ flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://1
 flutter build apk --dart-define=ENV=prod
 ```
 
-**API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource branchée sur le `FakeBackend` partagé (`core/mock`), qui respecte les contrats de `docs/api/` et les règles serveur (statuts KYC, droits du mode conducteur). Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123` (KYC passager validé), OTP `123456`. Dans le Profil, des boutons « Valider / Refuser les dossiers » simulent la décision de l'administrateur.
+**API simulée** (`Env.useMockApi`, active par défaut en dev, jamais en prod) : chaque feature fournit une fausse datasource branchée sur le `FakeBackend` partagé (`core/mock`), qui produit le même JSON que le vrai backend (vérifié par le test de contrat `test/core/network/api_contract_test.dart`) et ses règles (statuts KYC, droits du mode conducteur). Les écrans n'en savent rien, seul le provider de datasource change. Démo : `demo@kovoit.tg` / `kovoit123` (KYC passager validé), OTP `123456`. Dans le Profil, des boutons « Valider / Refuser les dossiers » simulent la décision de l'administrateur.
 
 **Tests** : `test/helpers/test_app.dart` fournit `pumpKovoitApp`, `TestEnv` (`demoSession()`, `newUserSession()`, `driverSession()`, horloge `now` modifiable, backend sans latence, caméra, localisation, appel et partage simulés) et `scrollAndTap` ; `test/helpers/flows.dart` les parcours réutilisables. Aucune vraie entrée/sortie disque ou réseau dans les tests de widgets : passer par un service injectable. Un appel direct au backend simulé depuis le corps d'un test de widgets passe par `tester.runAsync` (sinon son délai ne s'écoule jamais).
 
@@ -204,6 +205,6 @@ Ces points sont contradictoires entre la spécification, le PRD et les maquettes
 3. ~~Authentification~~ → **tranché (révisé le 10/10)** : code à 6 chiffres envoyé par e-mail, aligné sur le backend.
 4. Bouton « Message » (hors MVP selon la spéc.) : non affiché sur le suivi, seul « Appeler » l'est.
 5. Backend : DRF seul ou DRF + FastAPI.
-6. ~~Paiement~~ → **tranché** : espèces ou Flooz / Mixx au choix. Restent ouverts : agrégateur et frais de transaction.
+6. ~~Paiement~~ → **tranché (22/10)** : portefeuille + PayGate (Flooz, Mixx), pas d'espèces. Restent ouverts : frais de transaction PayGate, versement automatique des retraits (aujourd'hui manuel).
 
 Les paramètres administrateur (prix du litre, rayons, délais, seuils) sont décrits dans le PRD §10 et ne concernent le mobile qu'en lecture.

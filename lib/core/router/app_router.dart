@@ -13,7 +13,6 @@ import '../../features/driver/presentation/screens/driver_trip_screen.dart';
 import '../../features/kyc/domain/entities/kyc_dossier.dart';
 import '../../features/kyc/presentation/screens/kyc_screen.dart';
 import '../../features/kyc/presentation/screens/kyc_submitted_screen.dart';
-import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/screens/become_driver_screen.dart';
 import '../../features/report/presentation/report_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -26,6 +25,9 @@ import '../../features/shell/presentation/screens/home_screen.dart';
 import '../../features/shell/presentation/screens/home_shell.dart';
 import '../../features/trip/presentation/screens/trip_detail_screen.dart';
 import '../../features/vehicle/presentation/screens/vehicle_form_screen.dart';
+import '../../features/wallet/presentation/wallet_operation_screen.dart';
+import '../../features/wallet/presentation/wallet_providers.dart';
+import '../../features/wallet/presentation/wallet_screen.dart';
 import '../config/env.dart';
 import 'auth_guard.dart';
 import 'routes.dart';
@@ -96,12 +98,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: Routes.tripDetailSegment,
                     parentNavigatorKey: _rootNavigatorKey,
-                    redirect: (context, state) =>
-                        int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.home : null,
-                    builder: (context, state) => TripDetailScreen(
-                      tripId: int.parse(state.pathParameters['id']!),
-                      places: (int.tryParse(state.uri.queryParameters['places'] ?? '') ?? 1).clamp(1, 8),
-                    ),
+                    builder: (context, state) {
+                      final q = state.uri.queryParameters;
+                      final lat = double.tryParse(q['alat'] ?? '');
+                      final lng = double.tryParse(q['alng'] ?? '');
+                      return TripDetailScreen(
+                        tripId: state.pathParameters['id']!,
+                        pickupId: q['pt'],
+                        arrivee: lat == null || lng == null ? null : (libelle: q['alib'] ?? '', lat: lat, lng: lng),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -116,16 +122,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: Routes.bookingSegment,
                     parentNavigatorKey: _rootNavigatorKey,
-                    redirect: (context, state) =>
-                        int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.myTrips : null,
-                    builder: (context, state) => BookingScreen(bookingId: int.parse(state.pathParameters['id']!)),
+                    builder: (context, state) => BookingScreen(bookingId: state.pathParameters['id']!),
                   ),
                   GoRoute(
                     path: Routes.driverTripSegment,
                     parentNavigatorKey: _rootNavigatorKey,
-                    redirect: (context, state) =>
-                        int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.myTrips : null,
-                    builder: (context, state) => DriverTripScreen(tripId: int.parse(state.pathParameters['id']!)),
+                    builder: (context, state) => DriverTripScreen(tripId: state.pathParameters['id']!),
                   ),
                 ],
               ),
@@ -168,12 +170,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-      GoRoute(path: Routes.notifications, builder: (context, state) => const NotificationsScreen()),
+      GoRoute(path: Routes.wallet, builder: (context, state) => const WalletScreen()),
+      GoRoute(
+        path: Routes.walletRechargePath,
+        builder: (context, state) => WalletOperationScreen(
+          kind: OperationKind.recharge,
+          initialAmount: int.tryParse(state.uri.queryParameters['montant'] ?? ''),
+        ),
+      ),
+      GoRoute(
+        path: Routes.walletWithdraw,
+        builder: (context, state) => const WalletOperationScreen(kind: OperationKind.withdraw),
+      ),
       GoRoute(
         path: Routes.reportPattern,
-        redirect: (context, state) => int.tryParse(state.pathParameters['id'] ?? '') == null ? Routes.home : null,
         builder: (context, state) => ReportScreen(
-          bookingId: int.parse(state.pathParameters['id']!),
+          bookingId: state.pathParameters['id']!,
           otherName: state.uri.queryParameters['nom'] ?? 'votre trajet',
         ),
       ),

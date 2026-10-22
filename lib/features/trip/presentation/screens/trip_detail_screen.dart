@@ -11,58 +11,67 @@ import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../../auth/domain/access_policy.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
-import '../../../booking/domain/entities/booking.dart';
 import '../../../booking/presentation/providers/booking_providers.dart';
-import '../../../booking/presentation/widgets/payment_method_selector.dart';
 import '../../../kyc/presentation/widgets/access_required_card.dart';
 import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/entities/trip.dart';
 import '../providers/trip_providers.dart';
 
 /// Maquette « Détails & Réservation » : prise en charge, conducteur (note, fiabilité), véhicule
-/// (photo + immatriculation), prix renvoyés par l'API, choix du paiement et demande de place (CA2).
+/// (photo + immatriculation), prix et paiement par le portefeuille renvoyés par l'API, demande
+/// d'une place. S'il manque de l'argent, le passager recharge le complément (Flooz / Mixx) d'abord.
 class TripDetailScreen extends ConsumerStatefulWidget {
-  const TripDetailScreen({super.key, required this.tripId, this.places = 1});
+  const TripDetailScreen({super.key, required this.tripId, this.pickupId, this.arrivee});
 
-  final int tripId;
-  final int places;
+  final String tripId;
+
+  /// Point de prise en charge proposé par la recherche (sinon : le premier du trajet).
+  final String? pickupId;
+
+  /// Destination du passager (sinon : l'arrivée du conducteur).
+  final ({String libelle, double lat, double lng})? arrivee;
 
   @override
   ConsumerState<TripDetailScreen> createState() => _TripDetailScreenState();
 }
 
 class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
-  PaymentMethod _method = PaymentMethod.especes;
   bool _submitting = false;
 
-  int get tripId => widget.tripId;
-  int get places => widget.places;
+  String get tripId => widget.tripId;
+
+  Trip _withPickup(Trip trip) => widget.pickupId == null ? trip : trip.withMatch(pickupId: widget.pickupId!);
 
   Future<void> _book(Trip trip) async {
     final pickup = trip.matchedPickup;
     if (pickup == null) return;
+    final destination = widget.arrivee ?? (libelle: trip.arrivee.libelle, lat: trip.arrivee.lat, lng: trip.arrivee.lng);
     setState(() => _submitting = true);
     try {
       final booking = await ref.read(bookingRequesterProvider).request(
             tripId: trip.id,
-            places: places,
             pickupPointId: pickup.id,
-            method: _method,
+            arrivee: destination,
           );
       if (mounted) context.pushReplacement(Routes.booking(booking.id));
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      // Places ou disponibilité changées : on relit le trajet.
-      if (e is ConflictApiException || e is NotFoundApiException) ref.invalidate(tripDetailProvider((tripId, places)));
+      // Places, disponibilité ou solde changés : on relit le trajet et l'aperçu du paiement.
+      if (e is ConflictApiException || e is NotFoundApiException) ref.invalidate(tripDetailProvider(tripId));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
+  Future<void> _recharge(int complement) async {
+    await context.push<bool>(Routes.walletRecharge(montant: complement));
+    if (mounted) ref.invalidate(tripDetailProvider(tripId));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final trip = ref.watch(tripDetailProvider((tripId, places)));
+    final trip = ref.watch(tripDetailProvider(tripId)).whenData(_withPickup);
     final user = ref.watch(sessionControllerProvider).value;
     final denial = user == null ? null : AccessPolicy.canBook(user);
     // Demande déjà en cours sur ce trajet : on renvoie vers son suivi plutôt que d'en créer une autre.
@@ -90,7 +99,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   const SizedBox(height: AppSpacing.md),
                   PrimaryButton.outlined(
                     label: 'Réessayer',
-                    onPressed: () => ref.invalidate(tripDetailProvider((tripId, places))),
+                    onPressed: () => ref.invalidate(tripDetailProvider(tripId)),
                   ),
                 ],
               ),
@@ -106,7 +115,9 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         final value? when denial == null => _BookingBar(
             label: 'Réserver ma place',
             isLoading: _submitting,
-            onPressed: value.placesRestantes >= places ? () => _book(value) : null,
+            onPressed: value.placesRestantes >= 1 && (value.payment?.complementAPayer ?? 0) == 0
+                ? () => _book(value)
+                : null,
           ),
         _ => null,
       },
@@ -121,14 +132,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       children: [
         ScreenHeader(
           title: 'Détails & Réservation',
-          subtitle: '${Formatters.longDate(trip.departureAt)} · $places place${places > 1 ? 's' : ''} en ${isMoto ? 'moto' : 'voiture'}',
+          subtitle: '${Formatters.longDate(trip.departureAt)} · 1 place en ${isMoto ? 'moto' : 'voiture'}',
         ),
         const SizedBox(height: AppSpacing.lg),
         _ItineraryCard(trip: trip, pickup: pickup),
         const SizedBox(height: AppSpacing.md),
         _DriverCard(trip: trip),
         const SizedBox(height: AppSpacing.md),
-        _PriceCard(trip: trip, places: places),
+        _PriceCard(trip: trip),
         const SizedBox(height: AppSpacing.md),
         if (denial != null)
           AccessRequiredCard(denial: denial, suspendedUntil: suspendedUntil)
@@ -138,12 +149,8 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
             title: 'Vous avez déjà une demande sur ce trajet.',
           )
         else ...[
-          PaymentMethodSelector(
-            selected: _method,
-            enabled: !_submitting,
-            onChanged: (method) => setState(() => _method = method),
-          ),
-          if (trip.placesRestantes < places) ...[
+          if (trip.payment != null) _WalletPaymentCard(payment: trip.payment!, onRecharge: _recharge),
+          if (trip.placesRestantes < 1) ...[
             const SizedBox(height: AppSpacing.sm),
             const InfoBanner(
               icon: Icons.event_busy_rounded,
@@ -190,9 +197,7 @@ class _ItineraryCard extends StatelessWidget {
           _Stop(
             dotColor: AppColors.accent,
             icon: Icons.location_on_outlined,
-            caption: trip.estimatedArrivalAt == null
-                ? 'ARRIVÉE'
-                : 'ARRIVÉE ESTIMÉE · ${Formatters.time(trip.estimatedArrivalAt!)}',
+            caption: 'ARRIVÉE',
             title: trip.arrivee.libelle,
           ),
           if (others.isNotEmpty) ...[
@@ -301,7 +306,7 @@ class _DriverCard extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (driver.verifie) const VerifiedBadge(),
-                        Text('${driver.nbTrajets} trajets', style: AppTextStyles.caption),
+                        Text(Formatters.ratingsCount(driver.nombreNotes), style: AppTextStyles.caption),
                       ],
                     ),
                   ],
@@ -318,7 +323,7 @@ class _DriverCard extends StatelessWidget {
                 const SizedBox(width: AppSpacing.xs),
                 Expanded(
                   child: Text(
-                    'Fiabilité ${driver.fiabilite} % · ${driver.nbTrajets} trajets effectués',
+                    'Fiabilité ${driver.fiabilite} %',
                     style: AppTextStyles.caption.copyWith(color: AppColors.success, fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -380,26 +385,74 @@ class _VehiclePhoto extends StatelessWidget {
 }
 
 class _PriceCard extends StatelessWidget {
-  const _PriceCard({required this.trip, required this.places});
+  const _PriceCard({required this.trip});
 
   final Trip trip;
-  final int places;
 
   @override
   Widget build(BuildContext context) {
+    final total = trip.payment?.montantTotal;
     return KovoitCard(
       child: Column(
         children: [
-          _PriceRow(label: '$places place${places > 1 ? 's' : ''} × ${Formatters.fcfa(trip.prixPlace)}', value: null),
+          _PriceRow(label: '1 place', value: Formatters.fcfa(trip.prixPlace)),
           const SizedBox(height: AppSpacing.xs),
           _PriceRow(label: 'Frais de réservation', value: Formatters.fcfa(trip.fraisService), muted: true),
-          if (trip.prixTotal != null) ...[
+          if (total != null) ...[
             const Divider(height: AppSpacing.lg),
             Row(
               children: [
                 const Expanded(child: Text('Total à payer', style: AppTextStyles.cardTitle)),
-                Text(Formatters.fcfa(trip.prixTotal!), style: AppTextStyles.price),
+                Text(Formatters.fcfa(total), style: AppTextStyles.price),
               ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Paiement par le portefeuille : le montant est bloqué à la demande, débité au départ.
+/// S'il manque de l'argent, le complément se recharge d'abord par Flooz ou Mixx.
+class _WalletPaymentCard extends StatelessWidget {
+  const _WalletPaymentCard({required this.payment, required this.onRecharge});
+
+  final PaymentPreview payment;
+  final ValueChanged<int> onRecharge;
+
+  @override
+  Widget build(BuildContext context) {
+    final complement = payment.complementAPayer;
+    return KovoitCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.account_balance_wallet_outlined, color: AppColors.accent),
+              const SizedBox(width: AppSpacing.xs),
+              const Expanded(child: Text('Payé avec mon portefeuille', style: AppTextStyles.cardTitle)),
+              Text(Formatters.fcfa(payment.soldeDisponible), style: AppTextStyles.label),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          const Text(
+            'Le montant est réservé à la demande, débité seulement à la prise en charge.',
+            style: AppTextStyles.caption,
+          ),
+          if (complement > 0) ...[
+            const SizedBox(height: AppSpacing.sm),
+            InfoBanner(
+              icon: Icons.info_outline_rounded,
+              tone: InfoBannerTone.accent,
+              title: 'Il manque ${Formatters.fcfa(complement)} sur votre portefeuille.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            PrimaryButton(
+              label: 'Recharger ${Formatters.fcfa(payment.rechargeSuggeree)}',
+              icon: Icons.add_rounded,
+              onPressed: () => onRecharge(payment.rechargeSuggeree),
             ),
           ],
         ],

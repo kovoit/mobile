@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -63,7 +62,7 @@ class _DriverSpaceScreenState extends ConsumerState<DriverSpaceScreen> {
     if (draft == null) return;
     setState(() => _publishing = true);
     try {
-      final trip = await ref.read(driverRepositoryProvider).publish(draft);
+      final trip = await ref.read(driverRepositoryProvider).publish(draft, vehiculeId: vehicle.id!);
       ref.read(myDriverTripsProvider.notifier).upsert(trip);
       _form.reset();
       if (!mounted) return;
@@ -85,7 +84,7 @@ class _DriverSpaceScreenState extends ConsumerState<DriverSpaceScreen> {
     final vehicle = ref.watch(myVehicleProvider).value;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
+      appBar: const KovoitAppBar(showBack: false),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(driverSavingsProvider);
@@ -275,10 +274,13 @@ class _PublishSection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        if (form.depart != null && form.arrivee != null && form.depart != form.arrivee) ...[
-          _PriceBanner(depart: form.depart!, arrivee: form.arrivee!, vehicleType: vehicle.type),
-          const SizedBox(height: AppSpacing.md),
-        ],
+        const InfoBanner(
+          icon: Icons.calculate_outlined,
+          tone: InfoBannerTone.accent,
+          title: 'Prix par place fixé par Kovoit',
+          subtitle: 'Partage des frais de carburant : vous le verrez dès la publication.',
+        ),
+        const SizedBox(height: AppSpacing.md),
         PrimaryButton(
           label: 'Publier mon trajet',
           icon: Icons.arrow_forward_rounded,
@@ -324,36 +326,6 @@ class _PickupTile extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// « Prix recommandé : 300 FCFA » : calculé par le backend, jamais saisi par le conducteur.
-class _PriceBanner extends ConsumerWidget {
-  const _PriceBanner({required this.depart, required this.arrivee, required this.vehicleType});
-
-  final GeoPlace depart;
-  final GeoPlace arrivee;
-  final VehicleType vehicleType;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final estimate = ref.watch(priceEstimateProvider((depart, arrivee, vehicleType)));
-    return switch (estimate) {
-      AsyncValue(:final value?) => InfoBanner(
-          icon: Icons.calculate_outlined,
-          tone: InfoBannerTone.accent,
-          title: 'Prix recommandé : ${Formatters.fcfa(value.prixPlace)}',
-          subtitle: 'Calculé automatiquement · par place, pour ce trajet '
-              '(${Formatters.distanceKm(value.distanceKm)}).',
-        ),
-      AsyncValue(:final error?) => InfoBanner(
-          icon: Icons.calculate_outlined,
-          tone: InfoBannerTone.error,
-          title: 'Prix indisponible pour le moment',
-          subtitle: error is ApiException ? error.message : null,
-        ),
-      _ => const InfoBanner(icon: Icons.calculate_outlined, tone: InfoBannerTone.accent, title: 'Calcul du prix…'),
-    };
   }
 }
 

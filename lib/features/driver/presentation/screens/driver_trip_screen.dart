@@ -24,7 +24,7 @@ import '../widgets/request_card.dart';
 class DriverTripScreen extends ConsumerStatefulWidget {
   const DriverTripScreen({super.key, required this.tripId});
 
-  final int tripId;
+  final String tripId;
 
   /// Sondage des nouvelles demandes, en attendant les notifications push (S6).
   static const Duration pollInterval = Duration(seconds: 15);
@@ -35,7 +35,7 @@ class DriverTripScreen extends ConsumerStatefulWidget {
 
 class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   Timer? _timer;
-  int? _busyRequestId;
+  String? _busyRequestId;
   bool _busyTrip = false;
 
   DriverTripController get _controller => ref.read(driverTripProvider(widget.tripId).notifier);
@@ -183,6 +183,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   }
 
   Widget _content(DriverTrip trip) {
+    final rated = ref.watch(ratedBookingsProvider);
     final active = trip.requests.where((r) => r.status.isUpcoming).toList();
     final others = trip.requests.where((r) => !r.status.isUpcoming).toList();
 
@@ -190,6 +191,9 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: RequestCard(
             request: r,
+            actions: {
+              ...trip.actionsFor(r),
+            }..removeWhere((a) => a == DriverRequestAction.noter && rated.contains(r.id)),
             pickup: trip.pickupFor(r),
             busy: _busyRequestId == r.id,
             onAccept: () => _onRequest(r, () => _controller.accept(r.id), success: 'Demande acceptée.'),
@@ -304,11 +308,6 @@ class _TripSummary extends StatelessWidget {
               Expanded(
                 child: Text('${Formatters.fcfa(trip.prixPlace)} par place', style: AppTextStyles.label),
               ),
-              if (trip.economie > 0)
-                Text(
-                  'Économie : ${Formatters.fcfa(trip.economie)}',
-                  style: AppTextStyles.label.copyWith(color: AppColors.success),
-                ),
             ],
           ),
         ],

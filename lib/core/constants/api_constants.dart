@@ -55,6 +55,9 @@ abstract final class ApiEndpoints {
   static const vehicules = '/vehicules/';
   static String vehicule(String id) => '/vehicules/$id/';
 
+  // Lieux connus de Lomé (saisie du départ et de l'arrivée)
+  static const lieux = '/lieux/';
+
   // Trajets
   static const trajets = '/trajets/';
   static const trajetsRecherche = '/trajets/recherche/';
@@ -78,10 +81,11 @@ abstract final class ApiEndpoints {
   static String reservationSignalement(String id) => '/reservations/$id/signalement/';
   static String reservationPartage(String id) => '/reservations/$id/partage/';
 
-  // Portefeuille (simulation Flooz / Mixx)
+  // Portefeuille : recharge et retrait par Flooz / Mixx (PayGate)
   static const portefeuille = '/portefeuille/';
   static const portefeuilleMoyens = '/portefeuille/moyens/';
   static const portefeuilleTransactions = '/portefeuille/transactions/';
+  static String portefeuilleTransaction(String id) => '/portefeuille/transactions/$id/';
   static const portefeuilleRecharger = '/portefeuille/recharger/';
   static const portefeuilleRetirer = '/portefeuille/retirer/';
 

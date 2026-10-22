@@ -1,0 +1,56 @@
+{
+  "statut": "success",
+  "message": "Réservations récupérées.",
+  "reponse": {
+    "count": 1,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "trajet": "56870073-3653-46ba-9e32-b895d2ec5b68",
+        "passager": {
+          "id": "9898b74d-8d6d-4731-9e60-10e6b20f23f5",
+          "prenom": "Afi",
+          "nom": "Amegah",
+          "photo": null,
+          "confiance": {
+            "note_moyenne": null,
+            "nombre_notes": 0,
+            "fiabilite_pct": 100,
+            "passager_verifie": true,
+            "conducteur_verifie": false
+          }
+        },
+        "id": "122f7a8a-96b6-47b5-8944-cab2e34f2c68",
+        "statut": "acceptee",
+        "point": {
+          "id": "1ae1b143-7f66-464c-be2a-5ece63d02294",
+          "ordre": 1,
+          "lat": 6.175,
+          "lng": 1.17,
+          "libelle": "Carrefour Adidogomé"
+        },
+        "arrivee_lat": 6.13,
+        "arrivee_lng": 1.222,
+        "arrivee_libelle": "Grand Marché",
+        "distance_km": "9.91",
+        "prix": 300,
+        "frais_service": 0,
+        "montant_total": 300,
+        "moyen_paiement": "",
+        "complement_paye": 0,
+        "annulation_tardive": false,
+        "cree_le": "2026-10-22T19:11:37.633921Z",
+        "acceptee_le": "2026-10-22T19:11:39.224174Z",
+        "refusee_le": null,
+        "annulee_le": null,
+        "absent_le": null,
+        "en_cours_le": null,
+        "terminee_le": null,
+        "litige_le": null,
+        "cloturee_le": null,
+        "essais_code": 0
+      }
+    ]
+  }
+}

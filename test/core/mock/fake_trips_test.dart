@@ -1,65 +1,55 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/mock/fake_trips.dart';
 import 'package:kovoit/features/search/data/dto/search_response_dto.dart';
+import 'package:kovoit/features/trip/data/dto/trip_dto.dart';
 
-/// Vérifie que le backend simulé respecte les règles de correspondance du contrat (docs/api/trips.md),
-/// pour que la démo et les tests de widgets reposent sur des données cohérentes.
+/// Vérifie que le backend simulé respecte le contrat du vrai backend (ResultatRechercheSerializer,
+/// TrajetDetailSerializer), pour que la démo et les tests de widgets reposent sur des données cohérentes.
 void main() {
   // Carrefour Franciscain (Adidogomé) → Université de Lomé.
-  Map<String, dynamic> search({int hour = 7, int minute = 30, int places = 1, String type = 'voiture', double arriveeLng = 1.2140}) =>
-      FakeTrips.search(
+  List<Map<String, dynamic>> search({int hour = 7, int minute = 30, double arriveeLng = 1.2140}) => FakeTrips.search(
         departLat: 6.1660,
         departLng: 1.1650,
         arriveeLat: 6.1680,
         arriveeLng: arriveeLng,
         dateHeure: DateTime.utc(2026, 10, 8, hour, minute),
-        places: places,
-        typeVehicule: type,
       );
 
-  List<Map<String, dynamic>> results(Map<String, dynamic> response) =>
-      (response['resultats'] as List).cast<Map<String, dynamic>>();
+  String driverOf(Map<String, dynamic> result) => ((result['trajet'] as Map)['conducteur'] as Map)['prenom'] as String;
 
-  test('voiture à 07:30 : 3 trajets triés par heure de départ', () {
-    final trips = results(search());
-    expect(trips.map((t) => (t['conducteur'] as Map)['prenom']), ['Koffi', 'Akossiwa', 'Kossi']);
-    expect(trips.first['depart_le'], '2026-10-08T07:30:00.000Z');
-    expect(trips.first['distance_marche_km'], 0.0);
-  });
-
-  test('filtre par type de véhicule', () {
-    final motos = results(search(type: 'moto'));
-    expect(motos, hasLength(1));
-    expect((motos.single['vehicule'] as Map)['type'], 'moto');
+  test('07:30 : trajets triés par heure de départ, moto comprise (pas de filtre)', () {
+    final results = search();
+    expect(results.map(driverOf), ['Koffi', 'Yawo', 'Akossiwa', 'Kossi']);
+    expect((results.first['trajet'] as Map)['depart_le'], '2026-10-08T07:30:00.000Z');
+    expect(results.first['distance_marche_km'], 0.0);
+    expect((results.first['point_propose'] as Map)['libelle'], 'Carrefour Franciscain');
   });
 
   test('fenêtre horaire de ± 15 min', () {
-    expect(results(search(hour: 10, minute: 0)), isEmpty);
-    expect(results(search(hour: 7, minute: 52)), hasLength(2), reason: '07:40 et 07:45 restent dans la fenêtre');
-  });
-
-  test('places restantes suffisantes', () {
-    final trips = results(search(places: 3));
-    expect(trips.map((t) => (t['conducteur'] as Map)['prenom']), ['Akossiwa']);
+    expect(search(hour: 10, minute: 0), isEmpty);
+    expect(search(hour: 7, minute: 52), hasLength(2), reason: '07:40 et 07:45 restent dans la fenêtre');
   });
 
   test('arrivée trop éloignée : aucun résultat', () {
-    expect(results(search(arriveeLng: 1.30)), isEmpty);
+    expect(search(arriveeLng: 1.30), isEmpty);
   });
 
-  test('la réponse respecte le DTO et le détail est retrouvable par son id', () {
-    final dto = SearchResponseDto.fromJson(search());
-    expect(dto.itineraire.dureeMin, greaterThan(0));
-    final trip = dto.resultats.first;
-    expect(trip.prixTotal, 300);
+  test('le résultat respecte le DTO et le détail porte l’aperçu du paiement', () {
+    final match = SearchMatchDto.fromJson(search().first);
+    final trip = match.toEntity();
+    expect(trip.id, startsWith('trajet-20261008-'));
+    expect(trip.matchedPickupId, match.pointPropose.id);
+    expect(trip.prixPlace, 300);
 
-    final detail = FakeTrips.tripById(trip.id, places: 2)!;
-    expect(detail['prix_total'], 600);
-    expect(detail['depart_le'], trip.departLe.toIso8601String());
+    final detail = TripDto.fromJson(FakeTrips.tripById(trip.id, soldeDisponible: 100)!).toEntity();
+    expect(detail.departureAt, trip.departureAt);
+    expect(detail.payment!.montantTotal, 300);
+    expect(detail.payment!.complementAPayer, 200);
   });
 
   test('recherche de lieux sans accents', () {
     final lieux = FakeTrips.searchPlaces('universite');
     expect(lieux.single['libelle'], 'Université de Lomé · Entrée sud');
+    expect(GeoPlaceDto.fromJson(lieux.single).toEntity().id, 'lieu-4');
   });
 }

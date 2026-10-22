@@ -37,14 +37,12 @@ class SavingsCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            s == null ? '…' : Formatters.fcfa(s.total),
+            s == null ? '…' : Formatters.fcfa(s.moisEnCours),
             style: AppTextStyles.display.copyWith(color: Colors.white, fontSize: 30),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            s == null
-                ? 'Chargement…'
-                : '${Formatters.monthName(s.month)} · ${s.places} place${s.places > 1 ? 's' : ''} partagée${s.places > 1 ? 's' : ''}',
+            s == null ? 'Chargement…' : 'Depuis le début : ${Formatters.fcfa(s.total)}',
             style: AppTextStyles.caption.copyWith(color: Colors.white.withValues(alpha: 0.8)),
           ),
         ],

@@ -22,21 +22,17 @@ class FakeBackend {
   /// Horloge « serveur » (injectable pour des tests déterministes).
   final DateTime Function() clock;
 
-  /// Réservations simulées, par id (JSON interne, voir fake_bookings.dart).
-  final Map<int, Map<String, dynamic>> bookings = {};
+  /// Réservations simulées des passagers, par id `resa-…` (voir fake_bookings.dart).
+  final Map<String, Map<String, dynamic>> bookings = {};
   int nextBookingId = 501;
 
-  /// Trajets publiés et demandes reçues par les conducteurs (voir fake_driver.dart).
-  final Map<int, Map<String, dynamic>> driverTrips = {};
+  /// Trajets publiés (ids `trajet-pub-…`) et demandes reçues par les conducteurs (fake_driver.dart).
+  final Map<String, Map<String, dynamic>> driverTrips = {};
   int nextDriverTripId = 9001;
   int nextDriverRequestId = 801;
 
-  /// Économies des conducteurs : lignes `{date, montant, places}` par utilisateur.
+  /// Crédits des conducteurs : lignes `{date, trajet_id, depart_le, depart, arrivee, montant}`.
   final Map<int, List<Map<String, dynamic>>> savings = {};
-
-  /// Notifications par utilisateur (JSON du contrat docs/api/after_trip.md), récentes d'abord.
-  final Map<int, List<Map<String, dynamic>>> notifications = {};
-  int nextNotificationId = 1;
 
   /// Notes déjà données : clés `reservationId:auteurId`.
   final Set<String> ratings = {};
@@ -47,19 +43,8 @@ class FakeBackend {
   /// Appareils enregistrés pour le push : token → utilisateur.
   final Map<String, int> devices = {};
 
-  /// Crée une notification pour [userId] (ignoré pour les utilisateurs fictifs sans compte).
-  void notify(int userId, {required String type, required String titre, required String message, Map<String, int>? cible}) {
-    if (!_users.containsKey(userId)) return;
-    notifications.putIfAbsent(userId, () => []).insert(0, {
-      'id': nextNotificationId++,
-      'type': type,
-      'titre': titre,
-      'message': message,
-      'cree_le': clock().toUtc().toIso8601String(),
-      'lue': false,
-      'cible': cible ?? const <String, int>{},
-    });
-  }
+  /// Journal du portefeuille par utilisateur, plus récents d'abord (voir fake_wallet.dart).
+  final Map<int, List<Map<String, dynamic>>> wallets = {};
 
   final Map<int, FakeUserRecord> _users = {};
   final Map<int, Map<String, FakeKycDossier>> _kyc = {};
@@ -69,6 +54,20 @@ class FakeBackend {
   Future<void> wait() => Future<void>.delayed(latency);
 
   void _seedDemoAccount() {
+    // Compte de démo : 2 000 F déjà rechargés, pour réserver sans passer par Mobile Money
+    wallets[1] = [
+      {
+        'id': 'tx-demo',
+        'type': 'recharge',
+        'montant': 2000,
+        'moyen_paiement': 'flooz',
+        'reservation': null,
+        'reference_externe': 'PG-SIM-DEMO',
+        'statut': 'validee',
+        'telephone': '+22890123456',
+        'cree_le': '2026-10-01T08:00:00Z',
+      },
+    ];
     _users[1] = FakeUserRecord(
       fields: {
         'id': 1,
@@ -104,19 +103,28 @@ class FakeBackend {
       'conducteur': FakeKycDossier(statut: 'verifie', pieces: {...kycPieces['conducteur']!}),
     };
     _vehicles[2] = {
-      'id': 2,
-      'type': 'voiture',
+      'id': 'v-2',
+      'type_vehicule': 'voiture',
       'marque': 'Toyota',
       'modele': 'Yaris',
       'couleur': 'Gris',
       'immatriculation': 'TG 4827 AU',
       'nb_places': 5,
-      'statut_verification': 'verifie',
+      'photo': null,
     };
     // Économies déjà réalisées ce mois-ci (maquette : 18 500 FCFA, 24 places partagées).
     final now = clock().toUtc();
+    // Conducteur de démo : un mois déjà bien rempli (crédits au format de /moi/economies/)
+    final debutDuMois = DateTime.utc(now.year, now.month).toIso8601String();
     savings[2] = [
-      {'date': DateTime.utc(now.year, now.month).toIso8601String(), 'montant': 18500, 'places': 24},
+      {
+        'date': debutDuMois,
+        'trajet_id': 'trajet-demo-1',
+        'depart_le': debutDuMois,
+        'depart': 'Carrefour Franciscain',
+        'arrivee': 'Université de Lomé · Entrée sud',
+        'montant': 18500,
+      },
     ];
     _nextId = 3;
   }
@@ -243,7 +251,7 @@ class FakeBackend {
   Map<String, dynamic>? vehicleJson(int userId) => _vehicles[userId];
 
   void saveVehicle(int userId, Map<String, dynamic> vehicle) =>
-      _vehicles[userId] = {...vehicle, 'id': userId, 'statut_verification': 'en_attente'};
+      _vehicles[userId] = {...vehicle, 'id': 'v-$userId', 'photo': null};
 
   // ---------------------------------------------------------------- Outils de démo
 
@@ -256,16 +264,6 @@ class FakeBackend {
       dossier.motifRejet = approve ? null : 'Photo de la pièce illisible. Merci de la reprendre en pleine lumière.';
       if (!approve) dossier.pieces.clear();
     }
-    final vehicle = _vehicles[id];
-    if (vehicle != null && approve) vehicle['statut_verification'] = 'verifie';
-    notify(
-      id,
-      type: approve ? 'kyc_valide' : 'kyc_refuse',
-      titre: approve ? 'Dossier validé' : 'Dossier refusé',
-      message: approve
-          ? 'Votre identité est vérifiée. Vous pouvez réserver vos trajets.'
-          : 'Consultez le motif dans votre Profil et renvoyez vos pièces.',
-    );
   }
 }
 

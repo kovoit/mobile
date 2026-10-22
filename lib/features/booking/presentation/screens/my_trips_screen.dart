@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -29,7 +28,7 @@ class MyTripsScreen extends ConsumerWidget {
     final isDriver = ref.watch(sessionControllerProvider).value?.isDriverMode ?? false;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
+      appBar: const KovoitAppBar(showBack: false),
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(myBookingsProvider.notifier).refresh();
@@ -132,15 +131,10 @@ class _BookingCard extends StatelessWidget {
           const Divider(height: AppSpacing.lg),
           Row(
             children: [
-              Icon(booking.payment.method.icon, size: 18, color: AppColors.textSecondary),
+              const Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  '${booking.payment.method.label} · ${booking.payment.status.label}',
-                  style: AppTextStyles.caption,
-                ),
-              ),
-              Text(Formatters.fcfa(booking.prixTotal), style: AppTextStyles.label),
+              const Expanded(child: Text('Portefeuille', style: AppTextStyles.caption)),
+              Text(Formatters.fcfa(booking.montantTotal), style: AppTextStyles.label),
             ],
           ),
         ],

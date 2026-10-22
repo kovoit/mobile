@@ -1,0 +1,8 @@
+{
+  "statut": "failed",
+  "message": "Vous avez déjà une réservation sur ce trajet.",
+  "reponse": {
+    "code": "DEJA_RESERVE",
+    "erreurs": null
+  }
+}

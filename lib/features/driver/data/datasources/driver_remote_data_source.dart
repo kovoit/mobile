@@ -1,101 +1,80 @@
-import 'package:dio/dio.dart';
-
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/mock/fake_driver.dart';
-import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_service.dart';
 import '../dto/driver_dto.dart';
 
 abstract interface class DriverRemoteDataSource {
-  Future<PriceEstimateDto> estimate(Map<String, dynamic> body);
-
   Future<DriverTripDto> publish(Map<String, dynamic> body);
 
   Future<List<DriverTripDto>> myTrips();
 
-  Future<DriverTripDto> trip(int id);
+  Future<DriverTripDto> trip(String id);
 
-  Future<DriverTripDto> cancelTrip(int id);
+  /// Demandes et réservations reçues sur un trajet (jamais de code de départ).
+  Future<List<DriverRequestDto>> requests(String tripId);
 
-  Future<DriverTripDto> finishTrip(int id);
+  Future<DriverTripDto> cancelTrip(String id);
 
-  Future<void> accept(int bookingId);
+  Future<DriverTripDto> finishTrip(String id);
 
-  Future<void> refuse(int bookingId);
+  Future<void> accept(String bookingId);
 
-  Future<void> submitCode(int bookingId, String code);
+  Future<void> refuse(String bookingId);
 
-  Future<void> declareAbsence(int bookingId, {required double lat, required double lng});
+  Future<void> submitCode(String bookingId, String code);
+
+  Future<void> declareAbsence(String bookingId, {required double lat, required double lng});
 
   Future<SavingsDto> savings();
 }
 
-class DioDriverRemoteDataSource implements DriverRemoteDataSource {
-  DioDriverRemoteDataSource(this._dio);
+class ApiDriverRemoteDataSource implements DriverRemoteDataSource {
+  const ApiDriverRemoteDataSource(this._api);
 
-  final Dio _dio;
+  final ApiService _api;
 
-  Future<T> _call<T>(Future<T> Function() request) async {
-    try {
-      return await request();
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
+  static DriverTripDto _trip(Object? json) => DriverTripDto.fromJson(ApiService.asMap(json));
 
-  Future<DriverTripDto> _tripPost(String path) => _call(() async {
-        final res = await _dio.post<Map<String, dynamic>>(path);
-        return DriverTripDto.fromJson(res.data!);
-      });
-
-  Future<void> _post(String path, [Map<String, dynamic>? data]) => _call(() => _dio.post<dynamic>(path, data: data));
+  Future<void> _action(String path, [Map<String, dynamic>? body]) => _api.post<void>(path, body: body, parse: (_) {});
 
   @override
-  Future<PriceEstimateDto> estimate(Map<String, dynamic> body) => _call(() async {
-        final res = await _dio.post<Map<String, dynamic>>('/trajets/prix/', data: body);
-        return PriceEstimateDto.fromJson(res.data!);
-      });
+  Future<DriverTripDto> publish(Map<String, dynamic> body) => _api.post(ApiEndpoints.trajets, body: body, parse: _trip);
 
   @override
-  Future<DriverTripDto> publish(Map<String, dynamic> body) => _call(() async {
-        final res = await _dio.post<Map<String, dynamic>>('/trajets/', data: body);
-        return DriverTripDto.fromJson(res.data!);
-      });
+  Future<List<DriverTripDto>> myTrips() async =>
+      (await _api.getPage(ApiEndpoints.mesTrajets, pageSize: 50, item: DriverTripDto.fromJson)).results;
 
   @override
-  Future<List<DriverTripDto>> myTrips() => _call(() async {
-        final res = await _dio.get<List<dynamic>>('/trajets/mes-trajets/');
-        return [for (final item in res.data!) DriverTripDto.fromJson(item as Map<String, dynamic>)];
-      });
+  Future<DriverTripDto> trip(String id) => _api.get(ApiEndpoints.trajet(id), parse: _trip);
 
   @override
-  Future<DriverTripDto> trip(int id) => _call(() async {
-        final res = await _dio.get<Map<String, dynamic>>('/trajets/$id/conducteur/');
-        return DriverTripDto.fromJson(res.data!);
-      });
+  Future<List<DriverRequestDto>> requests(String tripId) async =>
+      (await _api.getPage(ApiEndpoints.trajetReservations(tripId), pageSize: 50, item: DriverRequestDto.fromJson))
+          .results;
 
   @override
-  Future<DriverTripDto> cancelTrip(int id) => _tripPost('/trajets/$id/annuler/');
+  Future<DriverTripDto> cancelTrip(String id) => _api.post(ApiEndpoints.trajetAnnuler(id), parse: _trip);
 
   @override
-  Future<DriverTripDto> finishTrip(int id) => _tripPost('/trajets/$id/terminer/');
+  Future<DriverTripDto> finishTrip(String id) => _api.post(ApiEndpoints.trajetTerminer(id), parse: _trip);
 
   @override
-  Future<void> accept(int bookingId) => _post('/reservations/$bookingId/accepter/');
+  Future<void> accept(String bookingId) => _action(ApiEndpoints.reservationAccepter(bookingId));
 
   @override
-  Future<void> refuse(int bookingId) => _post('/reservations/$bookingId/refuser/');
+  Future<void> refuse(String bookingId) => _action(ApiEndpoints.reservationRefuser(bookingId));
 
   @override
-  Future<void> submitCode(int bookingId, String code) => _post('/reservations/$bookingId/code/', {'code': code});
+  Future<void> submitCode(String bookingId, String code) =>
+      _action(ApiEndpoints.reservationCodeDepart(bookingId), {'code': code});
 
   @override
-  Future<void> declareAbsence(int bookingId, {required double lat, required double lng}) =>
-      _post('/reservations/$bookingId/absence/', {'lat': lat, 'lng': lng});
+  Future<void> declareAbsence(String bookingId, {required double lat, required double lng}) =>
+      _action(ApiEndpoints.reservationAbsent(bookingId), {'lat': lat, 'lng': lng});
 
   @override
-  Future<SavingsDto> savings() => _call(() async {
-        final res = await _dio.get<Map<String, dynamic>>('/conducteur/economies/');
-        return SavingsDto.fromJson(res.data!);
-      });
+  Future<SavingsDto> savings() =>
+      _api.get(ApiEndpoints.moiEconomies, parse: (json) => SavingsDto.fromJson(ApiService.asMap(json)));
 }
 
 /// Fausse API conducteur (`Env.useMockApi`) : règles serveur simulées dans [FakeDriver].
@@ -105,39 +84,35 @@ class FakeDriverRemoteDataSource implements DriverRemoteDataSource {
   final FakeDriver _fake;
 
   @override
-  Future<PriceEstimateDto> estimate(Map<String, dynamic> body) async => PriceEstimateDto.fromJson(
-        await _fake.estimate(
-          depart: body['depart'] as Map<String, dynamic>,
-          arrivee: body['arrivee'] as Map<String, dynamic>,
-        ),
-      );
-
-  @override
   Future<DriverTripDto> publish(Map<String, dynamic> body) async => DriverTripDto.fromJson(await _fake.publish(body));
 
   @override
   Future<List<DriverTripDto>> myTrips() async => [for (final j in await _fake.myTrips()) DriverTripDto.fromJson(j)];
 
   @override
-  Future<DriverTripDto> trip(int id) async => DriverTripDto.fromJson(await _fake.trip(id));
+  Future<DriverTripDto> trip(String id) async => DriverTripDto.fromJson(await _fake.trip(id));
 
   @override
-  Future<DriverTripDto> cancelTrip(int id) async => DriverTripDto.fromJson(await _fake.cancelTrip(id));
+  Future<List<DriverRequestDto>> requests(String tripId) async =>
+      [for (final j in await _fake.requests(tripId)) DriverRequestDto.fromJson(j)];
 
   @override
-  Future<DriverTripDto> finishTrip(int id) async => DriverTripDto.fromJson(await _fake.finishTrip(id));
+  Future<DriverTripDto> cancelTrip(String id) async => DriverTripDto.fromJson(await _fake.cancelTrip(id));
 
   @override
-  Future<void> accept(int bookingId) => _fake.accept(bookingId);
+  Future<DriverTripDto> finishTrip(String id) async => DriverTripDto.fromJson(await _fake.finishTrip(id));
 
   @override
-  Future<void> refuse(int bookingId) => _fake.refuse(bookingId);
+  Future<void> accept(String bookingId) => _fake.accept(bookingId);
 
   @override
-  Future<void> submitCode(int bookingId, String code) => _fake.submitCode(bookingId, code);
+  Future<void> refuse(String bookingId) => _fake.refuse(bookingId);
 
   @override
-  Future<void> declareAbsence(int bookingId, {required double lat, required double lng}) =>
+  Future<void> submitCode(String bookingId, String code) => _fake.submitCode(bookingId, code);
+
+  @override
+  Future<void> declareAbsence(String bookingId, {required double lat, required double lng}) =>
       _fake.declareAbsence(bookingId, lat: lat, lng: lng);
 
   @override

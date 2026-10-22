@@ -2,16 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_bookings.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/api_service.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
 import '../../data/datasources/booking_remote_data_source.dart';
 import '../../data/repositories/booking_repository_impl.dart';
 import '../../domain/entities/booking.dart';
 import '../../domain/repositories/booking_repository.dart';
+import '../../../wallet/presentation/wallet_providers.dart';
 
 final bookingRemoteDataSourceProvider = Provider<BookingRemoteDataSource>((ref) {
   if (Env.useMockApi) return FakeBookingRemoteDataSource(ref.watch(fakeBookingsProvider));
-  return DioBookingRemoteDataSource(ref.watch(dioProvider));
+  return ApiBookingRemoteDataSource(ref.watch(apiServiceProvider));
 });
 
 final bookingRepositoryProvider =
@@ -47,7 +48,7 @@ final myBookingsProvider = AsyncNotifierProvider<MyBookingsController, List<Book
 class BookingController extends AsyncNotifier<Booking> {
   BookingController(this.bookingId);
 
-  final int bookingId;
+  final String bookingId;
 
   BookingRepository get _repository => ref.read(bookingRepositoryProvider);
 
@@ -74,8 +75,6 @@ class BookingController extends AsyncNotifier<Booking> {
     return booking;
   }
 
-  Future<void> pay(String telephone) async => _set(await _repository.pay(bookingId, telephone: telephone));
-
   Future<ShareLink> shareLink() => _repository.shareLink(bookingId);
 
   /// Confirmation d'arrivée (CA8) : `terminee` → `cloturee`.
@@ -86,7 +85,8 @@ class BookingController extends AsyncNotifier<Booking> {
   }
 }
 
-final bookingProvider = AsyncNotifierProvider.autoDispose.family<BookingController, Booking, int>(BookingController.new);
+final bookingProvider =
+    AsyncNotifierProvider.autoDispose.family<BookingController, Booking, String>(BookingController.new);
 
 /// Demande de place depuis « Détails & Réservation ».
 class BookingRequester {
@@ -95,15 +95,16 @@ class BookingRequester {
   final Ref _ref;
 
   Future<Booking> request({
-    required int tripId,
-    required int places,
-    required int pickupPointId,
-    required PaymentMethod method,
+    required String tripId,
+    required String pickupPointId,
+    required ({String libelle, double lat, double lng}) arrivee,
   }) async {
     final booking = await _ref
         .read(bookingRepositoryProvider)
-        .request(tripId: tripId, places: places, pickupPointId: pickupPointId, method: method);
+        .request(tripId: tripId, pickupPointId: pickupPointId, arrivee: arrivee);
     _ref.read(myBookingsProvider.notifier).upsert(booking);
+    // Le montant est bloqué : le portefeuille affiché doit être relu.
+    _ref.invalidate(walletBalanceProvider);
     return booking;
   }
 }

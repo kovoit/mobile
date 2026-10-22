@@ -9,11 +9,13 @@ import '../../../booking/presentation/widgets/booking_labels.dart';
 import '../../../trip/domain/entities/trip.dart';
 import '../../domain/entities/driver_trip.dart';
 
-/// Demande reçue par le conducteur. Les boutons affichés sont exactement les `actions` de l'API.
+/// Demande reçue par le conducteur. Les boutons suivent le statut ; le backend refuse toute
+/// action devenue impossible (place prise, absence trop tôt…) avec un message affiché tel quel.
 class RequestCard extends StatelessWidget {
   const RequestCard({
     super.key,
     required this.request,
+    required this.actions,
     required this.pickup,
     required this.busy,
     required this.onAccept,
@@ -25,6 +27,7 @@ class RequestCard extends StatelessWidget {
   });
 
   final DriverRequest request;
+  final Set<DriverRequestAction> actions;
   final PickupPoint? pickup;
 
   /// Une action est en cours sur cette demande.
@@ -40,21 +43,21 @@ class RequestCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final passenger = request.passenger;
     final buttons = <Widget>[
-      if (request.can(DriverRequestAction.accepter))
+      if (actions.contains(DriverRequestAction.accepter))
         PrimaryButton(label: 'Accepter', icon: Icons.check_rounded, isLoading: busy, onPressed: onAccept),
-      if (request.can(DriverRequestAction.refuser))
+      if (actions.contains(DriverRequestAction.refuser))
         PrimaryButton.outlined(label: 'Refuser', onPressed: busy ? null : onRefuse),
-      if (request.can(DriverRequestAction.saisirCode))
+      if (actions.contains(DriverRequestAction.saisirCode))
         PrimaryButton(label: 'Saisir le code', icon: Icons.pin_outlined, isLoading: busy, onPressed: onEnterCode),
-      if (request.can(DriverRequestAction.declarerAbsence))
+      if (actions.contains(DriverRequestAction.declarerAbsence))
         PrimaryButton.outlined(
           label: 'Déclarer absent',
           icon: Icons.person_off_outlined,
           onPressed: busy ? null : onDeclareAbsence,
         ),
-      if (request.can(DriverRequestAction.noter))
+      if (actions.contains(DriverRequestAction.noter))
         PrimaryButton.outlined(label: 'Noter', icon: Icons.star_outline_rounded, onPressed: busy ? null : onRate),
-      if (request.can(DriverRequestAction.signaler))
+      if (actions.contains(DriverRequestAction.signaler))
         PrimaryButton.outlined(
           label: 'Signaler',
           icon: Icons.report_gmailerrorred_rounded,
@@ -99,8 +102,7 @@ class RequestCard extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Expanded(
                 child: Text(
-                  '${request.places} place${request.places > 1 ? 's' : ''}'
-                  '${pickup == null ? '' : ' · ${pickup!.place.libelle}'}',
+                  '1 place${pickup == null ? '' : ' · ${pickup!.place.libelle}'}',
                   style: AppTextStyles.label,
                 ),
               ),
@@ -109,14 +111,9 @@ class RequestCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Row(
             children: [
-              Icon(request.paymentMethod.icon, size: 18, color: AppColors.textSecondary),
+              const Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  '${request.paymentMethod.label} · ${request.paymentStatus.label}',
-                  style: AppTextStyles.caption,
-                ),
-              ),
+              const Expanded(child: Text('Payé par le portefeuille du passager', style: AppTextStyles.caption)),
               Text(Formatters.fcfa(request.montant), style: AppTextStyles.label),
             ],
           ),

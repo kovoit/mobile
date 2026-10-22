@@ -1,3 +1,4 @@
+import '../../../../core/config/env.dart';
 import '../../domain/entities/booking.dart';
 import '../../domain/repositories/booking_repository.dart';
 import '../datasources/booking_remote_data_source.dart';
@@ -9,36 +10,28 @@ class BookingRepositoryImpl implements BookingRepository {
 
   @override
   Future<Booking> request({
-    required int tripId,
-    required int places,
-    required int pickupPointId,
-    required PaymentMethod method,
+    required String tripId,
+    required String pickupPointId,
+    required ({String libelle, double lat, double lng}) arrivee,
   }) async =>
-      (await _remote.request(tripId: tripId, places: places, pickupPointId: pickupPointId, method: method.apiValue))
-          .toEntity();
+      (await _remote.request(tripId: tripId, pickupPointId: pickupPointId, arrivee: arrivee)).toEntity();
 
   @override
   Future<List<Booking>> fetchMine() async => [for (final dto in await _remote.fetchMine()) dto.toEntity()];
 
   @override
-  Future<Booking> fetch(int id) async => (await _remote.fetch(id)).toEntity();
+  Future<Booking> fetch(String id) async => (await _remote.fetch(id)).toEntity();
 
   @override
-  Future<Booking> cancel(int id) async => (await _remote.cancel(id)).toEntity();
+  Future<Booking> cancel(String id) async => (await _remote.cancel(id)).toEntity();
 
   @override
-  Future<Booking> pay(int id, {required String telephone}) async =>
-      (await _remote.pay(id, telephone: telephone)).toEntity();
+  Future<Booking> confirmArrival(String id) async => (await _remote.confirm(id)).toEntity();
 
+  /// Le backend renvoie un chemin relatif à son serveur (`/api/v1/partage/<jeton>/`).
   @override
-  Future<Booking> confirmArrival(int id) async => (await _remote.confirm(id)).toEntity();
-
-  @override
-  Future<ShareLink> shareLink(int id) async {
+  Future<ShareLink> shareLink(String id) async {
     final json = await _remote.share(id);
-    return ShareLink(
-      url: json['url'] as String,
-      expiresAt: json['expire_le'] == null ? null : DateTime.parse(json['expire_le'] as String),
-    );
+    return ShareLink(url: Uri.parse(Env.apiBaseUrl).resolve(json['chemin'] as String).toString());
   }
 }

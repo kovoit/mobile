@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
-import 'features/notifications/presentation/notifications_providers.dart';
+import 'features/booking/presentation/providers/booking_providers.dart';
+import 'features/driver/presentation/providers/driver_providers.dart';
 import 'features/notifications/presentation/push_coordinator.dart';
 
 class KovoitApp extends ConsumerStatefulWidget {
@@ -20,8 +21,13 @@ class _KovoitAppState extends ConsumerState<KovoitApp> {
   @override
   void initState() {
     super.initState();
-    // Retour au premier plan : on relit les notifications (statuts changés pendant l'absence).
-    _lifecycle = AppLifecycleListener(onResume: () => ref.read(notificationsProvider.notifier).refresh());
+    // Retour au premier plan : on relit les statuts qui ont pu changer pendant l'absence.
+    _lifecycle = AppLifecycleListener(
+      onResume: () {
+        ref.read(myBookingsProvider.notifier).refresh();
+        ref.read(myDriverTripsProvider.notifier).refresh();
+      },
+    );
   }
 
   @override
