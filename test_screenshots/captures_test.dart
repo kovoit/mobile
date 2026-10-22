@@ -4,8 +4,8 @@
 //   flutter test test_screenshots --update-goldens
 //
 // puis copier test_screenshots/captures/*.png dans site/src/assets/captures/.
+import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -117,16 +117,18 @@ void main() {
   testWidgets('portefeuille', (tester) async {
     final env = TestEnv.demoSession();
     await _start(tester, env);
-    ProviderScope.containerOf(tester.element(find.byType(KovoitApp))).read(appRouterProvider).push(Routes.wallet);
+    unawaited(ProviderScope.containerOf(tester.element(find.byType(KovoitApp))).read(appRouterProvider).push(Routes.wallet));
     await tester.pumpAndSettle();
     await _capture(tester, 'portefeuille');
   });
 
   testWidgets('profil vérifié', (tester) async {
     await _start(tester, TestEnv.demoSession());
-    ProviderScope.containerOf(tester.element(find.byType(KovoitApp)))
-        .read(appRouterProvider)
-        .push(Routes.kycSubmitted('passager'));
+    unawaited(
+      ProviderScope.containerOf(tester.element(find.byType(KovoitApp)))
+          .read(appRouterProvider)
+          .push(Routes.kycSubmitted('passager')),
+    );
     await tester.pumpAndSettle();
     await _capture(tester, 'profil-verifie');
   });
