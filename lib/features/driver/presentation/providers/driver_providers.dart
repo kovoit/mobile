@@ -2,12 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_driver.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/api_service.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../core/utils/lome_time.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
 import '../../../trip/domain/entities/geo_place.dart';
-import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../data/datasources/driver_remote_data_source.dart';
 import '../../data/repositories/driver_repository_impl.dart';
 import '../../domain/entities/driver_trip.dart';
@@ -15,7 +14,7 @@ import '../../domain/repositories/driver_repository.dart';
 
 final driverRemoteDataSourceProvider = Provider<DriverRemoteDataSource>((ref) {
   if (Env.useMockApi) return FakeDriverRemoteDataSource(ref.watch(fakeDriverProvider));
-  return DioDriverRemoteDataSource(ref.watch(dioProvider));
+  return ApiDriverRemoteDataSource(ref.watch(apiServiceProvider));
 });
 
 final driverRepositoryProvider =
@@ -56,7 +55,7 @@ final myDriverTripsProvider =
 class DriverTripController extends AsyncNotifier<DriverTrip> {
   DriverTripController(this.tripId);
 
-  final int tripId;
+  final String tripId;
 
   DriverRepository get _repository => ref.read(driverRepositoryProvider);
 
@@ -83,14 +82,14 @@ class DriverTripController extends AsyncNotifier<DriverTrip> {
     _set(await _repository.trip(tripId));
   }
 
-  Future<void> accept(int requestId) => _then(() => _repository.accept(requestId));
+  Future<void> accept(String requestId) => _then(() => _repository.accept(requestId));
 
-  Future<void> refuse(int requestId) => _then(() => _repository.refuse(requestId));
+  Future<void> refuse(String requestId) => _then(() => _repository.refuse(requestId));
 
-  Future<void> submitCode(int requestId, String code) =>
+  Future<void> submitCode(String requestId, String code) =>
       _then(() => _repository.submitDepartureCode(requestId, code));
 
-  Future<void> declareAbsence(int requestId, {required double lat, required double lng}) =>
+  Future<void> declareAbsence(String requestId, {required double lat, required double lng}) =>
       _then(() => _repository.declareAbsence(requestId, lat: lat, lng: lng));
 
   Future<void> finish() async {
@@ -102,7 +101,7 @@ class DriverTripController extends AsyncNotifier<DriverTrip> {
 }
 
 final driverTripProvider =
-    AsyncNotifierProvider.autoDispose.family<DriverTripController, DriverTrip, int>(DriverTripController.new);
+    AsyncNotifierProvider.autoDispose.family<DriverTripController, DriverTrip, String>(DriverTripController.new);
 
 // ------------------------------------------------------------------ Publication
 
@@ -214,11 +213,11 @@ class PublishFormController extends Notifier<PublishForm> {
   /// Erreurs par champ renvoyées par l'API (400).
   void applyServerErrors(Map<String, String> fieldErrors) {
     const mapping = {
-      'points_prise_en_charge': PublishField.pickups,
-      'places_total': PublishField.places,
+      'points': PublishField.pickups,
+      'places': PublishField.places,
       'depart_le': PublishField.dateTime,
-      'depart': PublishField.depart,
-      'arrivee': PublishField.arrivee,
+      'depart_libelle': PublishField.depart,
+      'arrivee_libelle': PublishField.arrivee,
     };
     state = state.copyWith(errors: {
       for (final entry in fieldErrors.entries) ?mapping[entry.key]: entry.value,
@@ -227,15 +226,3 @@ class PublishFormController extends Notifier<PublishForm> {
 }
 
 final publishFormProvider = NotifierProvider<PublishFormController, PublishForm>(PublishFormController.new);
-
-/// Prix recommandé par le backend pour un départ, une arrivée et un type de véhicule.
-final priceEstimateProvider =
-    FutureProvider.autoDispose.family<PriceEstimate, (GeoPlace, GeoPlace, VehicleType)>((ref, key) {
-  final (depart, arrivee, vehicleType) = key;
-  return ref.watch(driverRepositoryProvider).estimatePrice(
-        depart: depart,
-        arrivee: arrivee,
-        pickupPoints: ref.read(publishFormProvider).pickups,
-        vehicleType: vehicleType,
-      );
-});

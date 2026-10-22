@@ -1,8 +1,7 @@
-import 'package:dio/dio.dart';
-
+import '../../../../core/constants/api_constants.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/mock/fake_trips.dart';
-import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_service.dart';
 import '../../../trip/data/dto/trip_dto.dart';
 import '../dto/search_response_dto.dart';
 
@@ -13,51 +12,39 @@ typedef SearchParams = ({
   double arriveeLat,
   double arriveeLng,
   DateTime dateHeure,
-  int places,
-  String typeVehicule,
 });
 
 abstract interface class SearchRemoteDataSource {
+  /// `GET /lieux/?q=` : lieux connus de Lomé (2 caractères minimum pour filtrer).
   Future<List<GeoPlaceDto>> searchPlaces(String query);
 
-  Future<SearchResponseDto> search(SearchParams params);
+  Future<List<SearchMatchDto>> search(SearchParams params);
 }
 
-class DioSearchRemoteDataSource implements SearchRemoteDataSource {
-  DioSearchRemoteDataSource(this._dio);
+class ApiSearchRemoteDataSource implements SearchRemoteDataSource {
+  const ApiSearchRemoteDataSource(this._api);
 
-  final Dio _dio;
-
-  Future<T> _call<T>(Future<T> Function() request) async {
-    try {
-      return await request();
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
+  final ApiService _api;
 
   @override
-  Future<List<GeoPlaceDto>> searchPlaces(String query) => _call(() async {
-        final res = await _dio.get<List<dynamic>>('/lieux/', queryParameters: {if (query.isNotEmpty) 'q': query});
-        return [for (final item in res.data!) GeoPlaceDto.fromJson(item as Map<String, dynamic>)];
-      });
+  Future<List<GeoPlaceDto>> searchPlaces(String query) => _api.get(
+        ApiEndpoints.lieux,
+        query: {if (query.isNotEmpty) 'q': query},
+        parse: (json) => [for (final item in ApiService.asList(json)) GeoPlaceDto.fromJson(ApiService.asMap(item))],
+      );
 
   @override
-  Future<SearchResponseDto> search(SearchParams p) => _call(() async {
-        final res = await _dio.get<Map<String, dynamic>>(
-          '/trajets/recherche/',
-          queryParameters: {
-            'depart_lat': p.departLat,
-            'depart_lng': p.departLng,
-            'arrivee_lat': p.arriveeLat,
-            'arrivee_lng': p.arriveeLng,
-            'date_heure': p.dateHeure.toUtc().toIso8601String(),
-            'places': p.places,
-            'type_vehicule': p.typeVehicule,
-          },
-        );
-        return SearchResponseDto.fromJson(res.data!);
-      });
+  Future<List<SearchMatchDto>> search(SearchParams p) => _api.get(
+        ApiEndpoints.trajetsRecherche,
+        query: {
+          'depart_lat': p.departLat,
+          'depart_lng': p.departLng,
+          'arrivee_lat': p.arriveeLat,
+          'arrivee_lng': p.arriveeLng,
+          'date_heure': p.dateHeure.toUtc().toIso8601String(),
+        },
+        parse: (json) => [for (final item in ApiService.asList(json)) SearchMatchDto.fromJson(ApiService.asMap(item))],
+      );
 }
 
 /// Fausse API de recherche (`Env.useMockApi`) : règles serveur simulées dans [FakeTrips].
@@ -73,18 +60,16 @@ class FakeSearchRemoteDataSource implements SearchRemoteDataSource {
   }
 
   @override
-  Future<SearchResponseDto> search(SearchParams p) async {
+  Future<List<SearchMatchDto>> search(SearchParams p) async {
     await _backend.wait();
     await _backend.currentUserId();
-    final json = FakeTrips.search(
+    final results = FakeTrips.search(
       departLat: p.departLat,
       departLng: p.departLng,
       arriveeLat: p.arriveeLat,
       arriveeLng: p.arriveeLng,
       dateHeure: p.dateHeure,
-      places: p.places,
-      typeVehicule: p.typeVehicule,
     );
-    return SearchResponseDto.fromJson(json);
+    return [for (final json in results) SearchMatchDto.fromJson(json)];
   }
 }

@@ -60,18 +60,15 @@ class SearchResultsScreen extends ConsumerWidget {
   }
 
   List<Widget> _results(BuildContext context, WidgetRef ref, SearchResult result) {
-    final itinerary = result.itinerary;
-    final isMoto = query.vehicleType == VehicleType.moto;
     final count = result.trips.length;
 
     return [
       MapPreview(
         start: LatLng(query.depart.lat, query.depart.lng),
         end: LatLng(query.arrivee.lat, query.arrivee.lng),
-        route: [for (final (lat, lng) in itinerary.points) LatLng(lat, lng)],
+        route: const [],
         startLabel: query.depart.libelle,
         endLabel: query.arrivee.displayName.toUpperCase(),
-        badge: '${Formatters.durationMin(itinerary.durationMin)} · ${Formatters.distanceKm(itinerary.distanceKm)}',
         tileProvider: ref.watch(mapTileProviderProvider),
       ),
       const SizedBox(height: AppSpacing.md),
@@ -88,7 +85,7 @@ class SearchResultsScreen extends ConsumerWidget {
           children: [
             Expanded(
               child: Text(
-                '$count trajet${count > 1 ? 's' : ''} en ${isMoto ? 'moto' : 'voiture'}',
+                '$count trajet${count > 1 ? 's' : ''} disponible${count > 1 ? 's' : ''}',
                 style: AppTextStyles.cardTitle,
               ),
             ),
@@ -101,7 +98,16 @@ class SearchResultsScreen extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.sm),
         for (final trip in result.trips) ...[
-          _TripCard(trip: trip, onTap: () => context.push(Routes.tripDetail(trip.id, places: query.places))),
+          _TripCard(
+            trip: trip,
+            onTap: () => context.push(
+              Routes.tripDetail(
+                trip.id,
+                pickupId: trip.matchedPickupId,
+                arrivee: (libelle: query.arrivee.libelle, lat: query.arrivee.lat, lng: query.arrivee.lng),
+              ),
+            ),
+          ),
           const SizedBox(height: AppSpacing.sm),
         ],
       ],

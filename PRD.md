@@ -65,7 +65,7 @@ Le mode conducteur s'active depuis le **Profil** (« Passer en mode conducteur �
 
 **CA5 — Annulation.** Le passager ou le conducteur peut annuler une réservation `demandee` ou `acceptee` jusqu'au départ, après confirmation. L'autre partie est notifiée. La place est rendue, un paiement mobile déjà effectué est remboursé. Une annulation après `annulation_gratuite_jusqu_au` (départ − `delai_annulation_min`, fourni par l'API) compte comme **annulation tardive** ; l'app prévient avant de confirmer.
 
-**CA5 bis — Paiement.** Le passager choisit Espèces, Flooz ou Mixx avant de demander une place. Pour Flooz / Mixx, le bouton « Payer » n'apparaît qu'une fois la réservation acceptée (action `payer` renvoyée par l'API) ; le statut passe « Paiement en cours » puis « Payé » après validation sur le téléphone.
+**CA5 bis — Paiement (décision du 22/10/2026).** La place est payée par le **portefeuille** : le montant est bloqué à la demande, débité à la prise en charge, rendu en cas de refus ou d'annulation. S'il manque de l'argent, « Détails & Réservation » propose de recharger (Flooz ou Mixx via PayGate, validation sur le téléphone), puis de réserver. Pas d'espèces.
 
 **CA6 — Vérification.** L'inscription n'exige pas le KYC : après l'OTP, l'utilisateur accède à son tableau de bord. Sans KYC passager `verifie`, une carte « accès restreint » s'affiche sur le tableau de bord, le bouton « Réserver » est bloqué avec un renvoi vers le KYC, et un **macaron orange** signale l'action attendue sur l'onglet et dans l'écran Profil. Sans KYC conducteur `verifie` et véhicule déclaré, le passage en mode conducteur et la publication sont bloqués. Un compte suspendu ne peut ni réserver, ni publier, ni changer de mode.
 
@@ -95,7 +95,7 @@ Le mode conducteur s'active depuis le **Profil** (« Passer en mode conducteur �
 | 6 | Profil vérifié | kyc | Récapitulatif des pièces ; « Dossier envoyé » tant que le statut est `en_attente`, « Profil vérifié » une fois validé |
 | 7 | Rechercher un trajet | search | Toggle Moto/Voiture, départ, destination, date, heure, places, trajet du quotidien |
 | 8 | Conducteurs disponibles | search | Carte OSM, nombre de résultats, cartes conducteur (photo, badge vérifié, note, véhicule, places, départ, distance, prix) |
-| 9 | Détails & Réservation | trip / booking | Prise en charge et arrivée estimée, conducteur (note, fiabilité, nb trajets), photo et immatriculation du véhicule, récapitulatif du prix, mode de paiement (Espèces, ou mobile : **Flooz** (Moov Africa) / **Mixx** (Togocom))*, « Réserver ma place » |
+| 9 | Détails & Réservation | trip / booking | Prise en charge et arrivée estimée, conducteur (note, fiabilité, nb trajets), photo et immatriculation du véhicule, récapitulatif du prix, paiement par le portefeuille (solde, complément à recharger par **Flooz** / **Mixx**)*, « Réserver ma place » |
 | 10 | Suivi du trajet & Code de départ | booking | Carte, arrivée du conducteur, **code de départ**, Appeler, Message*, Partager mon trajet, Annuler |
 | 11 | Espace Conducteur | driver | Économies du mois, formulaire de publication (1–3 carrefours), places, prix recommandé. **Le toggle Passager/Conducteur de la maquette est retiré** : la bascule se fait dans le Profil |
 | 12 | Profil *(nouveau, S2)* | profile | Identité, macaron orange + carte « Vérifiez votre identité » tant que le KYC attend une action, lignes Vérification d'identité / Dossier conducteur / Mon véhicule avec statut, bouton « Passer en mode conducteur / passager », déconnexion |
@@ -131,7 +131,7 @@ Chaque changement de statut notifie l'autre partie (push, ou SMS si l'applicatio
 | Entité | Champs principaux |
 |---|---|
 | User | id, telephone, nom, prenom, email, photo, mode_actif (passager/conducteur), statut_compte, suspendu_jusqu_au, kyc_passager, kyc_conducteur, vehicule_declare, note, fiabilite, nb_trajets |
-| KycDossier | type (passager/conducteur), statut, motif_rejet, pièces (passager : identite, selfie · conducteur : identite, selfie, permis, carte_grise ou assurance, photo_vehicule) — `docs/api/kyc.md` |
+| KycDossier | type (passager/conducteur), statut, motif_rejet, pièces (passager : identite, selfie · conducteur : identite, selfie, permis, carte_grise ou assurance, photo_vehicule) — `docs/api/README.md` |
 | Vehicle | id, type (moto/voiture), marque, modele, couleur, immatriculation, nb_places, photo, statut_verification |
 | Trip | id, conducteur, vehicule, depart (lat, lng, libelle), arrivee (lat, lng, libelle), points_prise_en_charge[1..3], depart_le, places_total, places_restantes, distance_km, prix_place, statut |
 | Booking | id, trajet, passager, point_prise_en_charge, nb_places, prix, frais_service, statut, code_depart (**visible passager uniquement**), horodatages |
@@ -176,18 +176,17 @@ Le taux de fiabilité (`1 − (annulations tardives + absences) / réservations 
 
 ## 12. Paiement
 
-**Décision D5/D7 (09/10/2026) :** le passager **choisit** son moyen de paiement à la réservation, sur « Détails & Réservation ».
+**Décision du 22/10/2026 (remplace D5/D7 du 09/10) :** paiement par le **portefeuille Kovoit**,
+rechargé par **Flooz** (Moov Africa) ou **Mixx** (Togocom) via l'agrégateur **PayGate Global**.
+**Pas d'espèces.** Une réservation = une place.
 
-| Moyen | Fonctionnement |
+| Étape | Effet sur le portefeuille |
 |---|---|
-| **Espèces** | Paiement au conducteur en main propre à la prise en charge. L'application enregistre le montant dû (économies du conducteur). |
-| **Flooz** (Moov Africa) / **Mixx** (Togocom) | Paiement depuis l'application **après l'acceptation** du conducteur : saisie du numéro, demande envoyée par l'agrégateur, validation par code secret sur le téléphone. Kovoit encaisse, rembourse en cas d'annulation ou de refus, et verse au conducteur à la clôture. |
-
-- Le montant (`prix_total`) et le statut du paiement (`a_payer`, `en_attente`, `reussi`, `echoue`, `rembourse`) viennent de l'API ; le paiement est confirmé côté serveur par le webhook de l'agrégateur.
-- L'ancienne appellation « T-Money » ne doit plus apparaître (Mixx).
-- Contrat : `docs/api/bookings.md`.
-
-Plus tard : portefeuille Kovoit rechargé par Flooz / Mixx, versements groupés aux conducteurs.
+| Recharge | En attente jusqu'à la validation du client sur son téléphone, puis créditée (ou échouée) |
+| Demande de place | Montant bloqué (rendu si refus ou annulation) |
+| Code de départ saisi | Montant débité |
+| Clôture / absence | Le conducteur est crédité |
+| Retrait du conducteur | Retenu tout de suite, versé par Kovoit sur son compte Mobile Money |
 
 ## 13. Sécurité & confiance
 
@@ -206,17 +205,17 @@ Contradictions relevées entre la spécification, l'ancien PRD et les maquettes.
 |---|---|---|
 | D1 | Calcul du prix | Grille 200/300/500 F par distance (spéc.) · pas de calcul dans le MVP (ancien PRD) · formule au km (ancien claude.md). Les maquettes affichent un « prix recommandé calculé automatiquement ». Quelle que soit l'option, le mobile **affiche** le prix de l'API. |
 | D2 | Frais de service | 0 F pendant le pilote (spéc., maquettes « 0 FCFA ») · 10 % · frais fixes 50 F |
-| D3 | Authentification | ✅ **Révisé (10/10/2026)** : connexion sans mot de passe par code à 6 chiffres envoyé par e-mail (backend). Plus de mot de passe, Google ni OTP SMS. Contrat : `docs/api/auth.md` |
+| D3 | Authentification | ✅ **Révisé (10/10/2026)** : connexion sans mot de passe par code à 6 chiffres envoyé par e-mail (backend). Plus de mot de passe, Google ni OTP SMS. Contrat : `docs/api/README.md` |
 | D4 | Bouton « Message » (écran 10) | Hors MVP (messagerie) : masquer, désactiver ou remplacer par SMS natif ? |
-| D5 | Paiement mobile (écran 9) | ✅ **Tranché (09/10/2026)** : Flooz et Mixx réellement proposés, au choix avec les espèces (§12). |
+| D5 | Paiement mobile (écran 9) | ✅ **Révisé (22/10/2026)** : portefeuille rechargé par Flooz / Mixx via PayGate, pas d'espèces (§12). |
 | D6 | Backend | DRF seul · DRF + FastAPI |
-| D7 | Paiement MVP | ✅ **Tranché (09/10/2026)** : espèces **ou** Mobile Money par réservation, au choix du passager. **À étudier avant la mise en production (10/10/2026)** : agrégateur (PayGate Global, FedaPay, CinetPay), qui paie les frais de transaction, et conduite à tenir si le paiement mobile n'est pas fait avant le départ. Rien n'est implémenté qui présuppose ces choix. |
+| D7 | Paiement MVP | ✅ **Révisé (22/10/2026)** : agrégateur **PayGate Global**, portefeuille obligatoire. Restent ouverts : qui paie les frais de transaction, versement automatique des retraits (manuel pour l'instant). |
 
 **Questions ouvertes (spécification) :** cadre légal du covoiturage avec partage de frais au Togo, agrégateur de paiement et frais réels, relevé terrain pour valider la grille de prix.
 
 ## 15. Hors périmètre du MVP
 
-Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique (OCR, comparaison du selfie) · passagers pris n'importe où sur l'itinéraire · trajets réguliers/récurrents · trajets interurbains · IA et recommandation · optimisation d'itinéraires · assurance intégrée · abonnement conducteur ou entreprises · statistiques avancées.
+Messagerie intégrée · paiement en espèces · liste de notifications dans l'app · plusieurs places par réservation · KYC automatique (OCR, comparaison du selfie) · passagers pris n'importe où sur l'itinéraire · trajets réguliers/récurrents · trajets interurbains · IA et recommandation · optimisation d'itinéraires · assurance intégrée · abonnement conducteur ou entreprises · statistiques avancées.
 
 ## 16. Stack
 
@@ -238,9 +237,9 @@ Messagerie intégrée · paiement Mobile Money / portefeuille · KYC automatique
 | S1 Auth | Splash, connexion par code e-mail, profil à compléter, tokens |
 | S2 KYC + Véhicule + Profil | KYC depuis le Profil (passager 4 pièces, conducteur 3 pièces), statut et motif de rejet, déclaration du véhicule, macaron orange, accès restreint sur l'accueil, bascule de mode |
 | S3 Recherche | Formulaire (lieux connus ou point sur la carte, Moto/Voiture, date/heure de Lomé, places), recherches récentes, résultats + carte OSM de l'itinéraire, détail du trajet en consultation (profil conducteur, fiabilité, véhicule, prix renvoyés par l'API) |
-| S4 Réservation passager | Choix du paiement (Espèces / Flooz / Mixx), demande de place, suivi (statuts, code de départ, arrivée du conducteur), paiement mobile après acceptation, appel du conducteur, partage du trajet, annulation (gratuite / tardive), onglet « Mes trajets ». Statuts relus par sondage en attendant les push (S6). |
-| S5 Conducteur | Espace conducteur (économies du mois, publication avec 1–3 carrefours et prix recommandé par l'API), gestion d'un trajet (demandes accepter/refuser, saisie du code de départ, absence avec position GPS, terminer, annuler), trajets publiés dans « Mes trajets ». Contrat : `docs/api/driver.md` |
-| S6 Après trajet | Confirmation d'arrivée, notation des deux côtés, signalement (→ litige), notifications (cloche, liste, ouverture de l'écran concerné), push FCM prêt derrière `PUSH_ENABLED` (projet Firebase à créer). Contrat : `docs/api/after_trip.md` |
+| S4 Réservation passager | Paiement par le portefeuille (recharge Flooz / Mixx via PayGate si le solde ne suffit pas), demande de place, suivi (statuts, code de départ), partage du trajet, annulation (tardive selon le serveur), onglet « Mes trajets ». |
+| S5 Conducteur | Espace conducteur (économies du mois, publication avec 1–3 carrefours, prix par place fixé par Kovoit), gestion d'un trajet (demandes accepter/refuser, saisie du code de départ, absence avec position GPS, terminer, annuler), trajets publiés dans « Mes trajets ». Contrat : `docs/api/README.md` |
+| S6 Après trajet | Confirmation d'arrivée, notation des deux côtés, signalement (→ litige), push FCM prêt derrière `PUSH_ENABLED` (ouverture de l'écran concerné ; pas de liste in-app, décision du 22/10) (projet Firebase à créer). Contrat : `docs/api/README.md` |
 | S7 Qualité | Tests CA1–CA9, erreurs et hors-ligne, accessibilité, APK de démo |
 
 ## 18. Retours UX du 08/10/2026 (intégrés en S2)

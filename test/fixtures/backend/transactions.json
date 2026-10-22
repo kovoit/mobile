@@ -1,0 +1,44 @@
+{
+  "statut": "success",
+  "message": "Historique récupéré.",
+  "reponse": {
+    "count": 3,
+    "next": null,
+    "previous": null,
+    "results": [
+      {
+        "id": "2705e3bb-a65c-422d-8571-5d82723e3995",
+        "type": "recharge",
+        "montant": 1000,
+        "moyen_paiement": "mixx",
+        "reservation": null,
+        "reference_externe": "SIM-MIXX-083301562A3B",
+        "statut": "validee",
+        "telephone": "+22890000000",
+        "cree_le": "2026-10-22T19:11:39.333784Z"
+      },
+      {
+        "id": "27f3f40a-1ed7-4b41-8946-39e0640f45a0",
+        "type": "blocage",
+        "montant": 300,
+        "moyen_paiement": "",
+        "reservation": "122f7a8a-96b6-47b5-8944-cab2e34f2c68",
+        "reference_externe": "",
+        "statut": "validee",
+        "telephone": "",
+        "cree_le": "2026-10-22T19:11:37.638961Z"
+      },
+      {
+        "id": "f9a1eec1-bb94-4e75-b3e9-bc12f030e963",
+        "type": "recharge",
+        "montant": 5000,
+        "moyen_paiement": "flooz",
+        "reservation": null,
+        "reference_externe": "SIM-FLOOZ-6E54A2841E78",
+        "statut": "validee",
+        "telephone": "+22890000000",
+        "cree_le": "2026-10-22T19:11:37.381686Z"
+      }
+    ]
+  }
+}

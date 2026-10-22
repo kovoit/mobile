@@ -24,7 +24,7 @@ class GeoPlace {
   });
 
   /// `null` pour un point choisi sur la carte.
-  final int? id;
+  final String? id;
   final String libelle;
   final String? quartier;
   final double lat;

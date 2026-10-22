@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/env.dart';
 import '../../../core/mock/fake_after_trip.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../core/network/dio_client.dart';
+import '../../../core/network/api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -12,9 +12,20 @@ import '../../../core/widgets/widgets.dart';
 import '../data/rating_repository_impl.dart';
 import '../domain/rating_repository.dart';
 
+/// Réservations déjà notées pendant la session : le bouton « Noter » disparaît sans attendre.
+/// Le backend reste juge (`DEJA_NOTE`) : il ne renvoie pas cette information avec la réservation.
+class RatedBookings extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void add(String bookingId) => state = {...state, bookingId};
+}
+
+final ratedBookingsProvider = NotifierProvider<RatedBookings, Set<String>>(RatedBookings.new);
+
 final ratingRepositoryProvider = Provider<RatingRepository>((ref) {
   if (Env.useMockApi) return FakeRatingRepository(ref.watch(fakeAfterTripProvider));
-  return DioRatingRepository(ref.watch(dioProvider));
+  return ApiRatingRepository(ref.watch(apiServiceProvider));
 });
 
 /// Feuille « Noter » (CA8) : 1 à 5 étoiles + commentaire optionnel. Même composant pour
@@ -23,12 +34,12 @@ final ratingRepositoryProvider = Provider<RatingRepository>((ref) {
 class RatingSheet extends ConsumerStatefulWidget {
   const RatingSheet({super.key, required this.bookingId, required this.personName});
 
-  final int bookingId;
+  final String bookingId;
 
   /// Prénom de la personne notée.
   final String personName;
 
-  static Future<bool?> show(BuildContext context, {required int bookingId, required String personName}) =>
+  static Future<bool?> show(BuildContext context, {required String bookingId, required String personName}) =>
       showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
@@ -65,8 +76,10 @@ class _RatingSheetState extends ConsumerState<RatingSheet> {
     });
     try {
       await ref.read(ratingRepositoryProvider).rate(bookingId: widget.bookingId, note: _note, comment: _comment.text);
+      ref.read(ratedBookingsProvider.notifier).add(widget.bookingId);
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
+      if (e.code == 'DEJA_NOTE') ref.read(ratedBookingsProvider.notifier).add(widget.bookingId);
       if (mounted) setState(() => _error = e.message);
     } finally {
       if (mounted) setState(() => _sending = false);

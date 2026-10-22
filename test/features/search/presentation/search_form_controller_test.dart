@@ -3,10 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/features/search/presentation/providers/search_providers.dart';
 import 'package:kovoit/features/trip/domain/entities/geo_place.dart';
-import 'package:kovoit/features/vehicle/domain/entities/vehicle.dart';
 
-const _a = GeoPlace(id: 1, libelle: 'Carrefour Franciscain', quartier: 'Adidogomé', lat: 6.166, lng: 1.165);
-const _b = GeoPlace(id: 4, libelle: 'Université de Lomé', quartier: 'Tokoin', lat: 6.168, lng: 1.214);
+const _a = GeoPlace(id: 'lieu-1', libelle: 'Carrefour Franciscain', quartier: 'Adidogomé', lat: 6.166, lng: 1.165);
+const _b = GeoPlace(id: 'lieu-4', libelle: 'Université de Lomé', quartier: 'Tokoin', lat: 6.168, lng: 1.214);
 
 void main() {
   late ProviderContainer container;
@@ -47,12 +46,7 @@ void main() {
     expect(state().errors.keys, [SearchFormField.dateTime]);
   });
 
-  test('moto : une seule place, et l’erreur disparaît quand on corrige', () {
-    form()
-      ..setPlaces(3)
-      ..setVehicleType(VehicleType.moto);
-    expect(state().places, 1);
-
+  test('l’erreur disparaît quand on corrige', () {
     form().submit();
     form().setDepart(_a);
     expect(state().errors.containsKey(SearchFormField.depart), isFalse);
@@ -61,10 +55,9 @@ void main() {
   test('formulaire valide → requête', () {
     form()
       ..setDepart(_a)
-      ..setArrivee(_b)
-      ..setPlaces(2);
+      ..setArrivee(_b);
     final query = form().submit()!;
-    expect(query.places, 2);
+    expect(query.arrivee, _b);
     expect(query.dateTime, DateTime.utc(2026, 10, 8, 7, 30));
   });
 

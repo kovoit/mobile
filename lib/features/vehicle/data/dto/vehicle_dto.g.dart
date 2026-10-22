@@ -7,22 +7,22 @@ part of 'vehicle_dto.dart';
 // **************************************************************************
 
 VehicleDto _$VehicleDtoFromJson(Map<String, dynamic> json) => VehicleDto(
-  type: json['type'] as String,
+  typeVehicule: json['type_vehicule'] as String,
   marque: json['marque'] as String,
   modele: json['modele'] as String,
   couleur: json['couleur'] as String,
   immatriculation: json['immatriculation'] as String,
   nbPlaces: (json['nb_places'] as num).toInt(),
-  statutVerification: json['statut_verification'] as String?,
+  id: json['id'] as String?,
 );
 
 Map<String, dynamic> _$VehicleDtoToJson(VehicleDto instance) =>
     <String, dynamic>{
-      'type': instance.type,
+      'id': ?instance.id,
+      'type_vehicule': instance.typeVehicule,
       'marque': instance.marque,
       'modele': instance.modele,
       'couleur': instance.couleur,
       'immatriculation': instance.immatriculation,
       'nb_places': instance.nbPlaces,
-      'statut_verification': ?instance.statutVerification,
     };

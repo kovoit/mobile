@@ -1,0 +1,54 @@
+{
+  "statut": "success",
+  "message": "Trajet publié.",
+  "reponse": {
+    "id": "0c81bfa1-7719-4307-af0f-407e15615f82",
+    "conducteur": {
+      "id": "d0a49f3c-9946-4696-bd55-371f005e1893",
+      "prenom": "Kodjo",
+      "nom": "Amegah",
+      "photo": null,
+      "confiance": {
+        "note_moyenne": null,
+        "nombre_notes": 0,
+        "fiabilite_pct": 100,
+        "passager_verifie": false,
+        "conducteur_verifie": true
+      }
+    },
+    "vehicule": {
+      "id": "4f5d7948-afd4-47d6-b3cd-c8425e5bdea0",
+      "type_vehicule": "voiture",
+      "marque": "Toyota",
+      "modele": "Corolla",
+      "couleur": "Grise",
+      "immatriculation": "TG0000AB",
+      "nb_places": 5,
+      "photo": null
+    },
+    "depart_lat": 6.1745,
+    "depart_lng": 1.169,
+    "depart_libelle": "Adidogomé",
+    "arrivee_lat": 6.13,
+    "arrivee_lng": 1.222,
+    "arrivee_libelle": "Grand Marché",
+    "points": [
+      {
+        "id": "ba76a957-10b2-49e2-840d-cec96d22d1ee",
+        "ordre": 1,
+        "lat": 6.175,
+        "lng": 1.17,
+        "libelle": "Carrefour Adidogomé"
+      }
+    ],
+    "depart_le": "2099-01-01T07:30:00Z",
+    "places_total": 2,
+    "places_restantes": 2,
+    "distance_km": "9.97",
+    "prix_place": 300,
+    "frais_service": 0,
+    "statut": "publie",
+    "nb_demandes": 0,
+    "position_le": null
+  }
+}

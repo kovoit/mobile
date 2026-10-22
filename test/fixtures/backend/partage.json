@@ -1,0 +1,8 @@
+{
+  "statut": "success",
+  "message": "Lien de partage prêt.",
+  "reponse": {
+    "jeton": "InXIz44Bmf69Z7l_isG5dCzaRELVXF5J63BGLwRuo6Y",
+    "chemin": "/api/v1/partage/InXIz44Bmf69Z7l_isG5dCzaRELVXF5J63BGLwRuo6Y/"
+  }
+}

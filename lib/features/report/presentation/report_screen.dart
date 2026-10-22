@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/config/env.dart';
 import '../../../core/mock/fake_after_trip.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../core/network/dio_client.dart';
+import '../../../core/network/api_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -15,7 +15,7 @@ import '../domain/report_repository.dart';
 
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
   if (Env.useMockApi) return FakeReportRepository(ref.watch(fakeAfterTripProvider));
-  return DioReportRepository(ref.watch(dioProvider));
+  return ApiReportRepository(ref.watch(apiServiceProvider));
 });
 
 /// « Signaler un problème » pendant ou après le trajet (spéc. §Sécurité), vers l'administrateur.
@@ -23,7 +23,7 @@ final reportRepositoryProvider = Provider<ReportRepository>((ref) {
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key, required this.bookingId, required this.otherName});
 
-  final int bookingId;
+  final String bookingId;
 
   /// Prénom de l'autre partie (conducteur ou passager).
   final String otherName;

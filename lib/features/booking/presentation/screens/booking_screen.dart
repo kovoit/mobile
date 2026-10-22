@@ -13,27 +13,23 @@ import '../../../../core/services/external_actions.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../../core/utils/clock.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/booking.dart';
 import '../providers/booking_providers.dart';
 import '../widgets/booking_labels.dart';
 import '../widgets/departure_code_card.dart';
-import '../widgets/payment_card.dart';
 import '../../../rating/presentation/rating_sheet.dart';
 
-/// Maquette « Suivi du trajet & Code de départ ». Le contenu suit le statut renvoyé par l'API,
-/// et seules les actions de `booking.actions` sont proposées (claude.md §4).
+/// Maquette « Suivi du trajet & Code de départ ». Le contenu suit le statut renvoyé par l'API ;
+/// les actions proposées dépendent du statut et le backend refuse celles devenues impossibles.
 class BookingScreen extends ConsumerStatefulWidget {
   const BookingScreen({super.key, required this.bookingId});
 
-  final int bookingId;
+  final String bookingId;
 
-  /// Sondage du statut (en attendant les notifications push du sprint S6).
+  /// Relecture du statut (en complément des notifications push et email).
   static const Duration statusPollInterval = Duration(seconds: 15);
-  static const Duration paymentPollInterval = Duration(seconds: 3);
-  static const Duration paymentPollTimeout = Duration(minutes: 2);
 
   @override
   ConsumerState<BookingScreen> createState() => _BookingScreenState();
@@ -41,15 +37,6 @@ class BookingScreen extends ConsumerStatefulWidget {
 
 class _BookingScreenState extends ConsumerState<BookingScreen> {
   Timer? _timer;
-
-  /// Le sondage compte les ticks du minuteur (pas l'horloge murale) : fiable et testable.
-  int _ticks = 0;
-  int? _paymentPollingStartTick;
-  static final int _statusEveryTicks =
-      BookingScreen.statusPollInterval.inSeconds ~/ BookingScreen.paymentPollInterval.inSeconds;
-  static final int _paymentMaxTicks =
-      BookingScreen.paymentPollTimeout.inSeconds ~/ BookingScreen.paymentPollInterval.inSeconds;
-  bool _paying = false;
   bool _cancelling = false;
   bool _sharing = false;
   bool _confirming = false;
@@ -59,7 +46,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(BookingScreen.paymentPollInterval, (_) => _tick());
+    _timer = Timer.periodic(BookingScreen.statusPollInterval, (_) => _tick());
   }
 
   @override
@@ -68,21 +55,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     super.dispose();
   }
 
-  /// Relit la réservation : toutes les 3 s pendant un paiement, toutes les 15 s sinon.
+  /// Relit la réservation tant qu'elle est en cours de vie.
   void _tick() {
-    _ticks++;
     final booking = ref.read(bookingProvider(widget.bookingId)).value;
-    if (booking == null) return;
-    if (booking.payment.status == PaymentStatus.enAttente) {
-      _paymentPollingStartTick ??= _ticks;
-      if (_ticks - _paymentPollingStartTick! <= _paymentMaxTicks) {
-        _controller.refresh();
-        return;
-      }
-    } else {
-      _paymentPollingStartTick = null;
-    }
-    if (booking.status.isUpcoming && _ticks % _statusEveryTicks == 0) _controller.refresh();
+    if (booking != null && booking.status.isUpcoming) _controller.refresh();
   }
 
   void _snack(String message) =>
@@ -90,29 +66,17 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(content: Text(message)));
 
-  Future<void> _pay(String telephone) async {
-    setState(() => _paying = true);
-    try {
-      await _controller.pay(telephone);
-      _paymentPollingStartTick = _ticks;
-    } on ApiException catch (e) {
-      if (mounted) _snack(e is BadRequestApiException ? (e.fieldErrors['telephone'] ?? e.message) : e.message);
-    } finally {
-      if (mounted) setState(() => _paying = false);
-    }
-  }
-
   Future<void> _cancel(Booking booking) async {
-    final now = ref.read(clockProvider)();
-    final late = booking.freeCancellationUntil != null && now.isAfter(booking.freeCancellationUntil!);
+    final accepted = booking.status == BookingStatus.acceptee;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Annuler cette réservation ?'),
         content: Text(
-          late
-              ? 'Le départ est proche : cette annulation comptera comme tardive et peut réduire votre fiabilité.'
-              : 'Le conducteur sera prévenu et la place sera libérée.',
+          accepted
+              ? 'Le conducteur sera prévenu et la place libérée. Si le départ est proche, '
+                  'l’annulation compte comme tardive et peut réduire votre fiabilité.'
+              : 'Le conducteur sera prévenu et le montant réservé vous sera rendu.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Garder ma place')),
@@ -142,10 +106,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     setState(() => _sharing = true);
     try {
       final link = await _controller.shareLink();
-      final until = link.expiresAt == null ? '' : ' (suivi valable jusqu’à ${Formatters.time(link.expiresAt!)})';
       await ref.read(externalActionsProvider).share(
             'Je suis en route avec Kovoit : ${booking.trip.vehicle.label} ${booking.trip.vehicle.immatriculation}, '
-            'conduit par ${booking.trip.driver.prenom}. Suivez mon trajet : ${link.url}$until',
+            'conduit par ${booking.trip.driver.prenom}. Suivez mon trajet : ${link.url}',
             subject: 'Mon trajet Kovoit',
           );
     } on ApiException catch (e) {
@@ -155,11 +118,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     }
   }
 
-  Future<void> _callDriver(String phone) async {
-    final ok = await ref.read(externalActionsProvider).call(phone);
-    if (!ok && mounted) _snack('Impossible d’ouvrir le téléphone. Numéro : ${Formatters.phone(phone)}');
-  }
-
   /// CA8 : confirmation d'arrivée, puis invitation à noter le conducteur.
   Future<void> _confirmArrival(Booking booking) async {
     setState(() => _confirming = true);
@@ -167,7 +125,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
       final closed = await _controller.confirmArrival();
       if (!mounted) return;
       _snack('Arrivée confirmée. Merci !');
-      if (closed.can(BookingAction.noter)) await _rate(closed);
+      if (closed.can(BookingAction.noter) && !ref.read(ratedBookingsProvider).contains(closed.id)) await _rate(closed);
     } on ApiException catch (e) {
       if (mounted) _snack(e.message);
     } finally {
@@ -265,22 +223,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           MapPreview(
             start: LatLng(pickup.lat, pickup.lng),
             end: LatLng(trip.arrivee.lat, trip.arrivee.lng),
-            vehiclePosition: booking.driverPosition == null
-                ? null
-                : LatLng(booking.driverPosition!.$1, booking.driverPosition!.$2),
+            route: const [],
             startLabel: pickup.libelle,
             endLabel: trip.arrivee.displayName.toUpperCase(),
-            badge: booking.driverEtaMin == null ? null : '${driver.prenom} · ${booking.driverEtaMin} min',
             tileProvider: ref.watch(mapTileProviderProvider),
-          ),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (status == BookingStatus.acceptee && booking.driverEtaMin != null) ...[
-          InfoBanner(
-            icon: Icons.schedule_rounded,
-            tone: InfoBannerTone.accent,
-            title: '${driver.prenom} arrive dans ${booking.driverEtaMin} min',
-            subtitle: pickup.quartier == null ? pickup.libelle : '${pickup.libelle} · ${pickup.quartier}',
           ),
           const SizedBox(height: AppSpacing.md),
         ],
@@ -297,16 +243,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           DepartureCodeCard(code: booking.departureCode!),
           const SizedBox(height: AppSpacing.md),
         ],
-        if (booking.payment.method.isMobileMoney && status != BookingStatus.refusee) ...[
-          PaymentCard(booking: booking, isPaying: _paying, onPay: _pay),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        _DriverSummary(
-          booking: booking,
-          onCall: booking.can(BookingAction.appeler) && booking.driverPhone != null
-              ? () => _callDriver(booking.driverPhone!)
-              : null,
-        ),
+        _DriverSummary(booking: booking),
         if (booking.can(BookingAction.partager)) ...[
           const SizedBox(height: AppSpacing.sm),
           Center(
@@ -335,7 +272,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
             onPressed: () => _confirmArrival(booking),
           ),
         ],
-        if (booking.can(BookingAction.noter)) ...[
+        if (booking.can(BookingAction.noter) && !ref.watch(ratedBookingsProvider).contains(booking.id)) ...[
           const SizedBox(height: AppSpacing.sm),
           PrimaryButton.outlined(
             label: 'Noter ${driver.prenom}',
@@ -364,14 +301,6 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         if (booking.can(BookingAction.annuler)) ...[
           const SizedBox(height: AppSpacing.sm),
           PrimaryButton.outlined(label: 'Annuler', isLoading: _cancelling, onPressed: () => _cancel(booking)),
-          if (booking.freeCancellationUntil != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Annulation gratuite jusqu’à ${Formatters.time(booking.freeCancellationUntil!)}.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.caption,
-            ),
-          ],
         ],
         const SizedBox(height: AppSpacing.sm),
         Text(_footer(booking), textAlign: TextAlign.center, style: AppTextStyles.caption),
@@ -384,7 +313,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   }
 
   String _footer(Booking booking) => switch (booking.status) {
-        BookingStatus.demandee => 'Le conducteur doit accepter votre demande · aucune place n’est encore réservée.',
+        BookingStatus.demandee => 'Le conducteur doit accepter votre demande · le montant est réservé sur votre portefeuille.',
         BookingStatus.acceptee => 'En attente de prise en charge · trajet non démarré.',
         BookingStatus.enCours => 'Trajet démarré : le code de départ a été validé.',
         BookingStatus.terminee => 'Sans réponse de votre part, le trajet sera clôturé automatiquement.',
@@ -393,10 +322,9 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 }
 
 class _DriverSummary extends StatelessWidget {
-  const _DriverSummary({required this.booking, required this.onCall});
+  const _DriverSummary({required this.booking});
 
   final Booking booking;
-  final VoidCallback? onCall;
 
   @override
   Widget build(BuildContext context) {
@@ -422,7 +350,7 @@ class _DriverSummary extends StatelessWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (driver.verifie) const VerifiedBadge(),
-                        Text('${driver.nbTrajets} trajets', style: AppTextStyles.caption),
+                        Text(Formatters.ratingsCount(driver.nombreNotes), style: AppTextStyles.caption),
                       ],
                     ),
                   ],
@@ -433,14 +361,10 @@ class _DriverSummary extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            '${trip.vehicle.label} · ${trip.vehicle.immatriculation} · ${Formatters.fcfa(booking.prixTotal)} · '
-            '${booking.payment.method.label}',
+            '${trip.vehicle.label} · ${trip.vehicle.immatriculation} · ${Formatters.fcfa(booking.montantTotal)} · '
+            'portefeuille',
             style: AppTextStyles.caption,
           ),
-          if (onCall != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            PrimaryButton.outlined(label: 'Appeler', icon: Icons.call_outlined, onPressed: onCall),
-          ],
         ],
       ),
     );
@@ -451,13 +375,13 @@ class _DriverSummary extends StatelessWidget {
 class _DemoDriverTools extends ConsumerWidget {
   const _DemoDriverTools({required this.bookingId, required this.onDone});
 
-  final int bookingId;
+  final String bookingId;
   final Future<void> Function() onDone;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fake = ref.read(fakeBookingsProvider);
-    Widget button(String label, Future<void> Function(int) action) => OutlinedButton(
+    Widget button(String label, Future<void> Function(String) action) => OutlinedButton(
           onPressed: () async {
             await action(bookingId);
             await onDone();

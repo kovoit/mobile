@@ -7,23 +7,25 @@ import 'fake_trips.dart';
 
 final fakeDriverProvider = Provider<FakeDriver>((ref) => FakeDriver(ref.watch(fakeBackendProvider)));
 
-/// Règles **serveur** simulées de l'espace conducteur (docs/api/driver.md).
+/// Règles **serveur** simulées de l'espace conducteur (`Env.useMockApi`), au format du backend
+/// (TrajetConducteurSerializer, ReservationConducteurSerializer, `/moi/economies/`).
 /// Jamais utilisé avec le vrai backend.
 class FakeDriver {
   FakeDriver(this._backend);
 
   final FakeBackend _backend;
 
-  // Paramètres administrateur (PRD §10).
+  // Paramètres administrateur (valeurs de départ du PRD).
   static const int toleranceRetardMin = 10;
   static const int maxCodeAttempts = 5;
+  static const int prixSimulation = 300;
 
   DateTime get _now => _backend.clock().toUtc();
 
   /// Passagers fictifs qui demandent une place dès la publication (démo).
   static const List<Map<String, dynamic>> _fakePassengers = [
-    {'id': 31, 'prenom': 'Afi', 'nom': 'Amégan', 'photo': null, 'verifie': true, 'note': 4.8, 'methode': 'flooz'},
-    {'id': 32, 'prenom': 'Kossi', 'nom': 'Akakpo', 'photo': null, 'verifie': true, 'note': 4.6, 'methode': 'especes'},
+    {'id': 'u31', 'prenom': 'Afi', 'nom': 'Amégan', 'note': 4.8},
+    {'id': 'u32', 'prenom': 'Kossi', 'nom': 'Akakpo', 'note': 4.6},
   ];
 
   // ------------------------------------------------------------------ Droits
@@ -31,309 +33,321 @@ class FakeDriver {
   Future<int> _driverId() async {
     final id = await _backend.currentUserId();
     final user = _backend.userJson(id);
-    if (user['statut_compte'] == 'suspendu') throw const ForbiddenApiException('Compte suspendu.');
-    final allowed = user['kyc_passager'] == 'verifie' &&
-        user['kyc_conducteur'] == 'verifie' &&
-        user['vehicule_declare'] == true &&
-        user['mode_actif'] == 'conducteur';
-    if (!allowed) throw const ForbiddenApiException('Passez en mode conducteur pour publier et gérer vos trajets.');
+    if (user['statut_compte'] == 'suspendu') {
+      throw const ForbiddenApiException('Votre compte est suspendu : action impossible.', code: 'COMPTE_SUSPENDU');
+    }
+    final allowed =
+        user['kyc_passager'] == 'verifie' && user['kyc_conducteur'] == 'verifie' && user['vehicule_declare'] == true;
+    if (!allowed) {
+      throw const ForbiddenApiException(
+        'Faites vérifier votre identité conducteur et déclarez votre véhicule pour publier.',
+        code: 'KYC_CONDUCTEUR_REQUIS',
+      );
+    }
     return id;
   }
 
-  // ------------------------------------------------------------------ Prix
-
-  /// Prix par place selon la grille de la spécification (décision D1 encore ouverte).
-  static int priceFor(double km) => km < 5 ? 200 : (km <= 10 ? 300 : 500);
-
-  Future<Map<String, dynamic>> estimate({required Map<String, dynamic> depart, required Map<String, dynamic> arrivee}) async {
-    await _backend.wait();
-    await _driverId();
-    final km = FakeTrips.roadKm(
-      (depart['lat'] as num).toDouble(),
-      (depart['lng'] as num).toDouble(),
-      (arrivee['lat'] as num).toDouble(),
-      (arrivee['lng'] as num).toDouble(),
-    );
-    return {
-      'prix_place': priceFor(km),
-      'distance_km': double.parse(km.toStringAsFixed(1)),
-      'duree_min': (km / 20 * 60).round().clamp(5, 180),
-    };
-  }
+  Map<String, dynamic> _person(Map<String, dynamic> p, {bool driver = false}) => {
+        'id': p['id'],
+        'prenom': p['prenom'],
+        'nom': p['nom'],
+        'photo': null,
+        'confiance': {
+          'note_moyenne': p['note'],
+          'nombre_notes': p['note'] == null ? 0 : 12,
+          'fiabilite_pct': 100,
+          'passager_verifie': true,
+          'conducteur_verifie': driver,
+        },
+      };
 
   // ------------------------------------------------------------------ Trajets
 
+  /// `POST /trajets/` (backend : PublicationSerializer). Le prix est fixé par Kovoit.
   Future<Map<String, dynamic>> publish(Map<String, dynamic> body) async {
     await _backend.wait();
     final driverId = await _driverId();
     final vehicle = _backend.vehicleJson(driverId)!;
-    final pickups = (body['points_prise_en_charge'] as List).cast<Map<String, dynamic>>();
-    final places = body['places_total'] as int;
+    final points = (body['points'] as List).cast<Map<String, dynamic>>();
+    final places = body['places'] as int;
     final departure = DateTime.parse(body['depart_le'] as String);
     final maxPlaces = (vehicle['nb_places'] as int) - 1;
-    final errors = <String, String>{
-      if (pickups.isEmpty || pickups.length > 3) 'points_prise_en_charge': 'Indiquez 1 à 3 points de prise en charge.',
-      if (places < 1 || places > maxPlaces) 'places_total': 'Entre 1 et $maxPlaces places pour ce véhicule.',
-      if (!departure.isAfter(_now)) 'depart_le': 'Choisissez une heure de départ à venir.',
-    };
-    if (errors.isNotEmpty) throw BadRequestApiException('Veuillez corriger le trajet.', fieldErrors: errors);
+    if (!departure.isAfter(_now)) {
+      throw const BadRequestApiException("L'heure de départ doit être dans le futur.", code: 'DEPART_PASSE');
+    }
+    if (places < 1 || places > maxPlaces) {
+      throw BadRequestApiException('Ce véhicule permet au plus $maxPlaces place(s) passager.', code: 'PLACES_INVALIDES');
+    }
+    if (points.isEmpty || points.length > 3) {
+      throw const BadRequestApiException('Indiquez de 1 à 3 points de prise en charge.', code: 'DONNEES_INVALIDES');
+    }
 
-    final depart = body['depart'] as Map<String, dynamic>;
-    final arrivee = body['arrivee'] as Map<String, dynamic>;
-    final km = FakeTrips.roadKm(
-      (depart['lat'] as num).toDouble(),
-      (depart['lng'] as num).toDouble(),
-      (arrivee['lat'] as num).toDouble(),
-      (arrivee['lng'] as num).toDouble(),
-    );
-    final id = _backend.nextDriverTripId++;
+    final id = 'trajet-pub-${_backend.nextDriverTripId++}';
+    final user = _backend.userJson(driverId);
     final trip = <String, dynamic>{
       'id': id,
       'conducteur_id': driverId,
-      'depart': depart,
-      'arrivee': arrivee,
-      'points_prise_en_charge': [
-        for (final (index, p) in pickups.indexed) {...p, 'id': id * 10 + index + 1, 'ordre': index + 1},
+      'conducteur': _person({'id': '$driverId', 'prenom': user['prenom'], 'nom': user['nom'], 'note': null}, driver: true),
+      'vehicule': vehicle,
+      'depart_lat': body['depart_lat'],
+      'depart_lng': body['depart_lng'],
+      'depart_libelle': body['depart_libelle'],
+      'arrivee_lat': body['arrivee_lat'],
+      'arrivee_lng': body['arrivee_lng'],
+      'arrivee_libelle': body['arrivee_libelle'],
+      'points': [
+        for (final (index, p) in points.indexed)
+          {'id': '$id-p${index + 1}', 'ordre': index + 1, 'lat': p['lat'], 'lng': p['lng'], 'libelle': p['libelle']},
       ],
       'depart_le': departure.toIso8601String(),
       'places_total': places,
       'places_restantes': places,
-      'prix_place': priceFor(km),
+      'distance_km': FakeTrips.roadKm(
+        (body['depart_lat'] as num).toDouble(),
+        (body['depart_lng'] as num).toDouble(),
+        (body['arrivee_lat'] as num).toDouble(),
+        (body['arrivee_lng'] as num).toDouble(),
+      ).toStringAsFixed(2),
+      'prix_place': prixSimulation,
+      'frais_service': FakeTrips.fraisService,
       'statut': 'publie',
+      'position_le': null,
       'demandes': <Map<String, dynamic>>[],
     };
     _backend.driverTrips[id] = trip;
 
-    // Démo : deux passagers fictifs demandent une place, au premier point de prise en charge.
-    final firstPickupId = (trip['points_prise_en_charge'] as List).first['id'];
+    // Démo : des passagers fictifs demandent une place au premier point de prise en charge.
+    final firstPoint = (trip['points'] as List).first as Map<String, dynamic>;
     for (final passenger in _fakePassengers.take(places + 1)) {
-      (trip['demandes'] as List).add({
-        'id': _backend.nextDriverRequestId++,
-        'passager': {...passenger}..remove('methode'),
-        'nb_places': 1,
-        'point_prise_en_charge_id': firstPickupId,
+      _requests(trip).add({
+        'id': 'resa-${_backend.nextDriverRequestId++}',
+        'passager': _person(passenger),
+        'point': firstPoint,
+        'arrivee_lat': body['arrivee_lat'],
+        'arrivee_lng': body['arrivee_lng'],
+        'arrivee_libelle': body['arrivee_libelle'],
         'statut': 'demandee',
-        'methode_paiement': passenger['methode'],
-        'statut_paiement': passenger['methode'] == 'especes' ? 'non_requis' : 'a_payer',
-        'montant': trip['prix_place'],
-        '_essais_code': 0,
+        'prix': prixSimulation,
+        'frais_service': FakeTrips.fraisService,
+        'montant_total': prixSimulation + FakeTrips.fraisService,
+        'cree_le': _now.toIso8601String(),
+        'essais_code': 0,
       });
-      _backend.notify(
-        driverId,
-        type: 'nouvelle_demande',
-        titre: 'Nouvelle demande de ${passenger['prenom']}',
-        message: '1 place sur votre trajet de ${departure.hour.toString().padLeft(2, '0')}:'
-            '${departure.minute.toString().padLeft(2, '0')}. Acceptez ou refusez la demande.',
-        cible: {'trajet_id': id},
-      );
     }
-    return _json(trip);
+    return _tripJson(trip);
   }
 
+  /// `GET /trajets/mes-trajets/`.
   Future<List<Map<String, dynamic>>> myTrips() async {
     await _backend.wait();
     final driverId = await _driverId();
     final trips = _backend.driverTrips.values.where((t) => t['conducteur_id'] == driverId).toList()
       ..sort((a, b) => (a['depart_le'] as String).compareTo(b['depart_le'] as String));
-    return [for (final t in trips) _json(t)];
+    return [for (final t in trips) _tripJson(t)];
   }
 
-  Future<Map<String, dynamic>> trip(int id) async {
+  /// `GET /trajets/{id}/`.
+  Future<Map<String, dynamic>> trip(String id) async {
     await _backend.wait();
-    return _json(await _ownedTrip(id));
+    return _tripJson(await _ownedTrip(id));
   }
 
-  Future<Map<String, dynamic>> cancelTrip(int id) async {
+  /// `GET /trajets/{id}/reservations/` : demandes et réservations reçues (jamais de code).
+  Future<List<Map<String, dynamic>>> requests(String tripId) async {
+    await _backend.wait();
+    final trip = await _ownedTrip(tripId);
+    return [for (final r in _requests(trip)) _requestJson(trip, r)];
+  }
+
+  Future<Map<String, dynamic>> cancelTrip(String id) async {
     await _backend.wait();
     final trip = await _ownedTrip(id);
-    if (!_tripActions(trip).contains('annuler')) throw const ConflictApiException('Ce trajet ne peut plus être annulé.');
+    final open = ['publie', 'complet'].contains(trip['statut']);
+    if (!open || !_now.isBefore(DateTime.parse(trip['depart_le'] as String))) {
+      throw const ConflictApiException('Ce trajet ne peut plus être annulé.', code: 'TRAJET_NON_ANNULABLE');
+    }
     trip['statut'] = 'annule';
     for (final request in _requests(trip)) {
       if (['demandee', 'acceptee'].contains(request['statut'])) request['statut'] = 'annulee';
     }
-    return _json(trip);
+    return _tripJson(trip);
   }
 
-  Future<Map<String, dynamic>> finishTrip(int id) async {
+  Future<Map<String, dynamic>> finishTrip(String id) async {
     await _backend.wait();
     final trip = await _ownedTrip(id);
-    if (!_tripActions(trip).contains('terminer')) {
-      throw const ConflictApiException('Le trajet ne peut être terminé qu’après la prise en charge d’un passager.');
+    if (!['publie', 'complet', 'en_cours'].contains(trip['statut'])) {
+      throw const ConflictApiException('Ce trajet est déjà terminé ou annulé.', code: 'TRAJET_CLOS');
+    }
+    if (_requests(trip).any((r) => r['statut'] == 'acceptee')) {
+      throw const ConflictApiException(
+        'Saisissez le code de départ ou déclarez absents les passagers non montés.',
+        code: 'PASSAGERS_EN_ATTENTE',
+      );
+    }
+    for (final request in _requests(trip)) {
+      if (request['statut'] == 'demandee') request['statut'] = 'refusee';
+      if (request['statut'] == 'en_cours') {
+        request['statut'] = 'terminee';
+        _credit(trip, request); // démo : clôture immédiate (le vrai serveur attend la confirmation)
+      }
     }
     trip['statut'] = 'termine';
-    for (final request in _requests(trip)) {
-      if (request['statut'] == 'en_cours') request['statut'] = 'terminee';
-    }
-    final paid = _requests(trip).where((r) => ['terminee', 'absent'].contains(r['statut']));
-    _backend.savings.putIfAbsent(trip['conducteur_id'] as int, () => []).add({
-      'date': trip['depart_le'],
-      'montant': paid.fold<int>(0, (sum, r) => sum + (r['montant'] as int)),
-      'places': paid.fold<int>(0, (sum, r) => sum + (r['nb_places'] as int)),
-    });
-    return _json(trip);
+    return _tripJson(trip);
   }
 
   // ------------------------------------------------------------------ Demandes
 
-  Future<void> accept(int requestId) async {
+  Future<Map<String, dynamic>> accept(String requestId) async {
     await _backend.wait();
     final (trip, request) = await _ownedRequest(requestId);
-    if (request['statut'] != 'demandee') throw const ConflictApiException('Cette demande a déjà été traitée.');
-    final places = request['nb_places'] as int;
-    if ((trip['places_restantes'] as int) < places) {
-      throw const ConflictApiException('Il ne reste plus assez de places sur ce trajet.');
+    if (request['statut'] != 'demandee') {
+      throw const ConflictApiException('Impossible de passer de « Acceptée » à « Acceptée ».', code: 'TRANSITION_INVALIDE');
     }
-    trip['places_restantes'] = (trip['places_restantes'] as int) - places;
+    if ((trip['places_restantes'] as int) < 1) {
+      throw const ConflictApiException('Plus aucune place disponible sur ce trajet.', code: 'PLUS_DE_PLACE');
+    }
+    trip['places_restantes'] = (trip['places_restantes'] as int) - 1;
     if (trip['places_restantes'] == 0) trip['statut'] = 'complet';
     request['statut'] = 'acceptee';
+    return _requestJson(trip, request);
   }
 
-  Future<void> refuse(int requestId) async {
-    await _backend.wait();
-    final (_, request) = await _ownedRequest(requestId);
-    if (request['statut'] != 'demandee') throw const ConflictApiException('Cette demande a déjà été traitée.');
-    request['statut'] = 'refusee';
-  }
-
-  Future<void> submitCode(int requestId, String code) async {
+  Future<Map<String, dynamic>> refuse(String requestId) async {
     await _backend.wait();
     final (trip, request) = await _ownedRequest(requestId);
-    if (request['statut'] != 'acceptee') throw const ConflictApiException('Ce passager n’attend pas de prise en charge.');
-    final attempts = request['_essais_code'] as int;
-    if (attempts >= maxCodeAttempts) {
-      throw const TooManyAttemptsApiException('Trop d’essais. Demandez au passager de contacter le support.');
+    if (request['statut'] != 'demandee') {
+      throw const ConflictApiException('Cette demande a déjà été traitée.', code: 'TRANSITION_INVALIDE');
     }
-    // Le vrai serveur compare au hash ; le conducteur n'a jamais accès au code.
-    if (code != DemoAccount.fakePassengerCode) {
-      request['_essais_code'] = attempts + 1;
-      final left = maxCodeAttempts - attempts - 1;
-      throw BadRequestApiException(
-        'Code incorrect. $left essai${left > 1 ? 's' : ''} restant${left > 1 ? 's' : ''}.',
-        fieldErrors: {'code': 'Code incorrect.'},
+    request['statut'] = 'refusee';
+    return _requestJson(trip, request);
+  }
+
+  /// `POST /reservations/{id}/code-depart/`.
+  Future<Map<String, dynamic>> submitCode(String requestId, String code) async {
+    await _backend.wait();
+    final (trip, request) = await _ownedRequest(requestId);
+    if (request['statut'] != 'acceptee') {
+      throw const ConflictApiException("Cette réservation n'attend pas de code.", code: 'CODE_NON_ATTENDU');
+    }
+    final attempts = request['essais_code'] as int;
+    if (attempts >= maxCodeAttempts) {
+      throw const ConflictApiException(
+        "Trop d'essais : le code de départ est bloqué. Contactez le support.",
+        code: 'CODE_DEPART_BLOQUE',
       );
+    }
+    // Le vrai serveur recalcule le code (HMAC) ; le conducteur n'y a jamais accès.
+    if (code != DemoAccount.fakePassengerCode) {
+      request['essais_code'] = attempts + 1;
+      final left = maxCodeAttempts - attempts - 1;
+      throw BadRequestApiException('Code de départ incorrect ($left essai(s) restant(s)).', code: 'CODE_DEPART_INVALIDE');
     }
     request['statut'] = 'en_cours';
     trip['statut'] = 'en_cours';
+    return _requestJson(trip, request);
   }
 
-  Future<void> declareAbsence(int requestId, {required double lat, required double lng}) async {
+  /// `POST /reservations/{id}/absent/` : après l'heure de départ + tolérance.
+  Future<Map<String, dynamic>> declareAbsence(String requestId, {required double lat, required double lng}) async {
     await _backend.wait();
     final (trip, request) = await _ownedRequest(requestId);
-    if (!_requestActions(trip, request).contains('declarer_absence')) {
-      final from = _absenceAllowedFrom(trip);
-      throw ConflictApiException(
-        'Vous pourrez déclarer une absence à partir de ${from.hour.toString().padLeft(2, '0')}:${from.minute.toString().padLeft(2, '0')}.',
+    final from = DateTime.parse(trip['depart_le'] as String).add(const Duration(minutes: toleranceRetardMin));
+    if (_now.isBefore(from)) {
+      throw const ConflictApiException(
+        'Attendez $toleranceRetardMin min après l\'heure de départ avant de déclarer une absence.',
+        code: 'ABSENCE_PREMATUREE',
       );
     }
-    request
-      ..['statut'] = 'absent'
-      ..['position_absence'] = {'lat': lat, 'lng': lng, 'le': _now.toIso8601String()};
+    if (request['statut'] != 'acceptee') {
+      throw const ConflictApiException('Ce passager n’attend pas de prise en charge.', code: 'TRANSITION_INVALIDE');
+    }
+    request['statut'] = 'absent';
+    _credit(trip, request);
+    return _requestJson(trip, request);
   }
 
   // ------------------------------------------------------------------ Économies
 
+  /// `GET /moi/economies/` : somme payée par les passagers, par trajet et cumul du mois.
   Future<Map<String, dynamic>> savings() async {
     await _backend.wait();
-    final driverId = await _driverId();
+    final driverId = await _backend.currentUserId();
+    final lines = _backend.savings[driverId] ?? const <Map<String, dynamic>>[];
     final now = _now;
-    final lines = (_backend.savings[driverId] ?? const <Map<String, dynamic>>[]).where((line) {
-      final date = DateTime.parse(line['date'] as String);
-      return date.year == now.year && date.month == now.month;
-    });
+    final parTrajet = <String, Map<String, dynamic>>{};
+    for (final line in lines) {
+      final entry = parTrajet.putIfAbsent(line['trajet_id'] as String, () => {...line, 'montant': 0});
+      entry['montant'] = (entry['montant'] as int) + (line['montant'] as int);
+    }
     return {
-      'mois': '${now.year}-${now.month.toString().padLeft(2, '0')}',
+      'mois_en_cours': lines
+          .where((l) {
+            final date = DateTime.parse(l['date'] as String);
+            return date.year == now.year && date.month == now.month;
+          })
+          .fold<int>(0, (sum, l) => sum + (l['montant'] as int)),
       'total': lines.fold<int>(0, (sum, l) => sum + (l['montant'] as int)),
-      'places': lines.fold<int>(0, (sum, l) => sum + (l['places'] as int)),
+      'par_trajet': [
+        for (final p in parTrajet.values)
+          {
+            'trajet_id': p['trajet_id'],
+            'depart_le': p['depart_le'],
+            'depart': p['depart'],
+            'arrivee': p['arrivee'],
+            'montant': p['montant'],
+          },
+      ],
     };
   }
 
   // ------------------------------------------------------------------ Outils
 
+  /// Crédit du conducteur (clôture ou absence) : alimente `/moi/economies/`.
+  void _credit(Map<String, dynamic> trip, Map<String, dynamic> request) {
+    _backend.savings.putIfAbsent(trip['conducteur_id'] as int, () => []).add({
+      'date': _now.toIso8601String(),
+      'trajet_id': trip['id'],
+      'depart_le': trip['depart_le'],
+      'depart': trip['depart_libelle'],
+      'arrivee': trip['arrivee_libelle'],
+      'montant': request['prix'],
+    });
+  }
+
   List<Map<String, dynamic>> _requests(Map<String, dynamic> trip) =>
       (trip['demandes'] as List).cast<Map<String, dynamic>>();
 
-  DateTime _absenceAllowedFrom(Map<String, dynamic> trip) =>
-      DateTime.parse(trip['depart_le'] as String).add(const Duration(minutes: toleranceRetardMin));
-
-  Future<Map<String, dynamic>> _ownedTrip(int id) async {
+  Future<Map<String, dynamic>> _ownedTrip(String id) async {
     final driverId = await _driverId();
     final trip = _backend.driverTrips[id];
     if (trip == null || trip['conducteur_id'] != driverId) throw const NotFoundApiException('Trajet introuvable.');
     return trip;
   }
 
-  Future<(Map<String, dynamic>, Map<String, dynamic>)> _ownedRequest(int requestId) async {
+  Future<(Map<String, dynamic>, Map<String, dynamic>)> _ownedRequest(String requestId) async {
     final driverId = await _driverId();
     for (final trip in _backend.driverTrips.values.where((t) => t['conducteur_id'] == driverId)) {
       for (final request in _requests(trip)) {
         if (request['id'] == requestId) return (trip, request);
       }
     }
-    throw const NotFoundApiException('Demande introuvable.');
+    throw const NotFoundApiException('Réservation introuvable.');
   }
 
-  List<String> _tripActions(Map<String, dynamic> trip) {
-    final status = trip['statut'] as String;
-    final beforeDeparture = _now.isBefore(DateTime.parse(trip['depart_le'] as String));
-    return [
-      if ((status == 'publie' || status == 'complet') && beforeDeparture) 'annuler',
-      if (_requests(trip).any((r) => r['statut'] == 'en_cours')) 'terminer',
-    ];
-  }
+  /// TrajetConducteurSerializer : TrajetSerializer + `nb_demandes` + `position_le`.
+  Map<String, dynamic> _tripJson(Map<String, dynamic> trip) => {
+        for (final entry in trip.entries)
+          if (entry.key != 'demandes' && entry.key != 'conducteur_id') entry.key: entry.value,
+        'nb_demandes': _requests(trip).where((r) => r['statut'] == 'demandee').length,
+      };
 
-  List<String> _requestActions(Map<String, dynamic> trip, Map<String, dynamic> request) {
-    final key = '${request['id']}:${trip['conducteur_id']}';
-    final status = request['statut'] as String;
-    // Après le trajet (S6) : noter et signaler le passager, même trajet terminé.
-    final afterTrip = [
-      if (!_backend.ratings.contains(key) && ['terminee', 'cloturee', 'absent'].contains(status)) 'noter',
-      if (!_backend.reports.containsKey(key) && ['en_cours', 'terminee', 'cloturee', 'absent'].contains(status))
-        'signaler',
-    ];
-    final tripOpen = ['publie', 'complet', 'en_cours'].contains(trip['statut']);
-    if (!tripOpen) return afterTrip;
-    return switch (request['statut']) {
-      'demandee' => [
-          if ((trip['places_restantes'] as int) >= (request['nb_places'] as int)) 'accepter',
-          'refuser',
-        ],
-      'acceptee' => [
-          'saisir_code',
-          if (!_now.isBefore(_absenceAllowedFrom(trip))) 'declarer_absence',
-        ],
-      _ => afterTrip,
-    };
-  }
-
-  /// Vue renvoyée au **conducteur** : jamais de code de départ.
-  Map<String, dynamic> _json(Map<String, dynamic> trip) {
-    final paid = _requests(trip).where((r) => ['en_cours', 'terminee', 'absent'].contains(r['statut']));
-    return {
-      'id': trip['id'],
-      'depart': trip['depart'],
-      'arrivee': trip['arrivee'],
-      'points_prise_en_charge': trip['points_prise_en_charge'],
-      'depart_le': trip['depart_le'],
-      'places_total': trip['places_total'],
-      'places_restantes': trip['places_restantes'],
-      'prix_place': trip['prix_place'],
-      'statut': trip['statut'],
-      'economie': paid.fold<int>(0, (sum, r) => sum + (r['montant'] as int)),
-      'demandes': [
-        for (final r in _requests(trip))
-          {
-            'id': r['id'],
-            'passager': r['passager'],
-            'nb_places': r['nb_places'],
-            'point_prise_en_charge_id': r['point_prise_en_charge_id'],
-            'statut': r['statut'],
-            'methode_paiement': r['methode_paiement'],
-            'statut_paiement': r['statut_paiement'],
-            'montant': r['montant'],
-            'actions': _requestActions(trip, r),
-          },
-      ],
-      'actions': _tripActions(trip),
-    };
-  }
+  /// ReservationConducteurSerializer : jamais de code de départ.
+  Map<String, dynamic> _requestJson(Map<String, dynamic> trip, Map<String, dynamic> request) => {
+        ...request,
+        'trajet': trip['id'],
+        'moyen_paiement': '',
+        'complement_paye': 0,
+        'annulation_tardive': false,
+      };
 }

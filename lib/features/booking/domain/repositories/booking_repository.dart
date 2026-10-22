@@ -1,27 +1,24 @@
 import '../entities/booking.dart';
 
 abstract interface class BookingRepository {
-  /// Demande de place (CA2). Le backend vérifie KYC, places et doublons.
+  /// Demande d'une place. Le backend vérifie KYC, places, doublons et solde du portefeuille
+  /// (`SOLDE_INSUFFISANT` avec le complément à recharger).
   Future<Booking> request({
-    required int tripId,
-    required int places,
-    required int pickupPointId,
-    required PaymentMethod method,
+    required String tripId,
+    required String pickupPointId,
+    required ({String libelle, double lat, double lng}) arrivee,
   });
 
   /// Réservations du passager, récentes d'abord.
   Future<List<Booking>> fetchMine();
 
-  Future<Booking> fetch(int id);
+  Future<Booking> fetch(String id);
 
-  /// Annulation (CA5) : le backend indique si elle est tardive.
-  Future<Booking> cancel(int id);
+  /// Annulation : le backend indique si elle est tardive.
+  Future<Booking> cancel(String id);
 
-  /// Lance le paiement Flooz / Mixx depuis le numéro [telephone] (E.164).
-  Future<Booking> pay(int id, {required String telephone});
+  Future<ShareLink> shareLink(String id);
 
-  Future<ShareLink> shareLink(int id);
-
-  /// Le passager confirme son arrivée (CA8) : la réservation passe `cloturee`.
-  Future<Booking> confirmArrival(int id);
+  /// Le passager confirme son arrivée : la réservation passe `cloturee`.
+  Future<Booking> confirmArrival(String id);
 }

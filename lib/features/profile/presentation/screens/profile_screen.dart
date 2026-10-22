@@ -2,7 +2,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../notifications/presentation/notification_bell.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/router/routes.dart';
@@ -67,7 +66,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final kycDenial = AccessPolicy.needsKycAttention(user) ? AccessPolicy.canBook(user) : null;
 
     return Scaffold(
-      appBar: const KovoitAppBar(showBack: false, leading: NotificationBell()),
+      appBar: const KovoitAppBar(showBack: false),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
@@ -115,6 +114,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: () => context.push(Routes.vehicle),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Text('Paiement', style: AppTextStyles.title),
+          const SizedBox(height: AppSpacing.xs),
+          KovoitCard(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xxs),
+            child: ProfileTile(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Mon portefeuille',
+              subtitle: 'Recharger par Flooz ou Mixx, retirer mes gains.',
+              onTap: () => context.push(Routes.wallet),
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

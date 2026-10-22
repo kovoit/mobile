@@ -3,11 +3,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/api_service.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../core/utils/lome_time.dart';
 import '../../../trip/domain/entities/geo_place.dart';
-import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../data/datasources/search_remote_data_source.dart';
 import '../../data/repositories/recent_search_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
@@ -17,7 +16,7 @@ import '../../domain/repositories/search_repository.dart';
 
 final searchRemoteDataSourceProvider = Provider<SearchRemoteDataSource>((ref) {
   if (Env.useMockApi) return FakeSearchRemoteDataSource(ref.watch(fakeBackendProvider));
-  return DioSearchRemoteDataSource(ref.watch(dioProvider));
+  return ApiSearchRemoteDataSource(ref.watch(apiServiceProvider));
 });
 
 final searchRepositoryProvider =
@@ -43,39 +42,23 @@ enum SearchFormField { depart, arrivee, dateTime }
 /// Brouillon du formulaire « Rechercher un trajet ». Conservé tant que l'app est ouverte,
 /// pour retrouver ses critères en revenant des résultats.
 class SearchForm {
-  const SearchForm({
-    required this.dateTime,
-    this.depart,
-    this.arrivee,
-    this.places = 1,
-    this.vehicleType = VehicleType.voiture,
-    this.errors = const {},
-  });
+  const SearchForm({required this.dateTime, this.depart, this.arrivee, this.errors = const {}});
 
   final GeoPlace? depart;
   final GeoPlace? arrivee;
   final DateTime dateTime;
-  final int places;
-  final VehicleType vehicleType;
   final Map<SearchFormField, String> errors;
-
-  /// Bornes d'interface du sélecteur de places (le backend valide les vraies limites).
-  int get maxPlaces => vehicleType == VehicleType.moto ? 1 : 4;
 
   SearchForm copyWith({
     GeoPlace? depart,
     GeoPlace? arrivee,
     DateTime? dateTime,
-    int? places,
-    VehicleType? vehicleType,
     Map<SearchFormField, String>? errors,
   }) =>
       SearchForm(
         depart: depart ?? this.depart,
         arrivee: arrivee ?? this.arrivee,
         dateTime: dateTime ?? this.dateTime,
-        places: places ?? this.places,
-        vehicleType: vehicleType ?? this.vehicleType,
         errors: errors ?? this.errors,
       );
 }
@@ -104,35 +87,14 @@ class SearchFormController extends Notifier<SearchForm> {
         errors: _without(SearchFormField.dateTime),
       );
 
-  void setPlaces(int places) => state = state.copyWith(places: places.clamp(1, state.maxPlaces));
-
-  void setVehicleType(VehicleType type) {
-    final updated = state.copyWith(vehicleType: type);
-    state = updated.copyWith(places: updated.places.clamp(1, updated.maxPlaces));
-  }
-
   void swapPlaces() {
     if (state.depart == null && state.arrivee == null) return;
-    state = SearchForm(
-      depart: state.arrivee,
-      arrivee: state.depart,
-      dateTime: state.dateTime,
-      places: state.places,
-      vehicleType: state.vehicleType,
-    );
+    state = SearchForm(depart: state.arrivee, arrivee: state.depart, dateTime: state.dateTime);
   }
 
-  /// Reprend une recherche récente (lieux et type de véhicule ; l'heure reste celle choisie).
-  void applyRecent(RecentSearch recent) {
-    final form = SearchForm(
-      depart: recent.depart,
-      arrivee: recent.arrivee,
-      dateTime: state.dateTime,
-      places: state.places,
-      vehicleType: VehicleType.fromApi(recent.vehicleTypeApi),
-    );
-    state = form.copyWith(places: form.places.clamp(1, form.maxPlaces));
-  }
+  /// Reprend une recherche récente (lieux ; l'heure reste celle choisie).
+  void applyRecent(RecentSearch recent) =>
+      state = SearchForm(depart: recent.depart, arrivee: recent.arrivee, dateTime: state.dateTime);
 
   /// Valide le formulaire (contrôles de saisie uniquement) et renvoie la requête, ou `null`.
   SearchQuery? submit() {
@@ -146,13 +108,7 @@ class SearchFormController extends Notifier<SearchForm> {
     };
     state = state.copyWith(errors: errors);
     if (errors.isNotEmpty) return null;
-    return SearchQuery(
-      depart: state.depart!,
-      arrivee: state.arrivee!,
-      dateTime: state.dateTime,
-      places: state.places,
-      vehicleType: state.vehicleType,
-    );
+    return SearchQuery(depart: state.depart!, arrivee: state.arrivee!, dateTime: state.dateTime);
   }
 }
 
@@ -166,7 +122,7 @@ class RecentSearchesController extends AsyncNotifier<List<RecentSearch>> {
   Future<void> remember(SearchQuery query) async {
     state = AsyncData(
       await ref.read(recentSearchRepositoryProvider).remember(
-            RecentSearch(depart: query.depart, arrivee: query.arrivee, vehicleTypeApi: query.vehicleType.apiValue),
+            RecentSearch(depart: query.depart, arrivee: query.arrivee),
           ),
     );
   }

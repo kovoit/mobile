@@ -12,6 +12,7 @@ import 'package:kovoit/core/mock/fake_after_trip.dart';
 import 'package:kovoit/core/mock/fake_bookings.dart';
 import 'package:kovoit/core/services/push_service.dart';
 import 'package:kovoit/core/mock/fake_driver.dart';
+import 'package:kovoit/core/mock/fake_wallet.dart';
 import 'package:kovoit/core/services/location_service.dart';
 import 'package:kovoit/core/services/external_actions.dart';
 import 'package:kovoit/core/storage/token_storage.dart';
@@ -22,6 +23,7 @@ import 'package:kovoit/features/kyc/data/services/document_capture_service.dart'
 import 'package:kovoit/features/kyc/presentation/providers/kyc_providers.dart';
 import 'package:kovoit/features/search/domain/repositories/search_repository.dart';
 import 'package:kovoit/features/search/presentation/providers/search_providers.dart';
+import 'package:kovoit/features/wallet/presentation/wallet_providers.dart';
 
 /// Recherches récentes en mémoire (pas de SharedPreferences en test de widgets).
 class InMemoryRecentSearches implements RecentSearchRepository {
@@ -166,7 +168,8 @@ class TestEnv {
   TestEnv({String? accessToken}) : storage = InMemoryTokenStorage() {
     storage.access = accessToken;
     backend = FakeBackend(storage, latency: Duration.zero, clock: () => now);
-    bookings = FakeBookings(backend);
+    wallet = FakeWallet(backend);
+    bookings = FakeBookings(backend, wallet);
     driver = FakeDriver(backend);
   }
 
@@ -194,6 +197,9 @@ class TestEnv {
   final InMemoryTokenStorage storage;
   late final FakeBackend backend;
 
+  /// Portefeuille simulé (PayGate validé au second contrôle).
+  late final FakeWallet wallet;
+
   /// Réservations simulées (permet de jouer le rôle du conducteur dans les tests).
   late final FakeBookings bookings;
 
@@ -217,7 +223,9 @@ class TestEnv {
         recentSearchRepositoryProvider.overrideWithValue(recentSearches),
         mapTileProviderProvider.overrideWithValue(TransparentTileProvider()),
         clockProvider.overrideWithValue(() => now),
+        fakeWalletProvider.overrideWithValue(wallet),
         fakeBookingsProvider.overrideWithValue(bookings),
+        paymentPollIntervalProvider.overrideWithValue(const Duration(milliseconds: 10)),
         fakeDriverProvider.overrideWithValue(driver),
         locationServiceProvider.overrideWithValue(location),
         pushServiceProvider.overrideWithValue(push),

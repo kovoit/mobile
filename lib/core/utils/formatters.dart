@@ -56,6 +56,9 @@ abstract final class Formatters {
     return '${minutes ~/ 60} h ${(minutes % 60).toString().padLeft(2, '0')}';
   }
 
+  /// `Aucun avis` / `1 avis` / `12 avis`
+  static String ratingsCount(int count) => count == 0 ? 'Aucun avis' : '$count avis';
+
   /// `1 place restante` / `3 places restantes`
   static String placesRemaining(int count) => count <= 1 ? '$count place restante' : '$count places restantes';
 

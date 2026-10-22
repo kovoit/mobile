@@ -15,15 +15,13 @@ class SearchRepositoryImpl implements SearchRepository {
 
   @override
   Future<SearchResult> search(SearchQuery query) async {
-    final response = await _remote.search((
+    final matches = await _remote.search((
       departLat: query.depart.lat,
       departLng: query.depart.lng,
       arriveeLat: query.arrivee.lat,
       arriveeLng: query.arrivee.lng,
       dateHeure: query.dateTime,
-      places: query.places,
-      typeVehicule: query.vehicleType.apiValue,
     ));
-    return response.toEntity();
+    return SearchResult(trips: [for (final m in matches) m.toEntity()]);
   }
 }

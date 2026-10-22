@@ -1,5 +1,3 @@
-import '../../../auth/domain/entities/app_user.dart';
-
 enum VehicleType {
   moto('moto'),
   voiture('voiture');
@@ -22,16 +20,17 @@ class Vehicle {
     required this.couleur,
     required this.immatriculation,
     required this.nbPlaces,
-    this.statutVerification = KycStatus.enAttente,
+    this.id,
   });
 
+  /// UUID côté backend ; `null` tant que le véhicule n'est pas déclaré.
+  final String? id;
   final VehicleType type;
   final String marque;
   final String modele;
   final String couleur;
   final String immatriculation;
   final int nbPlaces;
-  final KycStatus statutVerification;
 
   /// « Toyota Yaris »
   String get label => '$marque $modele'.trim();

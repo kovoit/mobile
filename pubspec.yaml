@@ -45,7 +45,7 @@ dependencies:
   json_annotation: ^4.12.0
 
   # Utilitaires
-  intl: 0.20.2 # version imposée par flutter_localizations
+  intl: ^0.20.2 # version fixée par flutter_localizations (selon le SDK)
   logger: ^2.8.0
   cupertino_icons: ^1.0.8
 

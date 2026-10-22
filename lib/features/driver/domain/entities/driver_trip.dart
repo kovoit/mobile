@@ -20,32 +20,37 @@ enum TripStatus {
   bool get isUpcoming => this == publie || this == complet || this == enCours;
 }
 
-/// Actions autorisées sur un trajet publié, renvoyées par l'API.
+/// Actions proposées sur un trajet publié, selon son statut (le backend refuse les autres).
 enum DriverTripAction {
-  annuler('annuler'),
-  terminer('terminer');
+  annuler,
+  terminer;
 
-  const DriverTripAction(this.apiValue);
-
-  final String apiValue;
-
-  static DriverTripAction? fromApi(String value) => values.where((a) => a.apiValue == value).firstOrNull;
+  static Set<DriverTripAction> forStatus(TripStatus status) => switch (status) {
+        TripStatus.publie || TripStatus.complet => {annuler, terminer},
+        TripStatus.enCours => {terminer},
+        TripStatus.termine || TripStatus.annule => const {},
+      };
 }
 
-/// Actions autorisées sur une demande reçue, renvoyées par l'API.
+/// Actions proposées sur une demande reçue, selon son statut (le backend refuse les autres).
 enum DriverRequestAction {
-  accepter('accepter'),
-  refuser('refuser'),
-  saisirCode('saisir_code'),
-  declarerAbsence('declarer_absence'),
-  noter('noter'),
-  signaler('signaler');
+  accepter,
+  refuser,
+  saisirCode,
+  declarerAbsence,
+  noter,
+  signaler;
 
-  const DriverRequestAction(this.apiValue);
-
-  final String apiValue;
-
-  static DriverRequestAction? fromApi(String value) => values.where((a) => a.apiValue == value).firstOrNull;
+  /// [placesLeft] : places restantes du trajet (renvoyées par le backend).
+  static Set<DriverRequestAction> forStatus(BookingStatus status, {required bool tripOpen, int placesLeft = 1}) =>
+      switch (status) {
+        BookingStatus.demandee when tripOpen => {if (placesLeft > 0) accepter, refuser},
+        BookingStatus.acceptee when tripOpen => {saisirCode, declarerAbsence},
+        BookingStatus.enCours => {signaler},
+        BookingStatus.terminee || BookingStatus.cloturee || BookingStatus.absent => {noter, signaler},
+        BookingStatus.litige => {noter},
+        _ => const {},
+      };
 }
 
 class PassengerSummary {
@@ -58,7 +63,7 @@ class PassengerSummary {
     this.note,
   });
 
-  final int id;
+  final String id;
   final String prenom;
   final String nom;
   final bool verifie;
@@ -68,31 +73,25 @@ class PassengerSummary {
   String get nomComplet => '$prenom $nom'.trim();
 }
 
-/// Réservation vue par le conducteur. **Ne contient jamais le code de départ** (claude.md §1.5).
+/// Réservation vue par le conducteur (une place). **Jamais de code de départ** (claude.md §1.5).
 class DriverRequest {
   const DriverRequest({
     required this.id,
     required this.passenger,
-    required this.places,
     required this.status,
-    required this.paymentMethod,
-    required this.paymentStatus,
     required this.montant,
     this.pickupPointId,
-    this.actions = const {},
+    this.essaisCode = 0,
   });
 
-  final int id;
+  final String id;
   final PassengerSummary passenger;
-  final int places;
   final BookingStatus status;
-  final PaymentMethod paymentMethod;
-  final PaymentStatus paymentStatus;
-  final int montant;
-  final int? pickupPointId;
-  final Set<DriverRequestAction> actions;
 
-  bool can(DriverRequestAction action) => actions.contains(action);
+  /// Ce que le conducteur reçoit pour cette place (prix, hors frais de service Kovoit).
+  final int montant;
+  final String? pickupPointId;
+  final int essaisCode;
 }
 
 /// Trajet publié par le conducteur, avec ses demandes.
@@ -107,12 +106,11 @@ class DriverTrip {
     required this.placesRestantes,
     required this.prixPlace,
     required this.status,
-    this.economie = 0,
+    this.nbDemandes = 0,
     this.requests = const [],
-    this.actions = const {},
   });
 
-  final int id;
+  final String id;
   final GeoPlace depart;
   final GeoPlace arrivee;
   final List<PickupPoint> pickupPoints;
@@ -122,34 +120,61 @@ class DriverTrip {
   final int prixPlace;
   final TripStatus status;
 
-  /// Somme payée par les passagers de ce trajet, calculée par le backend.
-  final int economie;
+  /// Demandes en attente de réponse (calculé par le backend).
+  final int nbDemandes;
   final List<DriverRequest> requests;
-  final Set<DriverTripAction> actions;
+
+  Set<DriverTripAction> get actions => DriverTripAction.forStatus(status);
 
   bool can(DriverTripAction action) => actions.contains(action);
 
-  int get pendingRequests => requests.where((r) => r.status == BookingStatus.demandee).length;
+  Set<DriverRequestAction> actionsFor(DriverRequest request) =>
+      DriverRequestAction.forStatus(request.status, tripOpen: status.isUpcoming, placesLeft: placesRestantes);
+
+  int get pendingRequests =>
+      requests.isEmpty ? nbDemandes : requests.where((r) => r.status == BookingStatus.demandee).length;
 
   PickupPoint? pickupFor(DriverRequest request) => pickupPoints.where((p) => p.id == request.pickupPointId).firstOrNull;
+
+  DriverTrip withRequests(List<DriverRequest> requests) => DriverTrip(
+        id: id,
+        depart: depart,
+        arrivee: arrivee,
+        pickupPoints: pickupPoints,
+        departureAt: departureAt,
+        placesTotal: placesTotal,
+        placesRestantes: placesRestantes,
+        prixPlace: prixPlace,
+        status: status,
+        nbDemandes: nbDemandes,
+        requests: requests,
+      );
 }
 
-/// Prix recommandé par le backend avant publication.
-class PriceEstimate {
-  const PriceEstimate({required this.prixPlace, required this.distanceKm, required this.durationMin});
+/// Ce qu'un trajet a rapporté au conducteur (somme payée par ses passagers).
+class TripSaving {
+  const TripSaving({
+    required this.tripId,
+    required this.departureAt,
+    required this.depart,
+    required this.arrivee,
+    required this.montant,
+  });
 
-  final int prixPlace;
-  final double distanceKm;
-  final int durationMin;
+  final String tripId;
+  final DateTime departureAt;
+  final String depart;
+  final String arrivee;
+  final int montant;
 }
 
-/// Économies du conducteur sur un mois (spéc. « Économies affichées au conducteur »).
+/// Économies du conducteur (PRD : par trajet et cumul du mois), calculées par le backend.
 class DriverSavings {
-  const DriverSavings({required this.month, required this.total, required this.places});
+  const DriverSavings({required this.moisEnCours, required this.total, this.parTrajet = const []});
 
-  final DateTime month;
+  final int moisEnCours;
   final int total;
-  final int places;
+  final List<TripSaving> parTrajet;
 }
 
 /// Trajet à publier (saisie du conducteur, avant validation serveur).

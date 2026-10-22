@@ -1,41 +1,36 @@
-import 'package:dio/dio.dart';
-
-import '../../../../core/mock/fake_backend.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/mock/fake_wallet.dart';
 import '../../../../core/mock/fake_trips.dart';
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/network/api_service.dart';
 import '../dto/trip_dto.dart';
 
 abstract interface class TripRemoteDataSource {
-  Future<TripDto> fetchTrip(int id, {int places = 1});
+  /// `GET /trajets/{id}/` : le trajet et l'aperçu du paiement pour l'utilisateur connecté.
+  Future<TripDto> fetchTrip(String id);
 }
 
-class DioTripRemoteDataSource implements TripRemoteDataSource {
-  DioTripRemoteDataSource(this._dio);
+class ApiTripRemoteDataSource implements TripRemoteDataSource {
+  const ApiTripRemoteDataSource(this._api);
 
-  final Dio _dio;
+  final ApiService _api;
 
   @override
-  Future<TripDto> fetchTrip(int id, {int places = 1}) async {
-    try {
-      final res = await _dio.get<Map<String, dynamic>>('/trajets/$id/', queryParameters: {'places': places});
-      return TripDto.fromJson(res.data!);
-    } on DioException catch (e) {
-      throw ApiException.fromDio(e);
-    }
-  }
+  Future<TripDto> fetchTrip(String id) =>
+      _api.get(ApiEndpoints.trajet(id), parse: (json) => TripDto.fromJson(ApiService.asMap(json)));
 }
 
-/// Fausse API trajets (`Env.useMockApi`).
+/// Fausse API trajets (`Env.useMockApi`), au format du backend : l'aperçu du paiement suit le
+/// portefeuille simulé de l'utilisateur connecté.
 class FakeTripRemoteDataSource implements TripRemoteDataSource {
-  FakeTripRemoteDataSource(this._backend);
+  FakeTripRemoteDataSource(this._wallet);
 
-  final FakeBackend _backend;
+  final FakeWallet _wallet;
 
   @override
-  Future<TripDto> fetchTrip(int id, {int places = 1}) async {
-    await _backend.wait();
-    await _backend.currentUserId();
-    final json = FakeTrips.tripById(id, places: places);
+  Future<TripDto> fetchTrip(String id) async {
+    final balance = await _wallet.balance();
+    final json = FakeTrips.tripById(id, soldeDisponible: balance['disponible']!);
     if (json == null) throw const NotFoundApiException('Ce trajet n’est plus disponible.');
     return TripDto.fromJson(json);
   }

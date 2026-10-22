@@ -6,7 +6,17 @@ import '../../domain/entities/trip.dart';
 
 part 'trip_dto.g.dart';
 
-/// Objet `lieu` (docs/api/trips.md).
+/// Décimal DRF (`"8.40"`) ou nombre : la distance arrive en chaîne par défaut.
+double? decimalFromJson(Object? value) => switch (value) {
+      num() => value.toDouble(),
+      String() => double.tryParse(value),
+      _ => null,
+    };
+
+/// Photo vide (`""`) ou absente : pas d'URL.
+String? photoFromJson(Object? value) => value is String && value.isNotEmpty ? value : null;
+
+/// Lieu connu de Lomé (`GET /lieux/`, backend : apps/lieux).
 @JsonSerializable(fieldRename: FieldRename.snake, includeIfNull: false)
 class GeoPlaceDto {
   const GeoPlaceDto({required this.libelle, required this.lat, required this.lng, this.id, this.quartier, this.type});
@@ -22,7 +32,7 @@ class GeoPlaceDto {
         lng: place.lng,
       );
 
-  final int? id;
+  final String? id;
   final String libelle;
   final String? quartier;
   final String? type;
@@ -34,55 +44,68 @@ class GeoPlaceDto {
   GeoPlace toEntity() => GeoPlace(
         id: id,
         libelle: libelle,
-        quartier: quartier,
+        quartier: quartier == null || quartier!.isEmpty ? null : quartier,
         type: GeoPlaceType.fromApi(type),
         lat: lat,
         lng: lng,
       );
 }
 
+/// Bloc `confiance` du profil public (backend : ConfianceSerializer).
 @JsonSerializable(fieldRename: FieldRename.snake)
-class TripDriverDto {
-  const TripDriverDto({
-    required this.id,
-    required this.prenom,
-    required this.nom,
-    this.photo,
-    this.verifie = false,
-    this.note,
-    this.fiabilite,
-    this.nbTrajets = 0,
+class TrustDto {
+  const TrustDto({
+    this.noteMoyenne,
+    this.nombreNotes = 0,
+    this.fiabilitePct = 100,
+    this.passagerVerifie = false,
+    this.conducteurVerifie = false,
   });
 
-  factory TripDriverDto.fromJson(Map<String, dynamic> json) => _$TripDriverDtoFromJson(json);
+  factory TrustDto.fromJson(Map<String, dynamic> json) => _$TrustDtoFromJson(json);
 
-  final int id;
+  final double? noteMoyenne;
+  final int nombreNotes;
+  final int fiabilitePct;
+  final bool passagerVerifie;
+  final bool conducteurVerifie;
+
+  Map<String, dynamic> toJson() => _$TrustDtoToJson(this);
+}
+
+/// Profil public (backend : PersonneSerializer) : jamais d'email ni de téléphone.
+@JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
+class PersonDto {
+  const PersonDto({required this.id, required this.prenom, required this.nom, this.photo, this.confiance = const TrustDto()});
+
+  factory PersonDto.fromJson(Map<String, dynamic> json) => _$PersonDtoFromJson(json);
+
+  final String id;
   final String prenom;
   final String nom;
+  @JsonKey(fromJson: photoFromJson)
   final String? photo;
-  final bool verifie;
-  final double? note;
-  final int? fiabilite;
-  final int nbTrajets;
+  final TrustDto confiance;
 
-  Map<String, dynamic> toJson() => _$TripDriverDtoToJson(this);
+  Map<String, dynamic> toJson() => _$PersonDtoToJson(this);
 
-  TripDriver toEntity() => TripDriver(
+  TripDriver toDriver() => TripDriver(
         id: id,
         prenom: prenom,
         nom: nom,
         photoUrl: photo,
-        verifie: verifie,
-        note: note,
-        fiabilite: fiabilite,
-        nbTrajets: nbTrajets,
+        verifie: confiance.conducteurVerifie,
+        note: confiance.noteMoyenne,
+        fiabilite: confiance.fiabilitePct,
+        nombreNotes: confiance.nombreNotes,
       );
 }
 
+/// Véhicule vu par un passager (backend : VehiculeResumeSerializer).
 @JsonSerializable(fieldRename: FieldRename.snake)
 class TripVehicleDto {
   const TripVehicleDto({
-    required this.type,
+    required this.typeVehicule,
     required this.marque,
     required this.modele,
     required this.couleur,
@@ -92,17 +115,18 @@ class TripVehicleDto {
 
   factory TripVehicleDto.fromJson(Map<String, dynamic> json) => _$TripVehicleDtoFromJson(json);
 
-  final String type;
+  final String typeVehicule;
   final String marque;
   final String modele;
   final String couleur;
   final String immatriculation;
+  @JsonKey(fromJson: photoFromJson)
   final String? photo;
 
   Map<String, dynamic> toJson() => _$TripVehicleDtoToJson(this);
 
   TripVehicle toEntity() => TripVehicle(
-        type: VehicleType.fromApi(type),
+        type: VehicleType.fromApi(typeVehicule),
         marque: marque,
         modele: modele,
         couleur: couleur,
@@ -111,16 +135,16 @@ class TripVehicleDto {
       );
 }
 
+/// Point de prise en charge (backend : PointSerializer).
 @JsonSerializable(fieldRename: FieldRename.snake)
 class PickupPointDto {
-  const PickupPointDto({required this.id, required this.ordre, required this.libelle, required this.lat, required this.lng, this.quartier});
+  const PickupPointDto({required this.id, required this.ordre, required this.libelle, required this.lat, required this.lng});
 
   factory PickupPointDto.fromJson(Map<String, dynamic> json) => _$PickupPointDtoFromJson(json);
 
-  final int id;
+  final String id;
   final int ordre;
   final String libelle;
-  final String? quartier;
   final double lat;
   final double lng;
 
@@ -129,63 +153,97 @@ class PickupPointDto {
   PickupPoint toEntity() => PickupPoint(
         id: id,
         ordre: ordre,
-        place: GeoPlace(libelle: libelle, quartier: quartier, lat: lat, lng: lng, type: GeoPlaceType.carrefour),
+        place: GeoPlace(libelle: libelle, lat: lat, lng: lng, type: GeoPlaceType.carrefour),
       );
 }
 
-/// Objet `trajet_resume` (docs/api/trips.md).
+/// Bloc `paiement` du détail d'un trajet (backend : ApercuPaiementSerializer).
+@JsonSerializable(fieldRename: FieldRename.snake)
+class PaymentPreviewDto {
+  const PaymentPreviewDto({
+    required this.montantTotal,
+    required this.soldeDisponible,
+    required this.complementAPayer,
+    this.rechargeSuggeree = 0,
+  });
+
+  factory PaymentPreviewDto.fromJson(Map<String, dynamic> json) => _$PaymentPreviewDtoFromJson(json);
+
+  final int montantTotal;
+  final int soldeDisponible;
+  final int complementAPayer;
+  final int rechargeSuggeree;
+
+  Map<String, dynamic> toJson() => _$PaymentPreviewDtoToJson(this);
+
+  PaymentPreview toEntity() => PaymentPreview(
+        montantTotal: montantTotal,
+        soldeDisponible: soldeDisponible,
+        complementAPayer: complementAPayer,
+        rechargeSuggeree: rechargeSuggeree,
+      );
+}
+
+/// Trajet (backend : TrajetSerializer, TrajetDetailSerializer avec `paiement`).
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class TripDto {
   const TripDto({
     required this.id,
     required this.conducteur,
     required this.vehicule,
-    required this.depart,
-    required this.arrivee,
-    required this.pointsPriseEnCharge,
+    required this.departLat,
+    required this.departLng,
+    required this.departLibelle,
+    required this.arriveeLat,
+    required this.arriveeLng,
+    required this.arriveeLibelle,
+    required this.points,
     required this.departLe,
     required this.placesRestantes,
     required this.prixPlace,
+    this.placesTotal = 0,
+    this.distanceKm,
     this.fraisService = 0,
-    this.prixTotal,
-    this.arriveeEstimeeLe,
-    this.pointCorrespondantId,
-    this.distanceMarcheKm,
+    this.statut = 'publie',
+    this.paiement,
   });
 
   factory TripDto.fromJson(Map<String, dynamic> json) => _$TripDtoFromJson(json);
 
-  final int id;
-  final TripDriverDto conducteur;
+  final String id;
+  final PersonDto conducteur;
   final TripVehicleDto vehicule;
-  final GeoPlaceDto depart;
-  final GeoPlaceDto arrivee;
-  final List<PickupPointDto> pointsPriseEnCharge;
+  final double departLat;
+  final double departLng;
+  final String departLibelle;
+  final double arriveeLat;
+  final double arriveeLng;
+  final String arriveeLibelle;
+  final List<PickupPointDto> points;
   final DateTime departLe;
-  final DateTime? arriveeEstimeeLe;
+  final int placesTotal;
   final int placesRestantes;
+  @JsonKey(fromJson: decimalFromJson)
+  final double? distanceKm;
   final int prixPlace;
   final int fraisService;
-  final int? prixTotal;
-  final int? pointCorrespondantId;
-  final double? distanceMarcheKm;
+  final String statut;
+  final PaymentPreviewDto? paiement;
 
   Map<String, dynamic> toJson() => _$TripDtoToJson(this);
 
   Trip toEntity() => Trip(
         id: id,
-        driver: conducteur.toEntity(),
+        driver: conducteur.toDriver(),
         vehicle: vehicule.toEntity(),
-        depart: depart.toEntity(),
-        arrivee: arrivee.toEntity(),
-        pickupPoints: [for (final p in pointsPriseEnCharge) p.toEntity()]..sort((a, b) => a.ordre.compareTo(b.ordre)),
+        depart: GeoPlace(libelle: departLibelle, lat: departLat, lng: departLng),
+        arrivee: GeoPlace(libelle: arriveeLibelle, lat: arriveeLat, lng: arriveeLng),
+        pickupPoints: [for (final p in points) p.toEntity()]..sort((a, b) => a.ordre.compareTo(b.ordre)),
         departureAt: departLe,
-        estimatedArrivalAt: arriveeEstimeeLe,
         placesRestantes: placesRestantes,
         prixPlace: prixPlace,
         fraisService: fraisService,
-        prixTotal: prixTotal,
-        matchedPickupId: pointCorrespondantId,
-        walkingDistanceKm: distanceMarcheKm,
+        statut: statut,
+        payment: paiement?.toEntity(),
       );
 }

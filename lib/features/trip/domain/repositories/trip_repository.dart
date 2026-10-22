@@ -1,6 +1,6 @@
 import '../entities/trip.dart';
 
 abstract interface class TripRepository {
-  /// Détail d'un trajet (prix calculé pour [places]). `NotFoundApiException` s'il n'est plus disponible.
-  Future<Trip> fetchTrip(int id, {int places = 1});
+  /// Détail d'un trajet et aperçu du paiement. `NotFoundApiException` s'il n'existe plus.
+  Future<Trip> fetchTrip(String id);
 }

@@ -40,20 +40,20 @@ Future<void> _publishDemoTrip(WidgetTester tester) async {
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
 
-  testWidgets('Espace Conducteur : économies, publication, prix recommandé, demandes reçues', (tester) async {
+  testWidgets('Espace Conducteur : économies, publication, prix fixé par Kovoit, demandes reçues', (tester) async {
     await pumpKovoitApp(tester, env: TestEnv.driverSession());
 
     expect(find.text('Espace Conducteur'), findsOneWidget);
     expect(find.text('Publier'), findsOneWidget, reason: 'onglet en mode conducteur');
     expect(_amount('18 500 FCFA'), findsOneWidget);
-    expect(find.text('Octobre · 24 places partagées'), findsOneWidget);
+    expect(find.textContaining('Depuis le début'), findsOneWidget);
     expect(find.text('Passager'), findsNothing, reason: 'pas de sélecteur de mode sur cet écran');
 
     await choosePlace(tester, 'Carrefour, quartier, repère…', 'franc', 'Carrefour Franciscain');
     expect(find.text('1 / 3'), findsOneWidget, reason: 'le départ est proposé comme premier carrefour');
     await choosePlace(tester, 'Où allez-vous ?', 'univ', 'Université de Lomé · Entrée sud');
-    await scrollTo(tester, find.text('Prix recommandé : 300 FCFA'));
-    expect(find.text('Prix recommandé : 300 FCFA'), findsOneWidget);
+    await scrollTo(tester, find.text('Prix par place fixé par Kovoit'));
+    expect(find.text('Prix par place fixé par Kovoit'), findsOneWidget);
 
     await scrollAndTap(tester, find.text('Publier mon trajet'));
 
@@ -77,7 +77,7 @@ void main() {
     expect(find.text('Demandez à Afi son code à 4 chiffres, une fois à bord.'), findsOneWidget);
     await tester.enterText(find.byType(TextField).last, '1111');
     await tester.pumpAndSettle();
-    expect(find.text('Code incorrect. 4 essais restants.'), findsOneWidget);
+    expect(find.text('Code de départ incorrect (4 essai(s) restant(s)).'), findsOneWidget);
 
     await tester.enterText(find.byType(TextField).last, DemoAccount.fakePassengerCode);
     await tester.pumpAndSettle();
@@ -91,18 +91,23 @@ void main() {
     expect(find.text('Trajet terminé. Merci !'), findsOneWidget);
     await _scrollToTop(tester);
     expect(find.text('Terminé'), findsOneWidget);
-    await scrollTo(tester, find.text('Économie : 300 FCFA'));
-    expect(find.text('Économie : 300 FCFA'), findsOneWidget);
     // Appel hors widget : le délai simulé du backend ne s'écoule qu'en temps réel (runAsync).
     final savings = await tester.runAsync(env.driver.savings);
-    expect(savings!['total'], 18800);
+    expect(savings!['mois_en_cours'], 18800);
   });
 
-  testWidgets('Absence : proposée après départ + tolérance, avec la position du conducteur', (tester) async {
+  testWidgets('Absence : refusée par le serveur avant départ + tolérance, puis enregistrée', (tester) async {
     final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
     await _publishDemoTrip(tester);
     await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
-    expect(find.text('Déclarer absent'), findsNothing, reason: 'trop tôt');
+
+    // Trop tôt : le délai de tolérance est un paramètre serveur, c'est lui qui refuse.
+    await scrollAndTap(tester, find.text('Déclarer absent'));
+    await tester.tap(find.widgetWithText(TextButton, 'Déclarer absent'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining("après l'heure de départ"), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
 
     env.now = DateTime.utc(2026, 10, 8, 7, 41);
     await _waitForPoll(tester);
@@ -111,7 +116,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Déclarer absent'));
     await tester.pumpAndSettle();
 
-    expect(env.location.calls, 1);
+    expect(env.location.calls, 2, reason: 'position relevée à chaque tentative, refusée puis acceptée');
     expect(find.text('Absence enregistrée.'), findsOneWidget);
     await scrollTo(tester, find.text('Absent'));
     expect(find.text('Absent'), findsOneWidget);
@@ -142,7 +147,7 @@ void main() {
     await tester.tap(find.text('Mes trajets'));
     await tester.pumpAndSettle();
     expect(find.text('Trajets publiés'), findsOneWidget);
-    expect(find.text('Adidogomé → Université de Lomé'), findsOneWidget);
+    expect(find.text('Carrefour Franciscain → Université de Lomé'), findsOneWidget);
     expect(find.text('Demandes'), findsOneWidget);
     expect(find.text('2'), findsOneWidget, reason: 'deux demandes en attente');
   });

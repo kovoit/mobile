@@ -21,20 +21,21 @@ void main() {
 
     expect(find.text('Conducteurs disponibles'), findsOneWidget);
     expect(find.text('Adidogomé → Université de Lomé · 08 oct. 2026'), findsOneWidget);
-    expect(find.text('3 trajets en voiture'), findsOneWidget);
+    expect(find.text('4 trajets disponibles'), findsOneWidget, reason: 'voitures et moto : pas de filtre');
     expect(find.text('Départ dès 07:30'), findsOneWidget);
     expect(find.text('Koffi Mensah'), findsOneWidget);
     expect(find.text('Départ 07:30 · à votre départ'), findsOneWidget);
-    expect(find.text('Adidogomé → Université de Lomé'), findsWidgets);
+    expect(find.text('Carrefour Franciscain → Université de Lomé'), findsWidgets);
 
     await scrollAndTap(tester, find.text('Koffi Mensah'));
 
     expect(find.text('Détails & Réservation'), findsOneWidget);
     expect(find.text('Jeudi 08 octobre · 1 place en voiture'), findsOneWidget);
     expect(find.text('PRISE EN CHARGE · 07:30'), findsOneWidget);
-    expect(find.text('Fiabilité 98 % · 128 trajets effectués'), findsOneWidget);
+    expect(find.text('Fiabilité 98 %'), findsOneWidget);
+    expect(find.text('128 avis'), findsOneWidget);
     expect(find.text('TG 4827 AU'), findsOneWidget);
-    // Le total vient de l'API (prix_total), jamais d'un calcul dans l'app.
+    // Le total vient de l'API (paiement.montant_total), jamais d'un calcul dans l'app.
     await tester.scrollUntilVisible(find.text('Total à payer'), 150,
         scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first);
     expect(find.text('300 FCFA'), findsWidgets);
@@ -77,7 +78,7 @@ void main() {
 
     expect(find.text('Vérifiez votre identité'), findsOneWidget);
     await _searchFranciscainToUniversity(tester);
-    expect(find.text('3 trajets en voiture'), findsOneWidget);
+    expect(find.text('4 trajets disponibles'), findsOneWidget);
 
     await scrollAndTap(tester, find.text('Koffi Mensah'));
     await tester.scrollUntilVisible(find.text('Vérifiez votre identité'), 150,
