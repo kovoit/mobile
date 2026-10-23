@@ -131,6 +131,12 @@ class DriverTrip {
   Set<DriverRequestAction> actionsFor(DriverRequest request) =>
       DriverRequestAction.forStatus(request.status, tripOpen: status.isUpcoming, placesLeft: placesRestantes);
 
+  /// Position partagée avec les proches des passagers (« Partager mon trajet ») : du premier
+  /// passager accepté jusqu'à la fin du trajet.
+  bool get sharesPosition =>
+      status.isUpcoming &&
+      requests.any((r) => r.status == BookingStatus.acceptee || r.status == BookingStatus.enCours);
+
   int get pendingRequests =>
       requests.isEmpty ? nbDemandes : requests.where((r) => r.status == BookingStatus.demandee).length;
 

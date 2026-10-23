@@ -24,5 +24,8 @@ abstract interface class DriverRepository {
   /// Absence du passager, avec la position du conducteur comme preuve.
   Future<void> declareAbsence(String bookingId, {required double lat, required double lng});
 
+  /// Position GPS du conducteur pendant le trajet (partage avec les proches des passagers).
+  Future<void> sendPosition(String tripId, {required double lat, required double lng});
+
   Future<DriverSavings> savings();
 }

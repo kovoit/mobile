@@ -115,6 +115,6 @@ void main() {
     final id = (await request())['id'] as String;
     await bookings.simulateDriverAccepts(id);
     final link = await bookings.share(id);
-    expect(link['chemin'], startsWith('/api/v1/partage/'));
+    expect(link['chemin'], startsWith('/suivi/'));
   });
 }

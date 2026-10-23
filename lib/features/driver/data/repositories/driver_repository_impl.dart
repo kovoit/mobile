@@ -47,5 +47,9 @@ class DriverRepositoryImpl implements DriverRepository {
       _remote.declareAbsence(bookingId, lat: lat, lng: lng);
 
   @override
+  Future<void> sendPosition(String tripId, {required double lat, required double lng}) =>
+      _remote.sendPosition(tripId, lat: lat, lng: lng);
+
+  @override
   Future<DriverSavings> savings() async => (await _remote.savings()).toEntity();
 }

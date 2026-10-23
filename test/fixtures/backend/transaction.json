@@ -2,14 +2,14 @@
   "statut": "success",
   "message": "Opération effectuée.",
   "reponse": {
-    "id": "2705e3bb-a65c-422d-8571-5d82723e3995",
+    "id": "b84f4534-7cfe-42a4-bda6-4c6b0cc07874",
     "type": "recharge",
     "montant": 1000,
     "moyen_paiement": "mixx",
     "reservation": null,
-    "reference_externe": "SIM-MIXX-083301562A3B",
+    "reference_externe": "SIM-MIXX-618D04B92ECF",
     "statut": "validee",
-    "telephone": "+22890000000",
-    "cree_le": "2026-10-22T19:11:39.333784Z"
+    "telephone": "90000000",
+    "cree_le": "2026-10-23T08:36:17.049652Z"
   }
 }

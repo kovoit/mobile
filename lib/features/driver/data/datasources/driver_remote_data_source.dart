@@ -25,6 +25,9 @@ abstract interface class DriverRemoteDataSource {
 
   Future<void> declareAbsence(String bookingId, {required double lat, required double lng});
 
+  /// Position GPS du conducteur, lue par la page « Suivre le trajet » des proches.
+  Future<void> sendPosition(String tripId, {required double lat, required double lng});
+
   Future<SavingsDto> savings();
 }
 
@@ -73,6 +76,10 @@ class ApiDriverRemoteDataSource implements DriverRemoteDataSource {
       _action(ApiEndpoints.reservationAbsent(bookingId), {'lat': lat, 'lng': lng});
 
   @override
+  Future<void> sendPosition(String tripId, {required double lat, required double lng}) =>
+      _action(ApiEndpoints.trajetPosition(tripId), {'lat': lat, 'lng': lng});
+
+  @override
   Future<SavingsDto> savings() =>
       _api.get(ApiEndpoints.moiEconomies, parse: (json) => SavingsDto.fromJson(ApiService.asMap(json)));
 }
@@ -114,6 +121,10 @@ class FakeDriverRemoteDataSource implements DriverRemoteDataSource {
   @override
   Future<void> declareAbsence(String bookingId, {required double lat, required double lng}) =>
       _fake.declareAbsence(bookingId, lat: lat, lng: lng);
+
+  @override
+  Future<void> sendPosition(String tripId, {required double lat, required double lng}) =>
+      _fake.updatePosition(tripId, lat: lat, lng: lng);
 
   @override
   Future<SavingsDto> savings() async => SavingsDto.fromJson(await _fake.savings());

@@ -100,6 +100,7 @@ void main() {
     final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
     await _publishDemoTrip(tester);
     await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
+    final avant = env.location.calls; // le partage de position a déjà relevé la position
 
     // Trop tôt : le délai de tolérance est un paramètre serveur, c'est lui qui refuse.
     await scrollAndTap(tester, find.text('Déclarer absent'));
@@ -116,7 +117,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Déclarer absent'));
     await tester.pumpAndSettle();
 
-    expect(env.location.calls, 2, reason: 'position relevée à chaque tentative, refusée puis acceptée');
+    expect(env.location.calls, avant + 2, reason: 'position relevée à chaque tentative, refusée puis acceptée');
     expect(find.text('Absence enregistrée.'), findsOneWidget);
     await scrollTo(tester, find.text('Absent'));
     expect(find.text('Absent'), findsOneWidget);
@@ -160,5 +161,39 @@ void main() {
     expect(find.text('Choisissez votre point de départ.'), findsOneWidget);
     expect(find.text('Choisissez votre destination.'), findsOneWidget);
     expect(find.text('Mon trajet'), findsNothing);
+  });
+
+  testWidgets('Partager mon trajet : position envoyée dès un passager accepté, puis toutes les 30 s', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
+    await _publishDemoTrip(tester);
+    final tripId = env.backend.driverTrips.keys.last;
+    expect(find.text('Position partagée pendant le trajet'), findsNothing, reason: 'aucun passager accepté');
+    await tester.pump(DriverTripScreen.positionInterval);
+    expect(env.location.calls, 0);
+
+    await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
+    await _scrollToTop(tester);
+    expect(find.text('Position partagée pendant le trajet'), findsOneWidget);
+    expect(env.backend.driverTrips[tripId]!['position_lat'], 6.1660);
+    final first = env.location.calls;
+
+    await tester.pump(DriverTripScreen.positionInterval);
+    await tester.pumpAndSettle();
+    expect(env.location.calls, first + 1);
+  });
+
+  testWidgets('Partager mon trajet : localisation refusée → bandeau, aucune demande en boucle', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
+    env.location.result = const LocationUnavailable('Autorisez Kovoit à accéder à votre position.');
+    await _publishDemoTrip(tester);
+
+    await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
+    await _scrollToTop(tester);
+    expect(find.text('Position non partagée'), findsOneWidget);
+    final calls = env.location.calls;
+
+    await tester.pump(DriverTripScreen.positionInterval);
+    await tester.pumpAndSettle();
+    expect(env.location.calls, calls, reason: 'pas de nouvelle demande tant que l’écran reste ouvert');
   });
 }

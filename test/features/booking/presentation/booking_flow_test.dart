@@ -37,7 +37,7 @@ void main() {
     expect(find.textContaining(code, findRichText: true), findsOneWidget);
 
     await scrollAndTap(tester, find.text('Partager mon trajet'));
-    expect(env.externalActions.shares.single, contains('/api/v1/partage/'));
+    expect(env.externalActions.shares.single, contains('/suivi/'));
   });
 
   testWidgets('Solde insuffisant : recharge Mixx (PayGate) puis réservation', (tester) async {

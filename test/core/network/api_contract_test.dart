@@ -127,7 +127,7 @@ void main() {
     expect((await remote.fetch('R')).toEntity().departureCode, matches(RegExp(r'^\d{4}$')));
 
     backend.routes['POST /reservations/R/partage/'] = 'partage';
-    expect((await remote.share('R'))['chemin'], startsWith('/api/v1/partage/'));
+    expect((await remote.share('R'))['chemin'], startsWith('/suivi/'));
 
     await remote.cancel('R').catchError((Object _) => created);
     expect(backend.last.path, '/reservations/R/annuler/');

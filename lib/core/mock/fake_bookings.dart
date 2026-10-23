@@ -135,7 +135,7 @@ class FakeBookings {
       );
     }
     final jeton = '${id.hashCode.toRadixString(36)}${_random.nextInt(1 << 20).toRadixString(36)}';
-    return {'jeton': jeton, 'chemin': '/api/v1/partage/$jeton/'};
+    return {'jeton': jeton, 'chemin': '/suivi/$jeton/'};
   }
 
   /// `POST /reservations/{id}/confirmer-arrivee/` : `terminee` → `cloturee`.

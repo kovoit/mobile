@@ -29,12 +29,20 @@ class DriverTripScreen extends ConsumerStatefulWidget {
   /// Sondage des nouvelles demandes, en attendant les notifications push (S6).
   static const Duration pollInterval = Duration(seconds: 15);
 
+  /// Envoi de la position aux proches des passagers, tant que cet écran est ouvert.
+  static const Duration positionInterval = Duration(seconds: 30);
+
   @override
   ConsumerState<DriverTripScreen> createState() => _DriverTripScreenState();
 }
 
 class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   Timer? _timer;
+  Timer? _positionTimer;
+  bool _sendingPosition = false;
+
+  /// Localisation refusée ou coupée : on n'insiste pas (pas de demande d'autorisation en boucle).
+  bool _positionUnavailable = false;
   String? _busyRequestId;
   bool _busyTrip = false;
 
@@ -47,12 +55,38 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
       final trip = ref.read(driverTripProvider(widget.tripId)).value;
       if (trip != null && trip.status.isUpcoming) _controller.refresh();
     });
+    _positionTimer = Timer.periodic(DriverTripScreen.positionInterval, (_) => _sharePosition());
+    ref.listenManual(driverTripProvider(widget.tripId), (previous, next) {
+      // Premier envoi dès qu'un passager est accepté, sans attendre la prochaine période.
+      if (previous?.value?.sharesPosition != true && next.value?.sharesPosition == true) _sharePosition();
+    }, fireImmediately: true);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _positionTimer?.cancel();
     super.dispose();
+  }
+
+  /// Premier plan uniquement (aucun suivi en arrière-plan dans le MVP). Échecs silencieux :
+  /// la page des proches affiche l'heure de la dernière position reçue.
+  Future<void> _sharePosition() async {
+    final trip = ref.read(driverTripProvider(widget.tripId)).value;
+    if (trip == null || !trip.sharesPosition || _sendingPosition || _positionUnavailable) return;
+    _sendingPosition = true;
+    try {
+      switch (await ref.read(locationServiceProvider).currentPosition()) {
+        case LocationUnavailable():
+          if (mounted) setState(() => _positionUnavailable = true);
+        case LocationFound(:final lat, :final lng):
+          await _controller.sendPosition(lat: lat, lng: lng);
+      }
+    } on ApiException {
+      // Réessayé à la prochaine période.
+    } finally {
+      _sendingPosition = false;
+    }
   }
 
   void _snack(String message) =>
@@ -227,6 +261,22 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
         ),
         const SizedBox(height: AppSpacing.md),
         _TripSummary(trip: trip),
+        if (trip.sharesPosition) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _positionUnavailable
+              ? const InfoBanner(
+                  icon: Icons.location_off_outlined,
+                  tone: InfoBannerTone.error,
+                  title: 'Position non partagée',
+                  subtitle: 'Activez la localisation pour que les proches de vos passagers suivent le trajet.',
+                )
+              : const InfoBanner(
+                  icon: Icons.share_location_outlined,
+                  tone: InfoBannerTone.success,
+                  title: 'Position partagée pendant le trajet',
+                  subtitle: 'Les proches de vos passagers voient votre position tant que cet écran est ouvert.',
+                ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         const Text('Demandes reçues', style: AppTextStyles.title),
         const SizedBox(height: AppSpacing.xs),

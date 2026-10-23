@@ -270,6 +270,20 @@ class FakeDriver {
   // ------------------------------------------------------------------ Économies
 
   /// `GET /moi/economies/` : somme payée par les passagers, par trajet et cumul du mois.
+  /// `POST /trajets/{id}/position/` : refusé sur un trajet terminé ou annulé (TRAJET_CLOS).
+  Future<Map<String, dynamic>> updatePosition(String tripId, {required double lat, required double lng}) async {
+    await _backend.wait();
+    final trip = await _ownedTrip(tripId);
+    if (['termine', 'annule'].contains(trip['statut'])) {
+      throw const ConflictApiException('Le trajet est terminé.', code: 'TRAJET_CLOS');
+    }
+    trip
+      ..['position_lat'] = lat
+      ..['position_lng'] = lng
+      ..['position_le'] = _now.toIso8601String();
+    return _tripJson(trip);
+  }
+
   Future<Map<String, dynamic>> savings() async {
     await _backend.wait();
     final driverId = await _backend.currentUserId();

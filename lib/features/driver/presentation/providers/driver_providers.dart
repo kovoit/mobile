@@ -92,6 +92,10 @@ class DriverTripController extends AsyncNotifier<DriverTrip> {
   Future<void> declareAbsence(String requestId, {required double lat, required double lng}) =>
       _then(() => _repository.declareAbsence(requestId, lat: lat, lng: lng));
 
+  /// Envoi silencieux de la position (le trajet affiché ne change pas).
+  Future<void> sendPosition({required double lat, required double lng}) =>
+      _repository.sendPosition(tripId, lat: lat, lng: lng);
+
   Future<void> finish() async {
     _set(await _repository.finishTrip(tripId));
     ref.invalidate(driverSavingsProvider);

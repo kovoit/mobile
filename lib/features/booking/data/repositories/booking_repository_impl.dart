@@ -28,7 +28,7 @@ class BookingRepositoryImpl implements BookingRepository {
   @override
   Future<Booking> confirmArrival(String id) async => (await _remote.confirm(id)).toEntity();
 
-  /// Le backend renvoie un chemin relatif à son serveur (`/api/v1/partage/<jeton>/`).
+  /// Le backend renvoie un chemin relatif à son serveur (`/suivi/<jeton>/`, page lisible par le proche).
   @override
   Future<ShareLink> shareLink(String id) async {
     final json = await _remote.share(id);
