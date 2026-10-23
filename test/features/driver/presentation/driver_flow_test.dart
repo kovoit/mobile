@@ -52,8 +52,11 @@ void main() {
     await choosePlace(tester, 'Carrefour, quartier, repère…', 'franc', 'Carrefour Franciscain');
     expect(find.text('1 / 3'), findsOneWidget, reason: 'le départ est proposé comme premier carrefour');
     await choosePlace(tester, 'Où allez-vous ?', 'univ', 'Université de Lomé · Entrée sud');
-    await scrollTo(tester, find.text('Prix par place fixé par Kovoit'));
-    expect(find.text('Prix par place fixé par Kovoit'), findsOneWidget);
+    // Prix calculé par Kovoit (API d'estimation) dès que départ et destination sont choisis
+    await scrollTo(tester, find.text('Prix calculé par Kovoit'));
+    expect(find.text('Prix calculé par Kovoit'), findsOneWidget);
+    await scrollTo(tester, find.text('Commission Kovoit (15 %) par place'));
+    expect(find.text('Commission Kovoit (15 %) par place'), findsOneWidget);
 
     await scrollAndTap(tester, find.text('Publier mon trajet'));
 
@@ -93,7 +96,10 @@ void main() {
     expect(find.text('Terminé'), findsOneWidget);
     // Appel hors widget : le délai simulé du backend ne s'écoule qu'en temps réel (runAsync).
     final savings = await tester.runAsync(env.driver.savings);
-    expect(savings!['mois_en_cours'], 18800);
+    final demande = ((env.backend.driverTrips.values.last['demandes'] as List).first as Map);
+    final net = demande['net_conducteur'] as int;
+    expect(net + (demande['commission'] as int), demande['prix'], reason: 'payé = commission + net');
+    expect(savings!['mois_en_cours'], 18500 + net, reason: 'le conducteur touche le net');
   });
 
   testWidgets('Absence : refusée par le serveur avant départ + tolérance, puis enregistrée', (tester) async {
@@ -195,5 +201,17 @@ void main() {
     await tester.pump(DriverTripScreen.positionInterval);
     await tester.pumpAndSettle();
     expect(env.location.calls, calls, reason: 'pas de nouvelle demande tant que l’écran reste ouvert');
+  });
+
+  testWidgets('Prix indisponible (API injoignable) : message clair, aucun montant affiché', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
+    env.driver.estimationUnavailable = true;
+    await choosePlace(tester, 'Carrefour, quartier, repère…', 'franc', 'Carrefour Franciscain');
+    await choosePlace(tester, 'Où allez-vous ?', 'univ', 'Université de Lomé · Entrée sud');
+
+    await scrollTo(tester, find.text('Prix indisponible pour le moment'));
+    expect(find.text('Prix indisponible pour le moment'), findsOneWidget);
+    expect(find.text('Prix calculé par Kovoit'), findsNothing);
+    expect(find.textContaining('Commission Kovoit'), findsNothing);
   });
 }

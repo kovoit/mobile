@@ -113,7 +113,16 @@ class RequestCard extends StatelessWidget {
             children: [
               const Icon(Icons.account_balance_wallet_outlined, size: 18, color: AppColors.textSecondary),
               const SizedBox(width: AppSpacing.xs),
-              const Expanded(child: Text('Payé par le portefeuille du passager', style: AppTextStyles.caption)),
+              Expanded(
+                child: Text(
+                  request.prix == null || request.commission == 0
+                      ? 'Payé par le portefeuille du passager'
+                      : 'Vous recevez : ${Formatters.fcfa(request.prix!)} payés − '
+                          '${Formatters.fcfa(request.commission)} de commission',
+                  style: AppTextStyles.caption,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
               Text(Formatters.fcfa(request.montant), style: AppTextStyles.label),
             ],
           ),

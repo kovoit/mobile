@@ -10,6 +10,7 @@ import 'package:kovoit/features/booking/data/datasources/booking_remote_data_sou
 import 'package:kovoit/features/driver/data/datasources/driver_remote_data_source.dart';
 import 'package:kovoit/features/driver/data/dto/driver_dto.dart';
 import 'package:kovoit/features/driver/domain/entities/driver_trip.dart';
+import 'package:kovoit/features/driver/domain/entities/price_breakdown.dart';
 import 'package:kovoit/features/notifications/data/devices_repository_impl.dart';
 import 'package:kovoit/features/rating/data/rating_repository_impl.dart';
 import 'package:kovoit/features/report/data/report_repository_impl.dart';
@@ -145,7 +146,17 @@ void main() {
       departureAt: DateTime.utc(2099, 1, 1, 7, 30),
       places: 2,
     );
+    backend.routes['POST /trajets/estimation/'] = 'estimation';
+    final query = (vehiculeId: 'V', depart: draft.depart, arrivee: draft.arrivee, places: 2);
+    final devis = PriceBreakdown.fromJson(await remote.estimate(estimationBody(query)));
+    expect(body().keys, unorderedEquals(['vehicule_id', 'depart_lat', 'depart_lng', 'arrivee_lat', 'arrivee_lng', 'places']));
+    expect(devis.passagersPrevus, 2);
+    expect(devis.commissionPlace + devis.netConducteurPlace, devis.prixPlace);
+    expect(devis.prixCarburantLitre, 817);
+
     final published = await remote.publish(publicationBody(draft, vehiculeId: 'V'));
+    final pricing = published.toEntity().pricing!;
+    expect(pricing.prixPlace, published.toEntity().prixPlace, reason: 'prix figé avec son calcul');
     expect(
       body().keys,
       containsAll(['vehicule_id', 'depart_lat', 'depart_libelle', 'arrivee_lat', 'depart_le', 'places', 'points']),
@@ -158,6 +169,7 @@ void main() {
     backend.routes['GET /trajets/T/reservations/'] = 'trajet_reservations';
     final request = (await remote.requests('T')).single.toEntity();
     expect(request.passenger.prenom, isNotEmpty);
+    expect(request.montant + request.commission, request.prix, reason: 'net + commission = prix payé');
     expect(request.essaisCode, 0);
 
     await remote.submitCode('R', '1234');

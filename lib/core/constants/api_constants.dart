@@ -61,6 +61,7 @@ abstract final class ApiEndpoints {
   // Trajets
   static const trajets = '/trajets/';
   static const trajetsRecherche = '/trajets/recherche/';
+  static const trajetsEstimation = '/trajets/estimation/';
   static const mesTrajets = '/trajets/mes-trajets/';
   static String trajet(String id) => '/trajets/$id/';
   static String trajetPosition(String id) => '/trajets/$id/position/';

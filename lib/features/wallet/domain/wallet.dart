@@ -36,7 +36,8 @@ enum TransactionType {
   debit('debit', 'Trajet payé'),
   credit('credit', 'Trajet encaissé'),
   retrait('retrait', 'Retrait'),
-  remboursement('remboursement', 'Remboursement');
+  remboursement('remboursement', 'Remboursement'),
+  commission('commission', 'Commission Kovoit');
 
   const TransactionType(this.apiValue, this.label);
 

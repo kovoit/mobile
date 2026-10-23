@@ -16,6 +16,8 @@ DriverRequestDto _$DriverRequestDtoFromJson(Map<String, dynamic> json) =>
           ? null
           : PickupPointDto.fromJson(json['point'] as Map<String, dynamic>),
       prix: (json['prix'] as num?)?.toInt(),
+      commission: (json['commission'] as num?)?.toInt(),
+      netConducteur: (json['net_conducteur'] as num?)?.toInt(),
       essaisCode: (json['essais_code'] as num?)?.toInt() ?? 0,
     );
 
@@ -27,6 +29,8 @@ Map<String, dynamic> _$DriverRequestDtoToJson(DriverRequestDto instance) =>
       'point': instance.point?.toJson(),
       'prix': instance.prix,
       'montant_total': instance.montantTotal,
+      'commission': instance.commission,
+      'net_conducteur': instance.netConducteur,
       'essais_code': instance.essaisCode,
     };
 

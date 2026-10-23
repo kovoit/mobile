@@ -396,8 +396,12 @@ class _PriceCard extends StatelessWidget {
       child: Column(
         children: [
           _PriceRow(label: '1 place', value: Formatters.fcfa(trip.prixPlace)),
+          if (trip.fraisService > 0) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _PriceRow(label: 'Frais de réservation', value: Formatters.fcfa(trip.fraisService), muted: true),
+          ],
           const SizedBox(height: AppSpacing.xs),
-          _PriceRow(label: 'Frais de réservation', value: Formatters.fcfa(trip.fraisService), muted: true),
+          _PriceRow(label: 'Places restantes', value: '${trip.placesRestantes}', muted: true),
           if (total != null) ...[
             const Divider(height: AppSpacing.lg),
             Row(
@@ -407,6 +411,12 @@ class _PriceCard extends StatelessWidget {
               ],
             ),
           ],
+          const SizedBox(height: AppSpacing.xs),
+          const Text(
+            'Prix calculé par Kovoit et figé à la publication du trajet : il ne changera pas après '
+            'votre demande. Aucun frais en plus : la commission Kovoit est payée par le conducteur.',
+            style: AppTextStyles.caption,
+          ),
         ],
       ),
     );

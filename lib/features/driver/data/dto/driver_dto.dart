@@ -4,6 +4,7 @@ import '../../../booking/domain/entities/booking.dart';
 import '../../../trip/data/dto/trip_dto.dart';
 import '../../../trip/domain/entities/geo_place.dart';
 import '../../domain/entities/driver_trip.dart';
+import '../../domain/entities/price_breakdown.dart';
 
 part 'driver_dto.g.dart';
 
@@ -17,6 +18,8 @@ class DriverRequestDto {
     required this.montantTotal,
     this.point,
     this.prix,
+    this.commission,
+    this.netConducteur,
     this.essaisCode = 0,
   });
 
@@ -28,6 +31,10 @@ class DriverRequestDto {
   final PickupPointDto? point;
   final int? prix;
   final int montantTotal;
+
+  /// Commission Kovoit et net conducteur de la place (absents avant la tarification).
+  final int? commission;
+  final int? netConducteur;
   final int essaisCode;
 
   Map<String, dynamic> toJson() => _$DriverRequestDtoToJson(this);
@@ -43,7 +50,9 @@ class DriverRequestDto {
           note: passager.confiance.noteMoyenne,
         ),
         status: BookingStatus.fromApi(statut),
-        montant: prix ?? montantTotal,
+        montant: netConducteur ?? prix ?? montantTotal,
+        prix: prix,
+        commission: commission ?? 0,
         pickupPointId: point?.id,
         essaisCode: essaisCode,
       );
@@ -51,13 +60,19 @@ class DriverRequestDto {
 
 /// Trajet du conducteur (backend : TrajetConducteurSerializer = TrajetSerializer + `nb_demandes`).
 class DriverTripDto {
-  const DriverTripDto({required this.trajet, this.nbDemandes = 0});
+  const DriverTripDto({required this.trajet, this.nbDemandes = 0, this.tarification});
 
-  factory DriverTripDto.fromJson(Map<String, dynamic> json) =>
-      DriverTripDto(trajet: TripDto.fromJson(json), nbDemandes: json['nb_demandes'] as int? ?? 0);
+  factory DriverTripDto.fromJson(Map<String, dynamic> json) => DriverTripDto(
+        trajet: TripDto.fromJson(json),
+        nbDemandes: json['nb_demandes'] as int? ?? 0,
+        tarification: json['tarification'] as Map<String, dynamic>?,
+      );
 
   final TripDto trajet;
   final int nbDemandes;
+
+  /// Instantané du calcul du prix (TarificationSerializer), null avant la tarification.
+  final Map<String, dynamic>? tarification;
 
   DriverTrip toEntity() {
     final trip = trajet.toEntity();
@@ -72,6 +87,7 @@ class DriverTripDto {
       prixPlace: trip.prixPlace,
       status: TripStatus.fromApi(trip.statut),
       nbDemandes: nbDemandes,
+      pricing: tarification == null ? null : PriceBreakdown.fromJson(tarification!),
     );
   }
 }
@@ -118,6 +134,19 @@ class SavingsDto {
 }
 
 /// Corps de `POST /trajets/` (backend : PublicationSerializer).
+/// Corps de `POST /trajets/estimation/` : aucun prix n'est envoyé, Kovoit le calcule.
+Map<String, dynamic> estimationBody(
+  ({String vehiculeId, GeoPlace depart, GeoPlace arrivee, int places}) query,
+) =>
+    {
+      'vehicule_id': query.vehiculeId,
+      'depart_lat': query.depart.lat,
+      'depart_lng': query.depart.lng,
+      'arrivee_lat': query.arrivee.lat,
+      'arrivee_lng': query.arrivee.lng,
+      'places': query.places,
+    };
+
 Map<String, dynamic> publicationBody(TripDraft draft, {required String vehiculeId}) {
   Map<String, dynamic> point(GeoPlace p) => {'lat': p.lat, 'lng': p.lng, 'libelle': p.libelle};
   return {

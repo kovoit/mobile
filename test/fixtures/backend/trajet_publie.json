@@ -2,9 +2,9 @@
   "statut": "success",
   "message": "Trajet publié.",
   "reponse": {
-    "id": "9adb384c-23f9-4c60-a6b7-dc96c90df228",
+    "id": "4f2c9052-28cb-462a-b916-e53b79a506e5",
     "conducteur": {
-      "id": "e4c0404a-d2b9-45ac-a169-0ed861f94537",
+      "id": "7f9a881f-4111-4276-84ae-731ec17583e6",
       "prenom": "Kodjo",
       "nom": "Amegah",
       "photo": null,
@@ -17,7 +17,7 @@
       }
     },
     "vehicule": {
-      "id": "87484cfe-cfd7-48da-98fb-c42ab5894bbd",
+      "id": "da3a9f17-eb10-4492-86e3-55c126a6fc9f",
       "type_vehicule": "voiture",
       "marque": "Toyota",
       "modele": "Corolla",
@@ -34,7 +34,7 @@
     "arrivee_libelle": "Grand Marché",
     "points": [
       {
-        "id": "3d2bf39b-e93d-4f71-90ef-396b1ecddf0a",
+        "id": "833c0ce8-69bc-458d-8eb3-7aed6d3ce9e2",
         "ordre": 1,
         "lat": 6.175,
         "lng": 1.17,
@@ -45,10 +45,45 @@
     "places_total": 2,
     "places_restantes": 2,
     "distance_km": "9.97",
+    "duree_min": 24,
     "prix_place": 300,
     "frais_service": 0,
     "statut": "publie",
     "nb_demandes": 0,
-    "position_le": null
+    "position_le": null,
+    "tarification": {
+      "formule_version": "v1",
+      "type_vehicule": "voiture",
+      "distance_km": "9.970",
+      "duree_min": 24,
+      "source_itineraire": "routage",
+      "passagers_prevus": 2,
+      "consommation_retenue_l_100km": "7.000",
+      "carburant_litres": "0.698",
+      "cout_carburant": "570.180",
+      "cout_temps": "0.000",
+      "cout_entretien": "0.000",
+      "cout_total": "570.180",
+      "part_conducteur": "190.060",
+      "contribution_passagers": "380.120",
+      "montant_brut_passagers": "447.200",
+      "prix_place": 300,
+      "commission_place": 45,
+      "net_conducteur_place": 255,
+      "total_paye_passagers": 600,
+      "commission_kovoit": 90,
+      "net_conducteur": 510,
+      "parametres": {
+        "prix_carburant_litre": "817.000",
+        "consommation_l_100km": "7.000",
+        "source_consommation": "reference_voiture",
+        "majoration_charge_par_passager_pct": "0.000",
+        "cout_horaire_conducteur": "0.000",
+        "entretien_par_km": "0.000",
+        "taux_commission_pct": "15.000",
+        "arrondi_prix_fcfa": 5,
+        "prix_minimum_place": 300
+      }
+    }
   }
 }

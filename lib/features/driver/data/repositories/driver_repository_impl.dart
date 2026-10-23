@@ -1,4 +1,5 @@
 import '../../domain/entities/driver_trip.dart';
+import '../../domain/entities/price_breakdown.dart';
 import '../../domain/repositories/driver_repository.dart';
 import '../datasources/driver_remote_data_source.dart';
 import '../dto/driver_dto.dart';
@@ -7,6 +8,10 @@ class DriverRepositoryImpl implements DriverRepository {
   DriverRepositoryImpl(this._remote);
 
   final DriverRemoteDataSource _remote;
+
+  @override
+  Future<PriceBreakdown> estimate(EstimateQuery query) async =>
+      PriceBreakdown.fromJson(await _remote.estimate(estimationBody(query)));
 
   @override
   Future<DriverTrip> publish(TripDraft draft, {required String vehiculeId}) async =>

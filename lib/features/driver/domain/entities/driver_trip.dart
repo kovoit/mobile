@@ -1,6 +1,7 @@
 import '../../../booking/domain/entities/booking.dart';
 import '../../../trip/domain/entities/geo_place.dart';
 import '../../../trip/domain/entities/trip.dart';
+import 'price_breakdown.dart';
 
 /// Statut d'un trajet publié (PRD §7).
 enum TripStatus {
@@ -80,6 +81,8 @@ class DriverRequest {
     required this.passenger,
     required this.status,
     required this.montant,
+    this.prix,
+    this.commission = 0,
     this.pickupPointId,
     this.essaisCode = 0,
   });
@@ -88,8 +91,12 @@ class DriverRequest {
   final PassengerSummary passenger;
   final BookingStatus status;
 
-  /// Ce que le conducteur reçoit pour cette place (prix, hors frais de service Kovoit).
+  /// Net que le conducteur reçoit pour cette place : prix payé − commission Kovoit (backend).
   final int montant;
+
+  /// Prix payé par le passager et commission Kovoit prélevée (figés à la demande).
+  final int? prix;
+  final int commission;
   final String? pickupPointId;
   final int essaisCode;
 }
@@ -108,6 +115,7 @@ class DriverTrip {
     required this.status,
     this.nbDemandes = 0,
     this.requests = const [],
+    this.pricing,
   });
 
   final String id;
@@ -123,6 +131,21 @@ class DriverTrip {
   /// Demandes en attente de réponse (calculé par le backend).
   final int nbDemandes;
   final List<DriverRequest> requests;
+
+  /// Calcul du prix figé à la publication ; null pour un trajet publié avant la tarification.
+  final PriceBreakdown? pricing;
+
+  /// Places réellement payées ou à payer (acceptées, à bord, terminées, absent).
+  int get paidSeats => requests
+      .where((r) => const {
+            BookingStatus.acceptee,
+            BookingStatus.enCours,
+            BookingStatus.terminee,
+            BookingStatus.cloturee,
+            BookingStatus.litige,
+            BookingStatus.absent,
+          }.contains(r.status))
+      .length;
 
   Set<DriverTripAction> get actions => DriverTripAction.forStatus(status);
 
@@ -154,6 +177,7 @@ class DriverTrip {
         status: status,
         nbDemandes: nbDemandes,
         requests: requests,
+        pricing: pricing,
       );
 }
 

@@ -17,6 +17,7 @@ import '../../domain/entities/driver_trip.dart';
 import '../providers/driver_providers.dart';
 import '../widgets/departure_code_dialog.dart';
 import '../widgets/driver_trip_labels.dart';
+import '../widgets/price_breakdown_card.dart';
 import '../widgets/request_card.dart';
 
 /// Gestion d'un trajet publié : demandes reçues (CA3/CA4), code de départ (CA7),
@@ -293,6 +294,11 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
           const Text('Demandes traitées', style: AppTextStyles.label),
           const SizedBox(height: AppSpacing.xs),
           ...others.map(card),
+        ],
+        // Détail du prix figé à la publication, sous les demandes (à traiter en premier)
+        if (trip.pricing != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          PriceBreakdownCard(pricing: trip.pricing!, paidSeats: trip.paidSeats),
         ],
         if (trip.can(DriverTripAction.terminer)) ...[
           const SizedBox(height: AppSpacing.md),

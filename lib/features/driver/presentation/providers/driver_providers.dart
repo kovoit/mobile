@@ -10,6 +10,7 @@ import '../../../trip/domain/entities/geo_place.dart';
 import '../../data/datasources/driver_remote_data_source.dart';
 import '../../data/repositories/driver_repository_impl.dart';
 import '../../domain/entities/driver_trip.dart';
+import '../../domain/entities/price_breakdown.dart';
 import '../../domain/repositories/driver_repository.dart';
 
 final driverRemoteDataSourceProvider = Provider<DriverRemoteDataSource>((ref) {
@@ -108,6 +109,12 @@ final driverTripProvider =
     AsyncNotifierProvider.autoDispose.family<DriverTripController, DriverTrip, String>(DriverTripController.new);
 
 // ------------------------------------------------------------------ Publication
+
+/// Prix estimé par Kovoit pour le trajet en cours de saisie (recalculé à chaque changement de
+/// départ, d'arrivée ou de places). Aucun montant n'est calculé dans l'application.
+final priceEstimateProvider = FutureProvider.autoDispose.family<PriceBreakdown, EstimateQuery>(
+  (ref, query) => ref.read(driverRepositoryProvider).estimate(query),
+);
 
 enum PublishField { depart, arrivee, pickups, dateTime, places }
 

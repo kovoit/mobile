@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/demo_account.dart';
 import '../network/api_exception.dart';
 import 'fake_backend.dart';
+import 'fake_pricing.dart';
 import 'fake_trips.dart';
 
 final fakeDriverProvider = Provider<FakeDriver>((ref) => FakeDriver(ref.watch(fakeBackendProvider)));
@@ -18,7 +19,6 @@ class FakeDriver {
   // Paramètres administrateur (valeurs de départ du PRD).
   static const int toleranceRetardMin = 10;
   static const int maxCodeAttempts = 5;
-  static const int prixSimulation = 300;
 
   DateTime get _now => _backend.clock().toUtc();
 
@@ -63,7 +63,34 @@ class FakeDriver {
 
   // ------------------------------------------------------------------ Trajets
 
-  /// `POST /trajets/` (backend : PublicationSerializer). Le prix est fixé par Kovoit.
+  double _roadKm(Map<String, dynamic> body) => FakeTrips.roadKm(
+        (body['depart_lat'] as num).toDouble(),
+        (body['depart_lng'] as num).toDouble(),
+        (body['arrivee_lat'] as num).toDouble(),
+        (body['arrivee_lng'] as num).toDouble(),
+      );
+
+  /// Tests : simule l'API d'estimation injoignable (réseau coupé).
+  bool estimationUnavailable = false;
+
+  /// `POST /trajets/estimation/` : détail du prix calculé par Kovoit, rien n'est enregistré.
+  Future<Map<String, dynamic>> estimate(Map<String, dynamic> body) async {
+    await _backend.wait();
+    if (estimationUnavailable) throw const NetworkApiException();
+    final vehicle = _backend.vehicleJson(await _driverId())!;
+    final places = body['places'] as int;
+    final maxPlaces = (vehicle['nb_places'] as int) - 1;
+    if (places < 1 || places > maxPlaces) {
+      throw BadRequestApiException('Ce véhicule permet au plus $maxPlaces place(s) passager.', code: 'PLACES_INVALIDES');
+    }
+    return FakePricing.snapshot(
+      distanceKm: _roadKm(body),
+      places: places,
+      typeVehicule: vehicle['type_vehicule'] as String? ?? 'voiture',
+    );
+  }
+
+  /// `POST /trajets/` (backend : PublicationSerializer). Le prix est calculé et figé par Kovoit.
   Future<Map<String, dynamic>> publish(Map<String, dynamic> body) async {
     await _backend.wait();
     final driverId = await _driverId();
@@ -71,13 +98,10 @@ class FakeDriver {
     final points = (body['points'] as List).cast<Map<String, dynamic>>();
     final places = body['places'] as int;
     final departure = DateTime.parse(body['depart_le'] as String);
-    final maxPlaces = (vehicle['nb_places'] as int) - 1;
     if (!departure.isAfter(_now)) {
       throw const BadRequestApiException("L'heure de départ doit être dans le futur.", code: 'DEPART_PASSE');
     }
-    if (places < 1 || places > maxPlaces) {
-      throw BadRequestApiException('Ce véhicule permet au plus $maxPlaces place(s) passager.', code: 'PLACES_INVALIDES');
-    }
+    final tarification = await estimate(body); // PLACES_INVALIDES si la capacité est dépassée
     if (points.isEmpty || points.length > 3) {
       throw const BadRequestApiException('Indiquez de 1 à 3 points de prise en charge.', code: 'DONNEES_INVALIDES');
     }
@@ -102,14 +126,11 @@ class FakeDriver {
       'depart_le': departure.toIso8601String(),
       'places_total': places,
       'places_restantes': places,
-      'distance_km': FakeTrips.roadKm(
-        (body['depart_lat'] as num).toDouble(),
-        (body['depart_lng'] as num).toDouble(),
-        (body['arrivee_lat'] as num).toDouble(),
-        (body['arrivee_lng'] as num).toDouble(),
-      ).toStringAsFixed(2),
-      'prix_place': prixSimulation,
-      'frais_service': FakeTrips.fraisService,
+      'distance_km': _roadKm(body).toStringAsFixed(2),
+      'duree_min': tarification['duree_min'],
+      'prix_place': tarification['prix_place'],
+      'frais_service': 0,
+      'tarification': tarification,
       'statut': 'publie',
       'position_le': null,
       'demandes': <Map<String, dynamic>>[],
@@ -118,6 +139,8 @@ class FakeDriver {
 
     // Démo : des passagers fictifs demandent une place au premier point de prise en charge.
     final firstPoint = (trip['points'] as List).first as Map<String, dynamic>;
+    final prix = tarification['prix_place'] as int;
+    final (commission, net) = FakePricing.repartir(prix);
     for (final passenger in _fakePassengers.take(places + 1)) {
       _requests(trip).add({
         'id': 'resa-${_backend.nextDriverRequestId++}',
@@ -127,9 +150,12 @@ class FakeDriver {
         'arrivee_lng': body['arrivee_lng'],
         'arrivee_libelle': body['arrivee_libelle'],
         'statut': 'demandee',
-        'prix': prixSimulation,
-        'frais_service': FakeTrips.fraisService,
-        'montant_total': prixSimulation + FakeTrips.fraisService,
+        'prix': prix,
+        'frais_service': 0,
+        'montant_total': prix,
+        'taux_commission_pct': '15.00',
+        'commission': commission,
+        'net_conducteur': net,
         'cree_le': _now.toIso8601String(),
         'essais_code': 0,
       });
@@ -317,7 +343,7 @@ class FakeDriver {
 
   // ------------------------------------------------------------------ Outils
 
-  /// Crédit du conducteur (clôture ou absence) : alimente `/moi/economies/`.
+  /// Crédit du conducteur (clôture ou absence), net de la commission : alimente `/moi/economies/`.
   void _credit(Map<String, dynamic> trip, Map<String, dynamic> request) {
     _backend.savings.putIfAbsent(trip['conducteur_id'] as int, () => []).add({
       'date': _now.toIso8601String(),
@@ -325,7 +351,7 @@ class FakeDriver {
       'depart_le': trip['depart_le'],
       'depart': trip['depart_libelle'],
       'arrivee': trip['arrivee_libelle'],
-      'montant': request['prix'],
+      'montant': request['net_conducteur'],
     });
   }
 

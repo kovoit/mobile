@@ -1,8 +1,16 @@
+import '../../../trip/domain/entities/geo_place.dart';
 import '../entities/driver_trip.dart';
+import '../entities/price_breakdown.dart';
+
+/// Données d'une estimation : record (égalité par valeur) utilisable comme clé de provider.
+typedef EstimateQuery = ({String vehiculeId, GeoPlace depart, GeoPlace arrivee, int places});
 
 /// Espace conducteur. Toutes les règles (prix, places, droits) sont côté backend.
 abstract interface class DriverRepository {
-  /// Le prix par place est fixé par Kovoit et renvoyé dans le trajet publié.
+  /// Prix calculé par Kovoit avant publication (`BadRequestApiException` PLACES_INVALIDES…).
+  Future<PriceBreakdown> estimate(EstimateQuery query);
+
+  /// Le prix par place est calculé par Kovoit et figé dans le trajet publié.
   Future<DriverTrip> publish(TripDraft draft, {required String vehiculeId});
 
   Future<List<DriverTrip>> myTrips();

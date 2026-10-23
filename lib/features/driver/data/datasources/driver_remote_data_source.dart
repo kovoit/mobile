@@ -4,6 +4,9 @@ import '../../../../core/network/api_service.dart';
 import '../dto/driver_dto.dart';
 
 abstract interface class DriverRemoteDataSource {
+  /// Détail du prix calculé par Kovoit avant publication (TarificationSerializer).
+  Future<Map<String, dynamic>> estimate(Map<String, dynamic> body);
+
   Future<DriverTripDto> publish(Map<String, dynamic> body);
 
   Future<List<DriverTripDto>> myTrips();
@@ -39,6 +42,10 @@ class ApiDriverRemoteDataSource implements DriverRemoteDataSource {
   static DriverTripDto _trip(Object? json) => DriverTripDto.fromJson(ApiService.asMap(json));
 
   Future<void> _action(String path, [Map<String, dynamic>? body]) => _api.post<void>(path, body: body, parse: (_) {});
+
+  @override
+  Future<Map<String, dynamic>> estimate(Map<String, dynamic> body) =>
+      _api.post(ApiEndpoints.trajetsEstimation, body: body, parse: ApiService.asMap);
 
   @override
   Future<DriverTripDto> publish(Map<String, dynamic> body) => _api.post(ApiEndpoints.trajets, body: body, parse: _trip);
@@ -89,6 +96,9 @@ class FakeDriverRemoteDataSource implements DriverRemoteDataSource {
   FakeDriverRemoteDataSource(this._fake);
 
   final FakeDriver _fake;
+
+  @override
+  Future<Map<String, dynamic>> estimate(Map<String, dynamic> body) => _fake.estimate(body);
 
   @override
   Future<DriverTripDto> publish(Map<String, dynamic> body) async => DriverTripDto.fromJson(await _fake.publish(body));

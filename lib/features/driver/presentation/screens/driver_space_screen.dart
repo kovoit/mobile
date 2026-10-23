@@ -18,6 +18,8 @@ import '../../../trip/domain/entities/geo_place.dart';
 import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../../vehicle/presentation/providers/vehicle_providers.dart';
 import '../../domain/entities/driver_trip.dart';
+import '../../domain/repositories/driver_repository.dart';
+import '../widgets/price_breakdown_card.dart';
 import '../providers/driver_providers.dart';
 import '../widgets/driver_trip_tile.dart';
 import '../widgets/savings_card.dart';
@@ -274,12 +276,22 @@ class _PublishSection extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        const InfoBanner(
-          icon: Icons.calculate_outlined,
-          tone: InfoBannerTone.accent,
-          title: 'Prix par place fixé par Kovoit',
-          subtitle: 'Partage des frais de carburant : vous le verrez dès la publication.',
-        ),
+        if (form.depart == null || form.arrivee == null || form.depart == form.arrivee)
+          const InfoBanner(
+            icon: Icons.calculate_outlined,
+            tone: InfoBannerTone.accent,
+            title: 'Prix par place fixé par Kovoit',
+            subtitle: 'Choisissez le départ et la destination : Kovoit calcule le partage des frais.',
+          )
+        else
+          _PriceEstimate(
+            query: (
+              vehiculeId: vehicle.id!,
+              depart: form.depart!,
+              arrivee: form.arrivee!,
+              places: form.places.clamp(1, maxPlaces),
+            ),
+          ),
         const SizedBox(height: AppSpacing.md),
         PrimaryButton(
           label: 'Publier mon trajet',
@@ -295,6 +307,30 @@ class _PublishSection extends ConsumerWidget {
         ),
       ],
     );
+  }
+}
+
+/// Prix estimé par l'API. En cas d'échec : un message, jamais un montant inventé.
+class _PriceEstimate extends ConsumerWidget {
+  const _PriceEstimate({required this.query});
+
+  final EstimateQuery query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return switch (ref.watch(priceEstimateProvider(query))) {
+      AsyncValue(:final value?) => PriceBreakdownCard(pricing: value),
+      AsyncValue(:final error?) => InfoBanner(
+          icon: Icons.error_outline_rounded,
+          tone: InfoBannerTone.error,
+          title: 'Prix indisponible pour le moment',
+          subtitle: error is ApiException ? error.message : 'Vérifiez votre connexion puis réessayez.',
+        ),
+      _ => const Padding(
+          padding: EdgeInsets.all(AppSpacing.md),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+    };
   }
 }
 

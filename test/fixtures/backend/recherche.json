@@ -4,9 +4,9 @@
   "reponse": [
     {
       "trajet": {
-        "id": "facc7089-4171-4bcc-be87-b7034dd5a895",
+        "id": "0aecf150-8eb9-4b7a-b8bd-8d6a23bdbcf1",
         "conducteur": {
-          "id": "e4c0404a-d2b9-45ac-a169-0ed861f94537",
+          "id": "7f9a881f-4111-4276-84ae-731ec17583e6",
           "prenom": "Kodjo",
           "nom": "Amegah",
           "photo": null,
@@ -19,7 +19,7 @@
           }
         },
         "vehicule": {
-          "id": "87484cfe-cfd7-48da-98fb-c42ab5894bbd",
+          "id": "da3a9f17-eb10-4492-86e3-55c126a6fc9f",
           "type_vehicule": "voiture",
           "marque": "Toyota",
           "modele": "Corolla",
@@ -36,23 +36,24 @@
         "arrivee_libelle": "Grand Marché",
         "points": [
           {
-            "id": "f71a86b3-4e0c-4fe1-aa8b-84e645a63d3c",
+            "id": "d14c3a1c-35bd-406f-8f1c-6a8bd9e26720",
             "ordre": 1,
             "lat": 6.175,
             "lng": 1.17,
             "libelle": "Carrefour Adidogomé"
           }
         ],
-        "depart_le": "2026-10-23T10:36:14.015522Z",
+        "depart_le": "2026-10-24T00:34:45.887499Z",
         "places_total": 3,
         "places_restantes": 3,
         "distance_km": "9.97",
+        "duree_min": 24,
         "prix_place": 300,
         "frais_service": 0,
         "statut": "publie"
       },
       "point_propose": {
-        "id": "f71a86b3-4e0c-4fe1-aa8b-84e645a63d3c",
+        "id": "d14c3a1c-35bd-406f-8f1c-6a8bd9e26720",
         "ordre": 1,
         "lat": 6.175,
         "lng": 1.17,

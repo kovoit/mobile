@@ -3,6 +3,7 @@ import 'package:kovoit/core/config/demo_account.dart';
 import 'package:kovoit/core/mock/fake_driver.dart';
 import 'package:kovoit/core/network/api_exception.dart';
 import 'package:kovoit/features/driver/data/dto/driver_dto.dart';
+import 'package:kovoit/features/driver/domain/entities/price_breakdown.dart';
 
 import '../../helpers/test_app.dart';
 
@@ -45,17 +46,33 @@ void main() {
     );
   });
 
-  test('publication : prix fixé par Kovoit, demandes fictives, aucun code de départ exposé', () async {
+  test('estimation : prix calculé par Kovoit avant publication, capacité vérifiée', () async {
+    final devis = PriceBreakdown.fromJson(await driver.estimate(body()));
+    expect(devis.prixPlace, greaterThan(0));
+    expect(devis.commissionPlace + devis.netConducteurPlace, devis.prixPlace);
+    expect(devis.passagersPrevus, 1);
+    expect(devis.tauxCommissionPct, 15);
+    await expectLater(
+      driver.estimate(body(places: 5)),
+      throwsA(isA<BadRequestApiException>().having((e) => e.code, 'code', 'PLACES_INVALIDES')),
+    );
+  });
+
+  test('publication : prix calculé et figé, demandes fictives, aucun code de départ exposé', () async {
     final trip = await driver.publish(body());
     expect(trip['statut'], 'publie');
-    expect(trip['prix_place'], FakeDriver.prixSimulation);
+    final prix = trip['prix_place'] as int;
+    expect(prix, (trip['tarification'] as Map)['prix_place']);
     expect(trip['nb_demandes'], 2);
     final dto = DriverTripDto.fromJson(trip).toEntity();
     expect(dto.id, startsWith('trajet-pub-'));
     final reqs = await requests(trip);
     expect(reqs, hasLength(2));
     expect(reqs.toString(), isNot(contains('code_depart')));
-    expect(DriverRequestDto.fromJson(reqs.first).toEntity().montant, FakeDriver.prixSimulation);
+    final demande = DriverRequestDto.fromJson(reqs.first).toEntity();
+    expect(demande.prix, prix);
+    expect(demande.montant + demande.commission, prix, reason: 'le conducteur reçoit le net');
+    expect(DriverTripDto.fromJson(trip).toEntity().pricing!.prixPlace, prix);
   });
 
   test('sans KYC conducteur ni véhicule → 403', () async {
@@ -118,7 +135,8 @@ void main() {
     env.now = DateTime.utc(2026, 10, 8, 7, 41); // départ 07:30 + 10 min
     await driver.declareAbsence(id, lat: 6.166, lng: 1.165);
     expect((await requests(trip)).first['statut'], 'absent');
-    expect((await driver.savings())['mois_en_cours'], 18500 + FakeDriver.prixSimulation);
+    final net = (await requests(trip)).first['net_conducteur'] as int;
+    expect((await driver.savings())['mois_en_cours'], 18500 + net, reason: 'net de la commission');
   });
 
   test('terminer : refusé tant qu’un passager accepté n’est pas pris en charge', () async {
@@ -142,9 +160,10 @@ void main() {
     expect(finished['statut'], 'termine');
     expect((await requests(trip)).first['statut'], 'terminee');
 
+    final net = (await requests(trip)).first['net_conducteur'] as int;
     final savings = SavingsDto.fromJson(await driver.savings()).toEntity();
-    expect(savings.moisEnCours, 18800);
-    expect(savings.parTrajet.where((t) => t.tripId == trip['id']).single.montant, 300);
+    expect(savings.moisEnCours, 18500 + net, reason: 'net de la commission Kovoit');
+    expect(savings.parTrajet.where((t) => t.tripId == trip['id']).single.montant, net);
   });
 
   test('annuler le trajet : demandes annulées', () async {
