@@ -25,6 +25,7 @@ import '../../features/shell/presentation/screens/home_screen.dart';
 import '../../features/shell/presentation/screens/home_shell.dart';
 import '../../features/trip/presentation/screens/trip_detail_screen.dart';
 import '../../features/vehicle/presentation/screens/vehicle_form_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/wallet/presentation/wallet_operation_screen.dart';
 import '../../features/wallet/presentation/wallet_providers.dart';
 import '../../features/wallet/presentation/wallet_screen.dart';
@@ -171,6 +172,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(path: Routes.wallet, builder: (context, state) => const WalletScreen()),
+      GoRoute(path: Routes.notifications, builder: (context, state) => const NotificationsScreen()),
       GoRoute(
         path: Routes.walletRechargePath,
         builder: (context, state) => WalletOperationScreen(

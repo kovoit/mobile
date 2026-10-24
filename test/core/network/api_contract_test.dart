@@ -12,6 +12,7 @@ import 'package:kovoit/features/driver/data/dto/driver_dto.dart';
 import 'package:kovoit/features/driver/domain/entities/driver_trip.dart';
 import 'package:kovoit/features/driver/domain/entities/price_breakdown.dart';
 import 'package:kovoit/features/notifications/data/devices_repository_impl.dart';
+import 'package:kovoit/features/notifications/data/notifications_remote_data_source.dart';
 import 'package:kovoit/features/rating/data/rating_repository_impl.dart';
 import 'package:kovoit/features/report/data/report_repository_impl.dart';
 import 'package:kovoit/features/report/domain/report_repository.dart';
@@ -183,6 +184,16 @@ void main() {
 
     backend.routes['GET /moi/economies/'] = 'economies';
     expect((await remote.savings()).toEntity().total, greaterThanOrEqualTo(0));
+  });
+
+  test('notifications : liste conservée par le backend, écran à ouvrir', () async {
+    final remote = ApiNotificationsRemoteDataSource(api);
+    backend.routes['GET /notifications/'] = 'notifications';
+    final notification = (await remote.list()).single;
+    expect(notification.titre, 'Réservation acceptée');
+    expect(notification.lue, isFalse);
+    expect(notification.donnees['destinataire'], 'passager');
+    expect(notification.donnees['reservation_id'], isNotEmpty);
   });
 
   test('portefeuille : solde, recharge PayGate, état d’une transaction, historique', () async {

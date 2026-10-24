@@ -43,6 +43,20 @@ class FakeBackend {
   /// Appareils enregistrés pour le push : token → utilisateur.
   final Map<String, int> devices = {};
 
+  /// Notifications de l'utilisateur de démo, plus anciennes d'abord (fake_notifications.dart).
+  final List<Map<String, dynamic>> notifications = [];
+  int _nextNotificationId = 1;
+
+  /// Enregistre une notification comme le backend (`notifier`) : titre, message, écran à ouvrir.
+  void notify(String titre, String message, Map<String, String> donnees) => notifications.add({
+        'id': 'notif-${_nextNotificationId++}',
+        'titre': titre,
+        'message': message,
+        'donnees': donnees,
+        'lue_le': null,
+        'cree_le': clock().toUtc().toIso8601String(),
+      });
+
   /// Journal du portefeuille par utilisateur, plus récents d'abord (voir fake_wallet.dart).
   final Map<int, List<Map<String, dynamic>>> wallets = {};
 

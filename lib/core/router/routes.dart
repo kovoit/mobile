@@ -66,6 +66,7 @@ abstract final class Routes {
 
   // Portefeuille (recharge Flooz / Mixx via PayGate), plein écran
   static const String wallet = '/portefeuille';
+  static const String notifications = '/notifications';
   static const String walletRechargePath = '/portefeuille/recharger';
   static const String walletWithdraw = '/portefeuille/retirer';
 

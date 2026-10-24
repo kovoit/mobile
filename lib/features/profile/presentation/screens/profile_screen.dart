@@ -19,6 +19,7 @@ import '../../../kyc/presentation/widgets/access_required_card.dart';
 import '../../../kyc/presentation/widgets/kyc_labels.dart';
 import '../../../vehicle/presentation/providers/vehicle_providers.dart';
 import '../mode_switcher.dart';
+import '../../../notifications/presentation/notifications_providers.dart';
 import '../widgets/profile_tile.dart';
 
 /// Profil (retour UX du 08/10) : point d'entrée du KYC et du basculement de mode.
@@ -126,6 +127,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               title: 'Mon portefeuille',
               subtitle: 'Recharger par Flooz ou Mixx, retirer mes gains.',
               onTap: () => context.push(Routes.wallet),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          KovoitCard(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xxs),
+            child: ProfileTile(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifications',
+              subtitle: switch (ref.watch(unreadNotificationsProvider).value ?? 0) {
+                0 => 'Réservations, trajets et paiements.',
+                1 => '1 notification non lue',
+                final n => '$n notifications non lues',
+              },
+              showAlert: (ref.watch(unreadNotificationsProvider).value ?? 0) > 0,
+              onTap: () async {
+                await context.push(Routes.notifications);
+                ref.invalidate(unreadNotificationsProvider);
+              },
             ),
           ),
           const SizedBox(height: AppSpacing.lg),

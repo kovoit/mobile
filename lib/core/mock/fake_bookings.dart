@@ -160,6 +160,11 @@ class FakeBookings {
       ..['statut'] = 'acceptee'
       ..['code_depart'] = (1000 + _random.nextInt(9000)).toString()
       ..['acceptee_le'] = _now.toIso8601String();
+    _backend.notify(
+      'Réservation acceptée',
+      'Votre place est confirmée. Ouvrez l’application pour voir votre code de départ.',
+      {'reservation_id': id, 'destinataire': 'passager'},
+    );
   }
 
   Future<void> simulateDriverRefuses(String id) async {

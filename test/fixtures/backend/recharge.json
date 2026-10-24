@@ -3,15 +3,15 @@
   "message": "Opération effectuée.",
   "reponse": {
     "transaction": {
-      "id": "295bb0fa-f349-4c07-8513-8d394b5dda51",
+      "id": "447f80b3-04ab-4645-94b2-3ba3d931f037",
       "type": "recharge",
       "montant": 1000,
       "moyen_paiement": "mixx",
       "reservation": null,
-      "reference_externe": "SIM-MIXX-EAD6FAFE8418",
+      "reference_externe": "SIM-MIXX-28136B0CF1CD",
       "statut": "validee",
       "telephone": "90000000",
-      "cree_le": "2026-10-23T22:34:47.757008Z"
+      "cree_le": "2026-10-24T06:51:30.542001Z"
     },
     "solde": {
       "total": 6000,
