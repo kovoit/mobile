@@ -25,12 +25,16 @@ void refreshServerState(Ref ref) {
   ref.read(sessionControllerProvider.notifier).refreshUser();
 }
 
-/// Écran à ouvrir quand un push est touché : le backend envoie `reservation_id`.
+/// Écran à ouvrir quand un push est touché. Le backend envoie `reservation_id`, `trajet_id` et
+/// `destinataire` (conducteur | passager) : le conducteur arrive sur son trajet publié (où il
+/// gère la demande), le passager sur sa réservation, quel que soit le mode affiché.
 String pushRoute({required Map<String, String> data, required bool driverMode}) {
   final bookingId = data['reservation_id'];
-  if (bookingId == null || bookingId.isEmpty) return Routes.myTrips;
-  // Le conducteur gère ses réservations depuis le trajet publié (onglet Mes trajets).
-  return driverMode ? Routes.myTrips : Routes.booking(bookingId);
+  final tripId = data['trajet_id'];
+  final forDriver = data['destinataire'] == 'conducteur' || (data['destinataire'] == null && driverMode);
+  if (forDriver && tripId != null && tripId.isNotEmpty) return Routes.driverTrip(tripId);
+  if (bookingId == null || bookingId.isEmpty || forDriver) return Routes.myTrips;
+  return Routes.booking(bookingId);
 }
 
 /// Relie le push (FCM) à l'application :
