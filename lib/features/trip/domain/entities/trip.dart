@@ -96,12 +96,13 @@ class Trip {
     required this.departureAt,
     required this.placesRestantes,
     required this.prixPlace,
+    int? prixPassager,
     this.fraisService = 0,
     this.statut = 'publie',
     this.payment,
     this.matchedPickupId,
     this.walkingDistanceKm,
-  });
+  }) : prixPassager = prixPassager ?? prixPlace;
 
   final String id;
   final TripDriver driver;
@@ -112,6 +113,10 @@ class Trip {
   final DateTime departureAt;
   final int placesRestantes;
   final int prixPlace;
+
+  /// Prix pour CE passager : sa part du trajet (point de prise en charge → son arrivée),
+  /// calculée par le backend. Égal à [prixPlace] pour le trajet complet. C'est le prix débité.
+  final int prixPassager;
   final int fraisService;
 
   /// `publie` | `complet` | `en_cours` | `termine` | `annule`.
@@ -129,7 +134,9 @@ class Trip {
   PickupPoint? get matchedPickup =>
       pickupPoints.where((p) => p.id == matchedPickupId).firstOrNull ?? pickupPoints.firstOrNull;
 
-  Trip withMatch({required String pickupId, double? walkingDistanceKm}) => Trip(
+  bool get partialTrip => prixPassager < prixPlace;
+
+  Trip withMatch({required String pickupId, double? walkingDistanceKm, int? prixPassager}) => Trip(
         id: id,
         driver: driver,
         vehicle: vehicle,
@@ -139,6 +146,7 @@ class Trip {
         departureAt: departureAt,
         placesRestantes: placesRestantes,
         prixPlace: prixPlace,
+        prixPassager: prixPassager ?? this.prixPassager,
         fraisService: fraisService,
         statut: statut,
         payment: payment,

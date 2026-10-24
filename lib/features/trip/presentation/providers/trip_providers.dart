@@ -15,7 +15,7 @@ final tripRemoteDataSourceProvider = Provider<TripRemoteDataSource>((ref) {
 
 final tripRepositoryProvider = Provider<TripRepository>((ref) => TripRepositoryImpl(ref.watch(tripRemoteDataSourceProvider)));
 
-/// Détail d'un trajet (avec l'aperçu du paiement du passager connecté).
-final tripDetailProvider = FutureProvider.autoDispose.family<Trip, String>(
-  (ref, id) => ref.watch(tripRepositoryProvider).fetchTrip(id),
+/// Détail d'un trajet (prix du passager et aperçu de son paiement).
+final tripDetailProvider = FutureProvider.autoDispose.family<Trip, TripQuery>(
+  (ref, query) => ref.watch(tripRepositoryProvider).fetchTrip(query),
 );

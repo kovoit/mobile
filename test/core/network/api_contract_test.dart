@@ -95,13 +95,16 @@ void main() {
     expect(trip.matchedPickupId, matches.single.pointPropose.id);
     expect(trip.walkingDistanceKm, isNotNull);
     expect(trip.driver.verifie, isTrue);
+    expect(trip.prixPassager, matches.single.prixPassager, reason: 'prix du passager renvoyé par la recherche');
   });
 
   test('détail d’un trajet avec l’aperçu du paiement', () async {
     backend.routes['GET /trajets/T/'] = 'trajet_detail';
-    final trip = (await ApiTripRemoteDataSource(api).fetchTrip('T')).toEntity();
+    const query = (id: 'T', pickupId: 'P', arriveeLat: 6.13, arriveeLng: 1.22);
+    final trip = (await ApiTripRemoteDataSource(api).fetchTrip(query)).toEntity();
+    expect(backend.last.queryParameters, {'point_id': 'P', 'arrivee_lat': 6.13, 'arrivee_lng': 1.22});
     expect(trip.payment, isNotNull);
-    expect(trip.payment!.montantTotal, trip.prixPlace + trip.fraisService);
+    expect(trip.payment!.montantTotal, trip.prixPassager, reason: 'le paiement porte sur le prix du passager');
     expect(trip.pickupPoints, isNotEmpty);
   });
 

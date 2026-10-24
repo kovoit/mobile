@@ -137,7 +137,7 @@ class _TripCard extends StatelessWidget {
         if (walking != null) walking < 0.05 ? 'à votre départ' : '${Formatters.distanceKm(walking)} de vous',
       ].join(' · '),
       routeLabel: '${trip.depart.displayName} → ${trip.arrivee.displayName}',
-      price: trip.prixPlace,
+      price: trip.prixPassager, // sa part du trajet : le prix qui sera débité
       onTap: onTap,
     );
   }

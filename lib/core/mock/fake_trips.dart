@@ -167,6 +167,7 @@ abstract final class FakeTrips {
     final montant = template.price + fraisService;
     final disponible = math.max(soldeDisponible, 0);
     return _tripJson(index, template, departure)
+      ..['prix_passager'] = template.price
       ..['paiement'] = {
         'montant_total': montant,
         'solde_disponible': disponible,

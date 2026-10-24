@@ -201,6 +201,7 @@ class TripDto {
     required this.departLe,
     required this.placesRestantes,
     required this.prixPlace,
+    this.prixPassager,
     this.placesTotal = 0,
     this.distanceKm,
     this.fraisService = 0,
@@ -226,6 +227,9 @@ class TripDto {
   @JsonKey(fromJson: decimalFromJson)
   final double? distanceKm;
   final int prixPlace;
+
+  /// Détail demandé avec point_id + arrivée : prix du passager (sa part du trajet).
+  final int? prixPassager;
   final int fraisService;
   final String statut;
   final PaymentPreviewDto? paiement;
@@ -242,6 +246,7 @@ class TripDto {
         departureAt: departLe,
         placesRestantes: placesRestantes,
         prixPlace: prixPlace,
+        prixPassager: prixPassager,
         fraisService: fraisService,
         statut: statut,
         payment: paiement?.toEntity(),

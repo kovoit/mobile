@@ -13,6 +13,7 @@ class SearchMatchDto {
     required this.pointPropose,
     required this.distanceMarcheKm,
     this.ecartMinutes = 0,
+    this.prixPassager,
   });
 
   factory SearchMatchDto.fromJson(Map<String, dynamic> json) => _$SearchMatchDtoFromJson(json);
@@ -24,7 +25,12 @@ class SearchMatchDto {
   final double distanceMarcheKm;
   final int ecartMinutes;
 
+  /// Prix du passager depuis le point proposé jusqu'à son arrivée (celui qui sera débité).
+  final int? prixPassager;
+
   Map<String, dynamic> toJson() => _$SearchMatchDtoToJson(this);
 
-  Trip toEntity() => trajet.toEntity().withMatch(pickupId: pointPropose.id, walkingDistanceKm: distanceMarcheKm);
+  Trip toEntity() => trajet
+      .toEntity()
+      .withMatch(pickupId: pointPropose.id, walkingDistanceKm: distanceMarcheKm, prixPassager: prixPassager);
 }

@@ -15,6 +15,7 @@ import '../../../booking/presentation/providers/booking_providers.dart';
 import '../../../kyc/presentation/widgets/access_required_card.dart';
 import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/entities/trip.dart';
+import '../../domain/repositories/trip_repository.dart';
 import '../providers/trip_providers.dart';
 
 /// Maquette « Détails & Réservation » : prise en charge, conducteur (note, fiabilité), véhicule
@@ -40,6 +41,14 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   String get tripId => widget.tripId;
 
+  /// Prix demandé pour le point proposé et la destination du passager (sinon : la place).
+  TripQuery get _query => (
+        id: widget.tripId,
+        pickupId: widget.pickupId,
+        arriveeLat: widget.arrivee?.lat,
+        arriveeLng: widget.arrivee?.lng,
+      );
+
   Trip _withPickup(Trip trip) => widget.pickupId == null ? trip : trip.withMatch(pickupId: widget.pickupId!);
 
   Future<void> _book(Trip trip) async {
@@ -58,7 +67,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       // Places, disponibilité ou solde changés : on relit le trajet et l'aperçu du paiement.
-      if (e is ConflictApiException || e is NotFoundApiException) ref.invalidate(tripDetailProvider(tripId));
+      if (e is ConflictApiException || e is NotFoundApiException) ref.invalidate(tripDetailProvider(_query));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -66,12 +75,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
 
   Future<void> _recharge(int complement) async {
     await context.push<bool>(Routes.walletRecharge(montant: complement));
-    if (mounted) ref.invalidate(tripDetailProvider(tripId));
+    if (mounted) ref.invalidate(tripDetailProvider(_query));
   }
 
   @override
   Widget build(BuildContext context) {
-    final trip = ref.watch(tripDetailProvider(tripId)).whenData(_withPickup);
+    final trip = ref.watch(tripDetailProvider(_query)).whenData(_withPickup);
     final user = ref.watch(sessionControllerProvider).value;
     final denial = user == null ? null : AccessPolicy.canBook(user);
     // Demande déjà en cours sur ce trajet : on renvoie vers son suivi plutôt que d'en créer une autre.
@@ -99,7 +108,7 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                   const SizedBox(height: AppSpacing.md),
                   PrimaryButton.outlined(
                     label: 'Réessayer',
-                    onPressed: () => ref.invalidate(tripDetailProvider(tripId)),
+                    onPressed: () => ref.invalidate(tripDetailProvider(_query)),
                   ),
                 ],
               ),
@@ -395,7 +404,14 @@ class _PriceCard extends StatelessWidget {
     return KovoitCard(
       child: Column(
         children: [
-          _PriceRow(label: '1 place', value: Formatters.fcfa(trip.prixPlace)),
+          _PriceRow(
+            label: trip.partialTrip ? 'Votre part du trajet' : '1 place',
+            value: Formatters.fcfa(trip.prixPassager),
+          ),
+          if (trip.partialTrip) ...[
+            const SizedBox(height: AppSpacing.xs),
+            _PriceRow(label: 'Trajet complet', value: Formatters.fcfa(trip.prixPlace), muted: true),
+          ],
           if (trip.fraisService > 0) ...[
             const SizedBox(height: AppSpacing.xs),
             _PriceRow(label: 'Frais de réservation', value: Formatters.fcfa(trip.fraisService), muted: true),

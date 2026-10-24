@@ -8,5 +8,5 @@ class TripRepositoryImpl implements TripRepository {
   final TripRemoteDataSource _remote;
 
   @override
-  Future<Trip> fetchTrip(String id) async => (await _remote.fetchTrip(id)).toEntity();
+  Future<Trip> fetchTrip(TripQuery query) async => (await _remote.fetchTrip(query)).toEntity();
 }
