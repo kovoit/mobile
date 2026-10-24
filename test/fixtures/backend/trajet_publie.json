@@ -2,9 +2,9 @@
   "statut": "success",
   "message": "Trajet publié.",
   "reponse": {
-    "id": "5aae0028-5e23-4f94-976a-8584e1199572",
+    "id": "e752e268-8bcb-43f4-aa04-999b1a381631",
     "conducteur": {
-      "id": "b1e5185b-fbb9-4724-974a-24567569846b",
+      "id": "d96b82af-f8e6-4237-aa16-1e400d0f4158",
       "prenom": "Kodjo",
       "nom": "Amegah",
       "photo": null,
@@ -17,7 +17,7 @@
       }
     },
     "vehicule": {
-      "id": "e3b08af0-9377-4ce5-a7a4-94568f5553ab",
+      "id": "4b7ec36a-9ec8-46c7-9482-1f3a3717d8a6",
       "type_vehicule": "voiture",
       "marque": "Toyota",
       "modele": "Corolla",
@@ -34,7 +34,7 @@
     "arrivee_libelle": "Grand Marché",
     "points": [
       {
-        "id": "8ce0d4ca-3be5-46c7-b01c-60c1c58212fd",
+        "id": "d5d0b1b0-e2a4-462a-b8c5-967915967f49",
         "ordre": 1,
         "lat": 6.175,
         "lng": 1.17,
@@ -58,15 +58,15 @@
       "duree_min": 24,
       "source_itineraire": "routage",
       "passagers_prevus": 2,
-      "consommation_retenue_l_100km": "7.000",
-      "carburant_litres": "0.698",
-      "cout_carburant": "570.180",
+      "consommation_retenue_l_100km": "8.000",
+      "carburant_litres": "0.798",
+      "cout_carburant": "651.640",
       "cout_temps": "0.000",
       "cout_entretien": "0.000",
-      "cout_total": "570.180",
-      "part_conducteur": "190.060",
-      "contribution_passagers": "380.120",
-      "montant_brut_passagers": "447.200",
+      "cout_total": "651.640",
+      "part_conducteur": "217.210",
+      "contribution_passagers": "434.430",
+      "montant_brut_passagers": "511.090",
       "prix_place": 300,
       "commission_place": 45,
       "net_conducteur_place": 255,
@@ -75,7 +75,7 @@
       "net_conducteur": 510,
       "parametres": {
         "prix_carburant_litre": "817.000",
-        "consommation_l_100km": "7.000",
+        "consommation_l_100km": "8.000",
         "source_consommation": "reference_voiture",
         "majoration_charge_par_passager_pct": "0.000",
         "cout_horaire_conducteur": "0.000",

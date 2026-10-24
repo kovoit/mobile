@@ -10,9 +10,9 @@
         "taux_commission_pct": "15.00",
         "commission": 45,
         "net_conducteur": 255,
-        "trajet": "3fd18656-6293-4cb6-b0f6-036e7d181952",
+        "trajet": "f19c9f72-cec8-42df-84d1-2be8b04d7db5",
         "passager": {
-          "id": "6f187156-fe83-4e5e-89a5-0142d4befc61",
+          "id": "4e195a29-7aae-4331-99b5-99cbbf061d52",
           "prenom": "Afi",
           "nom": "Amegah",
           "photo": null,
@@ -24,10 +24,10 @@
             "conducteur_verifie": false
           }
         },
-        "id": "a27b3363-c9e8-43af-a8c1-075591aba723",
+        "id": "78cc1bda-e0a1-4a01-a366-cae96715d428",
         "statut": "acceptee",
         "point": {
-          "id": "6bca0573-2f4a-4382-b333-a1156ebc69c5",
+          "id": "7b406a95-0083-435d-81ba-be279e991a48",
           "ordre": 1,
           "lat": 6.175,
           "lng": 1.17,
@@ -43,8 +43,8 @@
         "moyen_paiement": "",
         "complement_paye": 0,
         "annulation_tardive": false,
-        "cree_le": "2026-10-24T07:44:32.920523Z",
-        "acceptee_le": "2026-10-24T07:44:34.428833Z",
+        "cree_le": "2026-10-24T08:55:07.775401Z",
+        "acceptee_le": "2026-10-24T08:55:09.261708Z",
         "refusee_le": null,
         "annulee_le": null,
         "absent_le": null,

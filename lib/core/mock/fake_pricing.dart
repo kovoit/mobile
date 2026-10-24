@@ -3,8 +3,8 @@
 /// paramètres. Jamais utilisée avec le vrai backend : le prix vient alors toujours de l'API.
 abstract final class FakePricing {
   static const double prixCarburantLitre = 817;
-  static const double consommationVoiture = 7;
-  static const double consommationMoto = 2.5;
+  static const double consommationVoiture = 8;
+  static const double consommationMoto = 3;
   static const double tauxCommissionPct = 15;
   static const int arrondi = 5;
 

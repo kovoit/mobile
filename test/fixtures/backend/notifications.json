@@ -7,16 +7,16 @@
     "previous": null,
     "results": [
       {
-        "id": "9b9b2ea6-bf32-48f7-be24-bb3f2509d44e",
+        "id": "243884e7-7974-487d-9c56-b22f3bbcddca",
         "titre": "Réservation acceptée",
-        "message": "Votre place est confirmée pour Adidogomé → Grand Marché (24/10 à 09:44). Ouvrez l'application pour voir votre code de départ.",
+        "message": "Votre place est confirmée pour Adidogomé → Grand Marché (24/10 à 10:55). Ouvrez l'application pour voir votre code de départ.",
         "donnees": {
-          "trajet_id": "3fd18656-6293-4cb6-b0f6-036e7d181952",
+          "trajet_id": "f19c9f72-cec8-42df-84d1-2be8b04d7db5",
           "destinataire": "passager",
-          "reservation_id": "a27b3363-c9e8-43af-a8c1-075591aba723"
+          "reservation_id": "78cc1bda-e0a1-4a01-a366-cae96715d428"
         },
         "lue_le": null,
-        "cree_le": "2026-10-24T07:44:34.432909Z"
+        "cree_le": "2026-10-24T08:55:09.265606Z"
       }
     ]
   }
