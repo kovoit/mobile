@@ -10,8 +10,16 @@ import '../theme/app_text_styles.dart';
 /// Centre de Lomé, position par défaut de la carte.
 const LatLng kLomeCenter = LatLng(6.1319, 1.2228);
 
-/// URL des tuiles OpenStreetMap (serveurs publics : usage de développement, voir README).
-const String kOsmTileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+/// Tuiles de la carte. Par défaut, serveurs publics OpenStreetMap : acceptables en
+/// développement, mais leurs conditions interdisent un usage intensif. En production, passer un
+/// fournisseur (clé incluse dans l'URL) et son attribution au build :
+///   --dart-define=TILE_URL=https://…/{z}/{x}/{y}.png?key=…
+///   --dart-define=TILE_ATTRIBUTION='© Fournisseur © OpenStreetMap'
+const String _tileUrl = String.fromEnvironment('TILE_URL');
+const String _tileAttribution = String.fromEnvironment('TILE_ATTRIBUTION');
+const String kOsmTileUrl =
+    _tileUrl == '' ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' : _tileUrl;
+const String kTileAttribution = _tileAttribution == '' ? '© OpenStreetMap' : _tileAttribution;
 const String kOsmUserAgent = 'com.kovoit.kovoit';
 
 /// Fournisseur de tuiles des cartes. `null` = réseau avec cache par défaut ;
@@ -89,7 +97,7 @@ class MapPreview extends StatelessWidget {
               if (badge != null) _CornerLabel(text: badge!, alignment: Alignment.center),
               const RichAttributionWidget(
                 showFlutterMapAttribution: false,
-                attributions: [TextSourceAttribution('© OpenStreetMap')],
+                attributions: [TextSourceAttribution(kTileAttribution)],
               ),
             ],
           ),

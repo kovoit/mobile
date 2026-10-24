@@ -15,8 +15,12 @@ flutter run                                   # ENV=dev, API http://10.0.2.2:800
 flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api/v1   # appareil physique
 flutter analyze
 flutter test
-flutter build apk --dart-define=ENV=prod
+flutter build apk --dart-define=ENV=prod   --dart-define=TILE_URL='https://<fournisseur>/{z}/{x}/{y}.png?key=<clé>'   --dart-define=TILE_ATTRIBUTION='© <fournisseur> © OpenStreetMap'
 ```
+
+Cartes : sans `TILE_URL`, l'app utilise les serveurs publics d'OpenStreetMap, acceptables en
+développement seulement (leurs conditions interdisent un usage intensif). En production, fournir
+l'URL d'un fournisseur de tuiles et son attribution (affichée en bas de chaque carte).
 
 En environnement `dev`, l'onglet **Profil** donne accès au **catalogue des composants** (`/dev/composants`).
 

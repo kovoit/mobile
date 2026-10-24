@@ -60,7 +60,7 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
               ),
               const RichAttributionWidget(
                 showFlutterMapAttribution: false,
-                attributions: [TextSourceAttribution('© OpenStreetMap')],
+                attributions: [TextSourceAttribution(kTileAttribution)],
               ),
             ],
           ),
