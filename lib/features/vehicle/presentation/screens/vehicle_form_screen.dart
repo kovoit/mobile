@@ -26,6 +26,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
   final _modele = TextEditingController();
   final _couleur = TextEditingController();
   final _immatriculation = TextEditingController();
+  final _consommation = TextEditingController();
   VehicleType _type = VehicleType.voiture;
   int _places = 5;
   bool _saving = false;
@@ -41,6 +42,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _modele.dispose();
     _couleur.dispose();
     _immatriculation.dispose();
+    _consommation.dispose();
     super.dispose();
   }
 
@@ -53,6 +55,21 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
     _modele.text = vehicle.modele;
     _couleur.text = vehicle.couleur;
     _immatriculation.text = vehicle.immatriculation;
+    final conso = vehicle.consommationL100km;
+    _consommation.text = conso == null ? '' : conso.toStringAsFixed(1).replaceAll('.', ',');
+  }
+
+  /// « 6,5 » ou « 6.5 » → 6.5 ; vide → null (consommation de référence du type).
+  static double? _parseConso(String text) {
+    final t = text.trim().replaceAll(',', '.');
+    return t.isEmpty ? null : double.tryParse(t);
+  }
+
+  static String? _validateConso(String? value) {
+    if ((value ?? '').trim().isEmpty) return null;
+    final v = _parseConso(value!);
+    if (v == null || v < 0.5 || v > 30) return 'Entre 0,5 et 30 L/100 km, ou laissez vide.';
+    return null;
   }
 
   void _changeType(VehicleType type) => setState(() {
@@ -74,6 +91,7 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
               couleur: _couleur.text.trim(),
               immatriculation: _immatriculation.text.trim().toUpperCase(),
               nbPlaces: _places,
+              consommationL100km: _parseConso(_consommation.text),
             ),
           );
       if (!mounted) return;
@@ -189,6 +207,22 @@ class _VehicleFormScreenState extends ConsumerState<VehicleFormScreen> {
                           Text(_fieldErrors['nb_places']!, style: AppTextStyles.caption),
                       ],
                     ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  KovoitTextField(
+                    label: 'Consommation (L/100 km, facultatif)',
+                    hint: _type == VehicleType.moto ? '2,5' : '7',
+                    controller: _consommation,
+                    prefixIcon: Icons.local_gas_station_outlined,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: _validateConso,
+                    errorText: _fieldErrors['consommation_l_100km'],
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  const Text(
+                    'Sert au calcul du prix des places. Laissez vide si vous ne la connaissez pas : Kovoit '
+                    'utilise une consommation moyenne.',
+                    style: AppTextStyles.caption,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   const InfoBanner(

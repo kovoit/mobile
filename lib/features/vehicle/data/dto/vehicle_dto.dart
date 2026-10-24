@@ -15,6 +15,7 @@ class VehicleDto {
     required this.immatriculation,
     required this.nbPlaces,
     this.id,
+    this.consommationL100km,
   });
 
   factory VehicleDto.fromJson(Map<String, dynamic> json) => _$VehicleDtoFromJson(json);
@@ -27,6 +28,7 @@ class VehicleDto {
         couleur: vehicle.couleur,
         immatriculation: vehicle.immatriculation,
         nbPlaces: vehicle.nbPlaces,
+        consommationL100km: vehicle.consommationL100km?.toStringAsFixed(1),
       );
 
   /// Lecture seule (attribué par le backend).
@@ -37,6 +39,11 @@ class VehicleDto {
   final String couleur;
   final String immatriculation;
   final int nbPlaces;
+
+  /// Décimal en chaîne (« 6.5 ») ; null = consommation de référence du type. Toujours envoyé
+  /// pour pouvoir effacer une valeur saisie.
+  @JsonKey(name: 'consommation_l_100km', includeIfNull: true)
+  final String? consommationL100km;
 
   Map<String, dynamic> toJson() => _$VehicleDtoToJson(this);
 
@@ -51,5 +58,6 @@ class VehicleDto {
         couleur: couleur,
         immatriculation: immatriculation,
         nbPlaces: nbPlaces,
+        consommationL100km: consommationL100km == null ? null : double.tryParse(consommationL100km!),
       );
 }

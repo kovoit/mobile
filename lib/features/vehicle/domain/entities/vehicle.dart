@@ -21,6 +21,7 @@ class Vehicle {
     required this.immatriculation,
     required this.nbPlaces,
     this.id,
+    this.consommationL100km,
   });
 
   /// UUID côté backend ; `null` tant que le véhicule n'est pas déclaré.
@@ -31,6 +32,9 @@ class Vehicle {
   final String couleur;
   final String immatriculation;
   final int nbPlaces;
+
+  /// Consommation déclarée (L/100 km), utilisée pour le prix ; null = référence du type.
+  final double? consommationL100km;
 
   /// « Toyota Yaris »
   String get label => '$marque $modele'.trim();

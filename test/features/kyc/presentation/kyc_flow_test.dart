@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kovoit/features/kyc/data/services/document_capture_service.dart';
 
+import '../../../helpers/flows.dart';
 import '../../../helpers/test_app.dart';
 
 Future<void> _tap(WidgetTester tester, Finder finder) => scrollAndTap(tester, finder);
@@ -130,8 +131,17 @@ void main() {
     await tester.enterText(find.widgetWithText(TextFormField, 'Yaris'), 'Yaris');
     await tester.enterText(find.widgetWithText(TextFormField, 'Gris'), 'Gris');
     await tester.enterText(find.widgetWithText(TextFormField, 'TG 4827 AU'), 'tg 4827 au');
+    // Consommation facultative, utilisée pour le prix : bornée, virgule acceptée
+    final conso = find.widgetWithText(TextFormField, '7'); // indication pour une voiture
+    await scrollTo(tester, conso);
+    await tester.enterText(conso, '45');
+    await _tap(tester, find.text('Enregistrer mon véhicule'));
+    await scrollTo(tester, find.text('Entre 0,5 et 30 L/100 km, ou laissez vide.'));
+    expect(find.text('Entre 0,5 et 30 L/100 km, ou laissez vide.'), findsOneWidget);
+    await tester.enterText(conso, '6,5');
     await _tap(tester, find.text('Enregistrer mon véhicule'));
 
+    expect(env.backend.vehicleJson(1)!['consommation_l_100km'], '6.5');
     expect(find.text('Toyota Yaris · TG 4827 AU'), findsOneWidget);
     expect(find.text('Déclaré'), findsOneWidget);
 

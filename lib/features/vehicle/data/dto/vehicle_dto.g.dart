@@ -14,6 +14,7 @@ VehicleDto _$VehicleDtoFromJson(Map<String, dynamic> json) => VehicleDto(
   immatriculation: json['immatriculation'] as String,
   nbPlaces: (json['nb_places'] as num).toInt(),
   id: json['id'] as String?,
+  consommationL100km: json['consommation_l_100km'] as String?,
 );
 
 Map<String, dynamic> _$VehicleDtoToJson(VehicleDto instance) =>
@@ -25,4 +26,5 @@ Map<String, dynamic> _$VehicleDtoToJson(VehicleDto instance) =>
       'couleur': instance.couleur,
       'immatriculation': instance.immatriculation,
       'nb_places': instance.nbPlaces,
+      'consommation_l_100km': instance.consommationL100km,
     };
