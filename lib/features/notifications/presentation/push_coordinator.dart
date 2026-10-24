@@ -12,6 +12,7 @@ import '../../booking/presentation/providers/booking_providers.dart';
 import '../../driver/presentation/providers/driver_providers.dart';
 import '../data/devices_repository_impl.dart';
 import '../domain/devices_repository.dart';
+import 'notifications_providers.dart';
 
 final devicesRepositoryProvider = Provider<DevicesRepository>((ref) {
   if (Env.useMockApi) return FakeDevicesRepository(ref.watch(fakeAfterTripProvider));
@@ -23,6 +24,9 @@ void refreshServerState(Ref ref) {
   ref.read(myBookingsProvider.notifier).refresh();
   ref.read(myDriverTripsProvider.notifier).refresh();
   ref.read(sessionControllerProvider.notifier).refreshUser();
+  ref
+    ..invalidate(unreadNotificationsProvider)
+    ..invalidate(notificationsProvider);
 }
 
 /// Écran à ouvrir quand un push est touché. Le backend envoie `reservation_id`, `trajet_id` et

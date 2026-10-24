@@ -11,8 +11,8 @@ abstract final class ApiConstants {
 
   /// Émulateur Android : 10.0.2.2 = localhost de la machine hôte (`python manage.py runserver 0.0.0.0:8000`).
   static const String emulatorBaseUrl = 'http://10.0.2.2:8000/api/v1';
-  static const String stagingBaseUrl = 'https://staging-api.kovoit.tg/api/v1';
-  static const String prodBaseUrl = 'https://api.kovoit.tg/api/v1';
+  static const String stagingBaseUrl = 'https://staging-api.kovoittg.com/api/v1';
+  static const String prodBaseUrl = 'https://api.kovoittg.com/api/v1';
 
   /// URL retenue : `API_BASE_URL` si fourni, sinon celle de l'environnement.
   static String baseUrlFor({required bool isProd, required bool isStaging}) {
