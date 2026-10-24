@@ -1,8 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Position du conducteur au moment d'une déclaration d'absence (au premier plan uniquement). -->
+    <!-- Position du conducteur : déclaration d'absence, et partage du trajet avec les proches
+         des passagers. Le suivi démarre au premier plan puis continue en arrière-plan grâce au
+         service de premier plan du plugin geolocator (notification visible) : pas besoin de
+         l'autorisation ACCESS_BACKGROUND_LOCATION. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <!-- usesCleartextTraffic : HTTP non chiffré autorisé pour joindre le backend sur le réseau local
          (http://192.168.x.x:8000). Vrai en debug/profile, faux en release (voir app/build.gradle.kts). -->
     <application

@@ -1,4 +1,6 @@
-﻿import 'dart:typed_data';
+import 'dart:async';
+
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -112,10 +114,23 @@ class FakeLocationService implements LocationService {
   LocationResult result = const LocationFound(6.1660, 1.1650);
   int calls = 0;
 
+  /// Suivi pendant un trajet : les tests émettent les positions avec [emit].
+  final StreamController<LocationResult> _positions = StreamController<LocationResult>.broadcast();
+  int trackings = 0;
+
+  void emit(LocationResult position) => _positions.add(position);
+
   @override
   Future<LocationResult> currentPosition() async {
     calls++;
     return result;
+  }
+
+  @override
+  Stream<LocationResult> track({required Duration interval}) {
+    trackings++;
+    if (result is LocationUnavailable) return Stream.value(result);
+    return _positions.stream;
   }
 }
 

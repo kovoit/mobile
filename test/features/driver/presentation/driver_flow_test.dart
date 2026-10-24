@@ -169,23 +169,31 @@ void main() {
     expect(find.text('Mon trajet'), findsNothing);
   });
 
-  testWidgets('Partager mon trajet : position envoyée dès un passager accepté, puis toutes les 30 s', (tester) async {
+  testWidgets('Partager mon trajet : suivi dès un passager accepté, une position toutes les 30 s', (tester) async {
     final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
     await _publishDemoTrip(tester);
     final tripId = env.backend.driverTrips.keys.last;
     expect(find.text('Position partagée pendant le trajet'), findsNothing, reason: 'aucun passager accepté');
-    await tester.pump(DriverTripScreen.positionInterval);
-    expect(env.location.calls, 0);
+    expect(env.location.trackings, 0);
 
     await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
     await _scrollToTop(tester);
     expect(find.text('Position partagée pendant le trajet'), findsOneWidget);
-    expect(env.backend.driverTrips[tripId]!['position_lat'], 6.1660);
-    final first = env.location.calls;
+    expect(env.location.trackings, 1);
 
-    await tester.pump(DriverTripScreen.positionInterval);
-    await tester.pumpAndSettle();
-    expect(env.location.calls, first + 1);
+    Future<void> position(double lat) async {
+      env.location.emit(LocationFound(lat, 1.1650));
+      await tester.pump(const Duration(seconds: 1)); // latence simulée du backend
+      await tester.pump();
+    }
+
+    await position(6.1661);
+    expect(env.backend.driverTrips[tripId]!['position_lat'], 6.1661);
+    await position(6.1662); // moins de 30 s après : pas envoyée
+    expect(env.backend.driverTrips[tripId]!['position_lat'], 6.1661);
+    env.now = env.now.add(DriverTripScreen.positionInterval);
+    await position(6.1663);
+    expect(env.backend.driverTrips[tripId]!['position_lat'], 6.1663);
   });
 
   testWidgets('Partager mon trajet : localisation refusée → bandeau, aucune demande en boucle', (tester) async {
@@ -196,11 +204,24 @@ void main() {
     await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
     await _scrollToTop(tester);
     expect(find.text('Position non partagée'), findsOneWidget);
-    final calls = env.location.calls;
 
-    await tester.pump(DriverTripScreen.positionInterval);
+    await _waitForPoll(tester);
+    expect(env.location.trackings, 1, reason: 'pas de nouvelle demande d’autorisation à chaque relecture');
+  });
+
+  testWidgets('Partager mon trajet : continue après la fermeture de l’écran du trajet', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());
+    await _publishDemoTrip(tester);
+    final tripId = env.backend.driverTrips.keys.last;
+    await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Accepter').first);
+
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded)); // l'écran du trajet est fermé
     await tester.pumpAndSettle();
-    expect(env.location.calls, calls, reason: 'pas de nouvelle demande tant que l’écran reste ouvert');
+    env.location.emit(const LocationFound(6.1700, 1.1700));
+    await tester.pump(const Duration(seconds: 1)); // latence simulée du backend
+    await tester.pump();
+
+    expect(env.backend.driverTrips[tripId]!['position_lat'], 6.1700);
   });
 
   testWidgets('Prix indisponible (API injoignable) : message clair, aucun montant affiché', (tester) async {

@@ -15,6 +15,7 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../rating/presentation/rating_sheet.dart';
 import '../../domain/entities/driver_trip.dart';
 import '../providers/driver_providers.dart';
+import '../providers/position_sharing.dart';
 import '../widgets/departure_code_dialog.dart';
 import '../widgets/driver_trip_labels.dart';
 import '../widgets/price_breakdown_card.dart';
@@ -30,8 +31,8 @@ class DriverTripScreen extends ConsumerStatefulWidget {
   /// Sondage des nouvelles demandes, en attendant les notifications push (S6).
   static const Duration pollInterval = Duration(seconds: 15);
 
-  /// Envoi de la position aux proches des passagers, tant que cet écran est ouvert.
-  static const Duration positionInterval = Duration(seconds: 30);
+  /// Envoi de la position aux proches des passagers (voir [PositionSharing]).
+  static const Duration positionInterval = PositionSharing.interval;
 
   @override
   ConsumerState<DriverTripScreen> createState() => _DriverTripScreenState();
@@ -39,11 +40,6 @@ class DriverTripScreen extends ConsumerStatefulWidget {
 
 class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
   Timer? _timer;
-  Timer? _positionTimer;
-  bool _sendingPosition = false;
-
-  /// Localisation refusée ou coupée : on n'insiste pas (pas de demande d'autorisation en boucle).
-  bool _positionUnavailable = false;
   String? _busyRequestId;
   bool _busyTrip = false;
 
@@ -56,38 +52,24 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
       final trip = ref.read(driverTripProvider(widget.tripId)).value;
       if (trip != null && trip.status.isUpcoming) _controller.refresh();
     });
-    _positionTimer = Timer.periodic(DriverTripScreen.positionInterval, (_) => _sharePosition());
-    ref.listenManual(driverTripProvider(widget.tripId), (previous, next) {
-      // Premier envoi dès qu'un passager est accepté, sans attendre la prochaine période.
-      if (previous?.value?.sharesPosition != true && next.value?.sharesPosition == true) _sharePosition();
+    // Partage lié au trajet (il continue si l'écran est fermé) : démarré dès qu'un passager est
+    // accepté, arrêté à la fin ou à l'annulation du trajet.
+    ref.listenManual(driverTripProvider(widget.tripId), (_, next) {
+      final trip = next.value;
+      if (trip == null) return;
+      final sharing = ref.read(positionSharingProvider.notifier);
+      if (trip.sharesPosition) {
+        sharing.start(trip.id);
+      } else if (ref.read(positionSharingProvider).tripId == trip.id) {
+        sharing.stop();
+      }
     }, fireImmediately: true);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _positionTimer?.cancel();
     super.dispose();
-  }
-
-  /// Premier plan uniquement (aucun suivi en arrière-plan dans le MVP). Échecs silencieux :
-  /// la page des proches affiche l'heure de la dernière position reçue.
-  Future<void> _sharePosition() async {
-    final trip = ref.read(driverTripProvider(widget.tripId)).value;
-    if (trip == null || !trip.sharesPosition || _sendingPosition || _positionUnavailable) return;
-    _sendingPosition = true;
-    try {
-      switch (await ref.read(locationServiceProvider).currentPosition()) {
-        case LocationUnavailable():
-          if (mounted) setState(() => _positionUnavailable = true);
-        case LocationFound(:final lat, :final lng):
-          await _controller.sendPosition(lat: lat, lng: lng);
-      }
-    } on ApiException {
-      // Réessayé à la prochaine période.
-    } finally {
-      _sendingPosition = false;
-    }
   }
 
   void _snack(String message) =>
@@ -264,7 +246,7 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
         _TripSummary(trip: trip),
         if (trip.sharesPosition) ...[
           const SizedBox(height: AppSpacing.sm),
-          _positionUnavailable
+          ref.watch(positionSharingProvider).unavailable
               ? const InfoBanner(
                   icon: Icons.location_off_outlined,
                   tone: InfoBannerTone.error,
@@ -275,7 +257,8 @@ class _DriverTripScreenState extends ConsumerState<DriverTripScreen> {
                   icon: Icons.share_location_outlined,
                   tone: InfoBannerTone.success,
                   title: 'Position partagée pendant le trajet',
-                  subtitle: 'Les proches de vos passagers voient votre position tant que cet écran est ouvert.',
+                  subtitle: 'Les proches de vos passagers voient votre position jusqu’à la fin du trajet, '
+                      'même si vous quittez l’application.',
                 ),
         ],
         const SizedBox(height: AppSpacing.lg),
