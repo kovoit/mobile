@@ -180,6 +180,9 @@ class FakeBackend {
   FakeUserRecord? userByEmail(String email) =>
       _users.values.where((u) => u.fields['email'] == email.trim().toLowerCase()).firstOrNull;
 
+  /// Compte supprimé (anonymisé côté serveur) : il ne peut plus se connecter.
+  void deleteUser(int id) => _users.remove(id);
+
   bool phoneTaken(String telephone, {int? exceptId}) =>
       _users.values.any((u) => u.fields['telephone'] == telephone && u.fields['id'] != exceptId);
 

@@ -166,6 +166,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             isLoading: _loggingOut,
             onPressed: _logout,
           ),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: () => context.push(Routes.deleteAccount),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Supprimer mon compte'),
+          ),
         ],
       ),
     );

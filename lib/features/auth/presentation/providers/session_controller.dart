@@ -49,6 +49,12 @@ class SessionController extends AsyncNotifier<AppUser?> {
     await _repository.logout();
     state = const AsyncData(null);
   }
+
+  /// Le routeur renvoie vers la connexion dès que la session est vide.
+  Future<void> deleteAccount(String confirmation) async {
+    await _repository.deleteAccount(confirmation);
+    state = const AsyncData(null);
+  }
 }
 
 final sessionControllerProvider = AsyncNotifierProvider<SessionController, AppUser?>(SessionController.new);

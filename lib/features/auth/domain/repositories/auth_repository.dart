@@ -24,4 +24,7 @@ abstract interface class AuthRepository {
   Future<AppUser> updateMode(UserMode mode);
 
   Future<void> logout();
+
+  /// Supprime le compte puis efface la session locale.
+  Future<void> deleteAccount(String confirmation);
 }

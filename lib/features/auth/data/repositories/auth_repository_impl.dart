@@ -54,6 +54,12 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AppUser> updateMode(UserMode mode) async => (await _remote.updateMode(mode.apiValue)).toEntity();
 
   @override
+  Future<void> deleteAccount(String confirmation) async {
+    await _remote.deleteAccount(confirmation);
+    await _tokenStorage.clear(); // sessions déjà révoquées côté serveur
+  }
+
+  @override
   Future<void> logout() async {
     final refresh = await _tokenStorage.readRefreshToken();
     try {

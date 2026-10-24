@@ -43,6 +43,7 @@ abstract final class ApiEndpoints {
   // Profil
   static const moi = '/moi/';
   static const moiMode = '/moi/mode/';
+  static const moiSupprimer = '/moi/supprimer/';
   static const moiEconomies = '/moi/economies/';
   static String profilPublic(String userId) => '/utilisateurs/$userId/';
 

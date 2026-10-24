@@ -18,6 +18,10 @@ abstract interface class AuthRemoteDataSource {
   Future<ProfilDto> updateMode(String mode);
 
   Future<void> logout(String refreshToken);
+
+  /// Compte anonymisé côté serveur. `ConflictApiException` (SUPPRESSION_IMPOSSIBLE) avec les
+  /// raisons si une réservation, un trajet ou de l'argent est en cours.
+  Future<void> deleteAccount(String confirmation);
 }
 
 class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
@@ -48,6 +52,10 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<ProfilDto> updateMode(String mode) =>
       _api.patch(ApiEndpoints.moiMode, body: {'mode_actif': mode}, parse: _profil);
+
+  @override
+  Future<void> deleteAccount(String confirmation) =>
+      _api.post<void>(ApiEndpoints.moiSupprimer, body: {'confirmation': confirmation}, parse: (_) {});
 
   @override
   Future<void> logout(String refreshToken) =>

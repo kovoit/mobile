@@ -72,4 +72,22 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
 
   @override
   Future<void> logout(String refreshToken) => _backend.wait();
+
+  /// Mêmes règles que le backend (simplifiées) : confirmation, aucune réservation en cours.
+  @override
+  Future<void> deleteAccount(String confirmation) async {
+    await _backend.wait();
+    if (confirmation.trim().toUpperCase() != 'SUPPRIMER') {
+      throw const ForbiddenApiException('Saisissez SUPPRIMER pour confirmer la suppression.');
+    }
+    final id = await _backend.currentUserId();
+    const closed = {'refusee', 'annulee', 'absent', 'cloturee'};
+    if (_backend.bookings.values.any((b) => b['passager_id'] == id && !closed.contains(b['statut']))) {
+      throw const ConflictApiException(
+        'Vous avez une réservation en cours : annulez-la ou attendez sa clôture.',
+        code: 'SUPPRESSION_IMPOSSIBLE',
+      );
+    }
+    _backend.deleteUser(id);
+  }
 }
