@@ -68,6 +68,7 @@ abstract final class Routes {
   static const String wallet = '/portefeuille';
   static const String notifications = '/notifications';
   static const String deleteAccount = '/supprimer-mon-compte';
+  static const String acceptTerms = '/conditions';
   static const String walletRechargePath = '/portefeuille/recharger';
   static const String walletWithdraw = '/portefeuille/retirer';
 

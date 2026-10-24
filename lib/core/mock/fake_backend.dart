@@ -194,6 +194,7 @@ class FakeBackend {
         'prenom': '',
         'nom': '',
         'telephone': null,
+        'cgu_acceptees': false,
         'photo': null,
         'mode_actif': 'passager',
         'statut_compte': 'actif',
@@ -227,6 +228,8 @@ class FakeBackend {
       'telephone': user['telephone'] ?? '',
       'email_verifie': true,
       'profil_complet': filled('prenom') && filled('nom') && filled('telephone'),
+      // Comptes de démo : CGU déjà acceptées ; un nouveau compte les accepte avec son profil
+      'cgu_acceptees': user['cgu_acceptees'] ?? true,
       'kyc': {'passager': user['kyc_passager'], 'conducteur': user['kyc_conducteur']},
       'etat': {
         'mode_conducteur': {'vehicule_declare': user['vehicule_declare']},

@@ -47,6 +47,8 @@ class AppUser {
     required this.email,
     this.telephone,
     this.profilComplet = true,
+    this.cguAcceptees = true,
+    this.cguUrl = 'https://kovoittg.com/conditions-utilisation/',
     this.photoUrl,
     this.modeActif = UserMode.passager,
     this.statutCompte = AccountStatus.actif,
@@ -66,6 +68,10 @@ class AppUser {
 
   /// Prénom, nom et téléphone renseignés (obligatoire avant d'utiliser l'application).
   final bool profilComplet;
+
+  /// Conditions d'utilisation en vigueur acceptées (sinon : écran d'acceptation).
+  final bool cguAcceptees;
+  final String cguUrl;
   final String? photoUrl;
   final UserMode modeActif;
   final AccountStatus statutCompte;
@@ -91,6 +97,7 @@ class AppUser {
       other.email == email &&
       other.telephone == telephone &&
       other.profilComplet == profilComplet &&
+      other.cguAcceptees == cguAcceptees &&
       other.photoUrl == photoUrl &&
       other.modeActif == modeActif &&
       other.statutCompte == statutCompte &&
@@ -107,6 +114,7 @@ class AppUser {
         email,
         telephone,
         profilComplet,
+        cguAcceptees,
         photoUrl,
         modeActif,
         statutCompte,

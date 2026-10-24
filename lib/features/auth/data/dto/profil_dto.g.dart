@@ -20,6 +20,10 @@ ProfilDto _$ProfilDtoFromJson(Map<String, dynamic> json) => ProfilDto(
       ? null
       : DateTime.parse(json['suspendu_jusqu_au'] as String),
   profilComplet: json['profil_complet'] as bool? ?? false,
+  cguAcceptees: json['cgu_acceptees'] as bool? ?? true,
+  cguUrl:
+      json['cgu_url'] as String? ??
+      'https://kovoittg.com/conditions-utilisation/',
   kyc: json['kyc'] as Map<String, dynamic>? ?? const {},
   etat: json['etat'] as Map<String, dynamic>? ?? const {},
 );

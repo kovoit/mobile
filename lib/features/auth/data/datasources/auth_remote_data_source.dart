@@ -12,7 +12,15 @@ abstract interface class AuthRemoteDataSource {
 
   Future<ProfilDto> me();
 
-  Future<ProfilDto> updateProfile({required String prenom, required String nom, required String telephone});
+  Future<ProfilDto> updateProfile({
+    required String prenom,
+    required String nom,
+    required String telephone,
+    bool acceptCgu = false,
+  });
+
+  /// Accepte les conditions d'utilisation en vigueur (`accepter_cgu`).
+  Future<ProfilDto> acceptTerms();
 
   /// `passager` | `conducteur`. 403 si le mode conducteur n'est pas autorisé.
   Future<ProfilDto> updateMode(String mode);
@@ -46,8 +54,20 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
   Future<ProfilDto> me() => _api.get(ApiEndpoints.moi, parse: _profil);
 
   @override
-  Future<ProfilDto> updateProfile({required String prenom, required String nom, required String telephone}) =>
-      _api.patch(ApiEndpoints.moi, body: {'prenom': prenom, 'nom': nom, 'telephone': telephone}, parse: _profil);
+  Future<ProfilDto> updateProfile({
+    required String prenom,
+    required String nom,
+    required String telephone,
+    bool acceptCgu = false,
+  }) =>
+      _api.patch(
+        ApiEndpoints.moi,
+        body: {'prenom': prenom, 'nom': nom, 'telephone': telephone, if (acceptCgu) 'accepter_cgu': true},
+        parse: _profil,
+      );
+
+  @override
+  Future<ProfilDto> acceptTerms() => _api.patch(ApiEndpoints.moi, body: {'accepter_cgu': true}, parse: _profil);
 
   @override
   Future<ProfilDto> updateMode(String mode) =>

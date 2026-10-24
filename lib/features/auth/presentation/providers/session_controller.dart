@@ -50,6 +50,8 @@ class SessionController extends AsyncNotifier<AppUser?> {
     state = const AsyncData(null);
   }
 
+  Future<void> acceptTerms() async => state = AsyncData(await _repository.acceptTerms());
+
   /// Le routeur renvoie vers la connexion dès que la session est vide.
   Future<void> deleteAccount(String confirmation) async {
     await _repository.deleteAccount(confirmation);

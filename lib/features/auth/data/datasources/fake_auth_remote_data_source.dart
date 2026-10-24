@@ -38,7 +38,20 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
   }
 
   @override
-  Future<ProfilDto> updateProfile({required String prenom, required String nom, required String telephone}) async {
+  Future<ProfilDto> acceptTerms() async {
+    await _backend.wait();
+    final id = await _backend.currentUserId();
+    _backend.updateUser(id, {'cgu_acceptees': true});
+    return _profil(id);
+  }
+
+  @override
+  Future<ProfilDto> updateProfile({
+    required String prenom,
+    required String nom,
+    required String telephone,
+    bool acceptCgu = false,
+  }) async {
     await _backend.wait();
     final id = await _backend.currentUserId();
     if (_backend.phoneTaken(telephone, exceptId: id)) {
@@ -48,7 +61,12 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
         fieldErrors: {'telephone': 'Ce numéro est déjà utilisé.'},
       );
     }
-    _backend.updateUser(id, {'prenom': prenom, 'nom': nom, 'telephone': telephone});
+    _backend.updateUser(id, {
+      'prenom': prenom,
+      'nom': nom,
+      'telephone': telephone,
+      if (acceptCgu) 'cgu_acceptees': true,
+    });
     return _profil(id);
   }
 

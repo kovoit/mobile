@@ -71,6 +71,14 @@ class RecordingExternalActions implements ExternalActions {
 
   @override
   Future<void> share(String text, {String? subject}) async => shares.add(text);
+
+  final List<String> urls = [];
+
+  @override
+  Future<bool> openUrl(String url) async {
+    urls.add(url);
+    return true;
+  }
 }
 
 /// Push simulé : garde les callbacks pour déclencher jeton, message ou ouverture depuis le test.
@@ -203,6 +211,7 @@ class TestEnv {
         'nom': 'Amégan',
         'email': 'afi@exemple.com',
         'telephone': '+22891234567',
+        'cgu_acceptees': true, // inscription déjà terminée
       },
     );
     env.storage.access = 'mock-access-$id';

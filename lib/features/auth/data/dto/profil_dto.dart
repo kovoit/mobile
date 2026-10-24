@@ -19,6 +19,8 @@ class ProfilDto {
     this.statutCompte,
     this.suspenduJusquAu,
     this.profilComplet = false,
+    this.cguAcceptees = true,
+    this.cguUrl = 'https://kovoittg.com/conditions-utilisation/',
     this.kyc = const {},
     this.etat = const {},
   });
@@ -36,6 +38,10 @@ class ProfilDto {
   final String? statutCompte;
   final DateTime? suspenduJusquAu;
   final bool profilComplet;
+
+  /// Faux : l'app demande d'accepter les CGU en vigueur avant tout autre écran.
+  final bool cguAcceptees;
+  final String cguUrl;
 
   /// `{"passager": "verifie", "conducteur": "non_verifie"}`
   final Map<String, dynamic> kyc;
@@ -55,6 +61,8 @@ class ProfilDto {
         email: email,
         telephone: telephone.isEmpty ? null : telephone,
         profilComplet: profilComplet,
+        cguAcceptees: cguAcceptees,
+        cguUrl: cguUrl,
         photoUrl: photo,
         modeActif: UserMode.fromApi(modeActif),
         statutCompte: AccountStatus.fromApi(statutCompte),

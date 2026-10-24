@@ -25,6 +25,7 @@ import '../../features/shell/presentation/screens/home_screen.dart';
 import '../../features/shell/presentation/screens/home_shell.dart';
 import '../../features/trip/presentation/screens/trip_detail_screen.dart';
 import '../../features/vehicle/presentation/screens/vehicle_form_screen.dart';
+import '../../features/auth/presentation/screens/accept_terms_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/screens/delete_account_screen.dart';
 import '../../features/wallet/presentation/wallet_operation_screen.dart';
@@ -50,6 +51,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         s.hasError,
         s.value == null,
         s.value?.profilComplet,
+        s.value?.cguAcceptees,
       ),
     ),
     (_, _) => sessionChanges.value++,
@@ -67,6 +69,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.login, builder: (context, state) => const LoginScreen()),
       GoRoute(path: Routes.otp, builder: (context, state) => const OtpVerificationScreen()),
       GoRoute(path: Routes.completeProfile, builder: (context, state) => const CompleteProfileScreen()),
+      GoRoute(path: Routes.acceptTerms, builder: (context, state) => const AcceptTermsScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => HomeShell(navigationShell: navigationShell),
         branches: [

@@ -79,6 +79,9 @@ void main() {
     await tester.enterText(_field('Nom'), 'Amégan');
     await tester.enterText(_field('Numéro de téléphone'), '91 23 45 67');
     await _tapButton(tester, 'Continuer');
+    expect(find.text('Acceptez les conditions d’utilisation pour continuer.'), findsOneWidget);
+    await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
+    await _tapButton(tester, 'Continuer');
 
     // Retour UX : pas de blocage KYC à l'inscription. L'accueil s'ouvre avec la restriction affichée.
     expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
@@ -93,6 +96,7 @@ void main() {
     await tester.enterText(_field('Prénom'), 'Afi');
     await tester.enterText(_field('Nom'), 'Amégan');
     await tester.enterText(_field('Numéro de téléphone'), '90 12 34 56'); // numéro du compte démo
+    await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
     await _tapButton(tester, 'Continuer');
 
     expect(find.text('Ce numéro est déjà utilisé.'), findsOneWidget);
@@ -108,5 +112,21 @@ void main() {
 
     expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
     expect(env.storage.access, isNull);
+  });
+
+  testWidgets('Compte existant sans CGU acceptées : écran d’acceptation avant tout le reste', (tester) async {
+    final env = TestEnv.demoSession();
+    env.backend.updateUser(1, {'cgu_acceptees': false});
+    await pumpKovoitApp(tester, env: env);
+
+    expect(find.text('Conditions d’utilisation'), findsOneWidget);
+    await scrollAndTap(tester, find.text('Lire les conditions d’utilisation'));
+    expect(env.externalActions.urls.single, 'https://kovoittg.com/conditions-utilisation/');
+    await _tapButton(tester, 'Continuer');
+    expect(find.text('Cochez la case pour continuer.'), findsOneWidget);
+
+    await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
+    await _tapButton(tester, 'Continuer');
+    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
   });
 }

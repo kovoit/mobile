@@ -9,11 +9,17 @@ abstract interface class ExternalActions {
   Future<bool> call(String phoneNumber);
 
   Future<void> share(String text, {String? subject});
+
+  /// Ouvre une page web (conditions d'utilisation…) dans le navigateur.
+  Future<bool> openUrl(String url);
 }
 
 class PlatformExternalActions implements ExternalActions {
   @override
   Future<bool> call(String phoneNumber) => launchUrl(Uri(scheme: 'tel', path: phoneNumber));
+
+  @override
+  Future<bool> openUrl(String url) => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 
   @override
   Future<void> share(String text, {String? subject}) async {

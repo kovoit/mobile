@@ -27,8 +27,14 @@ String? authRedirect(AsyncValue<AppUser?> session, String location) {
   if (!user.profilComplet) {
     return location == Routes.completeProfile ? null : Routes.completeProfile;
   }
+  // Compte existant, ou nouvelle version des CGU : acceptation avant tout autre écran
+  if (!user.cguAcceptees) {
+    return location == Routes.acceptTerms ? null : Routes.acceptTerms;
+  }
 
-  final onEntryScreen =
-      location == Routes.splash || Routes.publicAuth.contains(location) || location == Routes.completeProfile;
+  final onEntryScreen = location == Routes.splash ||
+      Routes.publicAuth.contains(location) ||
+      location == Routes.completeProfile ||
+      location == Routes.acceptTerms;
   return onEntryScreen ? Routes.home : null;
 }

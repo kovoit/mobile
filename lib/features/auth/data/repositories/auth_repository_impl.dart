@@ -45,7 +45,11 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AppUser> completeProfile({required String prenom, required String nom, required String telephone}) async =>
-      (await _remote.updateProfile(prenom: prenom.trim(), nom: nom.trim(), telephone: telephone)).toEntity();
+      (await _remote.updateProfile(prenom: prenom.trim(), nom: nom.trim(), telephone: telephone, acceptCgu: true))
+          .toEntity();
+
+  @override
+  Future<AppUser> acceptTerms() async => (await _remote.acceptTerms()).toEntity();
 
   @override
   Future<AppUser> refreshUser() async => (await _remote.me()).toEntity();

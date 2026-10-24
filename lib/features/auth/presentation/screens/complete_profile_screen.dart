@@ -6,6 +6,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../providers/session_controller.dart';
+import '../widgets/terms_checkbox.dart';
 import '../widgets/auth_error.dart';
 
 /// Après la première connexion : prénom, nom et téléphone (`PATCH /moi/`).
@@ -23,6 +24,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   late final TextEditingController _nom;
   late final TextEditingController _phone;
   bool _submitting = false;
+  bool _termsAccepted = false;
+  String? _termsError;
   Map<String, String> _fieldErrors = const {};
 
   @override
@@ -45,7 +48,9 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     setState(() => _fieldErrors = const {});
-    if (!_formKey.currentState!.validate()) return;
+    final formValid = _formKey.currentState!.validate();
+    if (!_termsAccepted) setState(() => _termsError = 'Acceptez les conditions d’utilisation pour continuer.');
+    if (!formValid || !_termsAccepted) return;
     setState(() => _submitting = true);
     try {
       // La redirection vers l'accueil est faite par le routeur (profil complet).
@@ -110,7 +115,17 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
               validator: Validators.togoPhone,
               errorText: _fieldErrors['telephone'],
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.md),
+            TermsCheckbox(
+              value: _termsAccepted,
+              url: ref.watch(sessionControllerProvider).value?.cguUrl ?? '',
+              error: _termsError,
+              onChanged: (v) => setState(() {
+                _termsAccepted = v;
+                _termsError = null;
+              }),
+            ),
+            const SizedBox(height: AppSpacing.md),
             PrimaryButton(label: 'Continuer', isLoading: _submitting, onPressed: _submit),
           ],
         ),

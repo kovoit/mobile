@@ -15,7 +15,10 @@ abstract interface class AuthRepository {
   Future<AppUser> verifyCode({required String email, required String code});
 
   /// Erreurs par champ dans `BadRequestApiException.fieldErrors`.
+  /// Profil complété en acceptant les CGU (case cochée, obligatoire).
   Future<AppUser> completeProfile({required String prenom, required String nom, required String telephone});
+
+  Future<AppUser> acceptTerms();
 
   /// Relit l'utilisateur (après un envoi KYC, une déclaration de véhicule…).
   Future<AppUser> refreshUser();
