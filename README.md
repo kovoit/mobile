@@ -53,6 +53,29 @@ URL et chemins : [lib/core/constants/api_constants.dart](lib/core/constants/api_
 
 Anciens contrats mobiles (à réaligner sur le backend) : [auth](docs/api/auth.md), [KYC](docs/api/kyc.md), [véhicule](docs/api/vehicle.md), [recherche & trajets](docs/api/trips.md), [réservations & paiement](docs/api/bookings.md), [espace conducteur](docs/api/driver.md), [après le trajet & notifications](docs/api/after_trip.md).
 
+## APK de production (Android)
+
+L'APK release est signée avec la clé de production lue dans `android/key.properties`. Ce fichier et la clé (`*.jks`) ne sont **jamais** commités. Sans eux, l'APK est signée avec la clé de debug : à réserver aux tests.
+
+1. Créer la clé, **une seule fois** (keytool est fourni avec Android Studio / le JDK) :
+   ```bash
+   keytool -genkey -v -keystore ~/kovoit-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias kovoit
+   ```
+2. Créer `android/key.properties` :
+   ```properties
+   storeFile=C:/chemin/vers/kovoit-upload.jks
+   storePassword=<mot de passe de la clé>
+   keyAlias=kovoit
+   keyPassword=<mot de passe de la clé>
+   ```
+3. Construire (augmenter `version:` dans `pubspec.yaml` à chaque nouvelle version, ex. `1.0.1+2`) :
+   ```bash
+   flutter build apk --release --dart-define=ENV=prod
+   ```
+   APK : `build/app/outputs/flutter-apk/app-release.apk`.
+
+**Garder la clé et ses mots de passe en lieu sûr (2 copies hors de l'ordinateur).** Sans elle, aucune mise à jour de l'app ne pourra être installée par-dessus la version existante : les utilisateurs devraient désinstaller puis réinstaller.
+
 ## Notifications push (à configurer avant la mise en production)
 
 Sans configuration, l'app fonctionne : la cloche relit `/notifications/` à l'ouverture, au retour au premier plan et toutes les 60 s. Pour activer le push FCM :

@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Clé de production : android/key.properties (jamais commitée, voir README.md).
+// Sans ce fichier, l'APK release est signée avec la clé de debug (tests uniquement).
+val proprietesCle = Properties().apply {
+    val fichier = rootProject.file("key.properties")
+    if (fichier.exists()) fichier.inputStream().use { load(it) }
+}
+val cleDeProduction = proprietesCle.getProperty("storeFile") != null
 
 android {
     namespace = "com.kovoit.kovoit"
@@ -27,15 +37,24 @@ android {
         manifestPlaceholders["usesCleartextTraffic"] = "true"
     }
 
+    signingConfigs {
+        if (cleDeProduction) {
+            create("release") {
+                storeFile = file(proprietesCle.getProperty("storeFile"))
+                storePassword = proprietesCle.getProperty("storePassword")
+                keyAlias = proprietesCle.getProperty("keyAlias")
+                keyPassword = proprietesCle.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             // Production en HTTPS uniquement. Pour tester une APK release sur le réseau local :
             // ajouter `kovoit.cleartext=true` dans android/gradle.properties (sans le committer).
             manifestPlaceholders["usesCleartextTraffic"] =
                 (project.findProperty("kovoit.cleartext") ?: "false").toString()
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (cleDeProduction) "release" else "debug")
         }
     }
 }
