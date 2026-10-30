@@ -26,6 +26,11 @@ abstract interface class AuthRepository {
   /// Bascule passager ↔ conducteur. Lève `ForbiddenApiException` si le mode conducteur est refusé.
   Future<AppUser> updateMode(UserMode mode);
 
+  /// Envoie la photo de profil (D-19) prise ou choisie à [path], puis renvoie le profil à jour.
+  /// Le fichier temporaire est supprimé de l'appareil, que l'envoi réussisse ou non.
+  /// Image refusée : `BadRequestApiException` (`DONNEES_INVALIDES`) avec `fieldErrors['photo']`.
+  Future<AppUser> updatePhoto(String path);
+
   Future<void> logout();
 
   /// Supprime le compte puis efface la session locale.

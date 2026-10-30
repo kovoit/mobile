@@ -88,6 +88,35 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
     return _profil(id);
   }
 
+  /// Extensions acceptées par l'`ImageField` du backend (les plus courantes sur Android).
+  static const _imageExtensions = {'jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'heic', 'heif'};
+
+  int _photoCount = 0;
+
+  /// Comme le backend : un fichier qui n'est pas une image est refusé (400, `erreurs.photo`) ;
+  /// sinon le profil est renvoyé avec le chemin **relatif** de la nouvelle photo (`/media/…`), comme
+  /// le vrai backend (décision Q1 révisée) : `ProfilDto` le complète avec l'origine de l'API. Ce
+  /// chemin ne pointe vers aucun fichier : l'avatar garde les initiales en mode démo.
+  @override
+  Future<ProfilDto> updatePhoto(String filePath) async {
+    await _backend.wait();
+    final id = await _backend.currentUserId();
+    final extension = filePath.contains('.') ? filePath.split('.').last.toLowerCase() : '';
+    if (!_imageExtensions.contains(extension)) {
+      throw const BadRequestApiException(
+        'Les données envoyées sont invalides.',
+        code: 'DONNEES_INVALIDES',
+        fieldErrors: {
+          'photo': "Transférez une image valide. Le fichier que vous avez transféré n'est pas une image, "
+              'ou il est corrompu.',
+        },
+      );
+    }
+    _photoCount++;
+    _backend.updateUser(id, {'photo': '/media/photos_profil/profil-$id-$_photoCount.jpg'});
+    return _profil(id);
+  }
+
   @override
   Future<void> logout(String refreshToken) => _backend.wait();
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/services/photo_capture_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -11,7 +12,6 @@ import '../../../../core/widgets/widgets.dart';
 import '../../../auth/domain/access_policy.dart';
 import '../../../auth/domain/entities/app_user.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
-import '../../data/services/document_capture_service.dart';
 import '../../domain/entities/kyc_dossier.dart';
 import '../providers/kyc_providers.dart';
 import '../widgets/access_required_card.dart';
@@ -92,7 +92,7 @@ class _KycScreenState extends ConsumerState<KycScreen> {
     if (piece == null || !mounted) return;
     final source = await _chooseSource(slot);
     if (source == null || !mounted) return;
-    final path = await ref.read(documentCaptureServiceProvider).capture(source);
+    final path = await ref.read(photoCaptureServiceProvider).capture(source);
     if (path == null || !mounted) return;
 
     setState(() => _uploading = slot);

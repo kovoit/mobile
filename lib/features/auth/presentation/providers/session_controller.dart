@@ -45,6 +45,11 @@ class SessionController extends AsyncNotifier<AppUser?> {
     state = AsyncData(await _repository.updateMode(mode));
   }
 
+  /// Photo de profil (D-19) : l'utilisateur de session est remplacé par le profil renvoyé.
+  Future<void> updatePhoto(String path) async {
+    state = AsyncData(await _repository.updatePhoto(path));
+  }
+
   Future<void> logout() async {
     await _repository.logout();
     state = const AsyncData(null);

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/network/api_service.dart';
+import '../../../../core/services/photo_capture_service.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../data/datasources/auth_remote_data_source.dart';
 import '../../data/datasources/fake_auth_remote_data_source.dart';
@@ -19,6 +20,7 @@ final authRepositoryProvider = Provider<AuthRepository>(
   (ref) => AuthRepositoryImpl(
     remote: ref.watch(authRemoteDataSourceProvider),
     tokenStorage: ref.watch(tokenStorageProvider),
+    capture: ref.watch(profilePhotoCaptureServiceProvider),
   ),
 );
 

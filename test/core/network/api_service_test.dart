@@ -64,7 +64,7 @@ Map<String, dynamic> _profil({String telephone = '+22890123456'}) => {
     };
 
 AuthRepositoryImpl _repository(ApiService api, InMemoryTokenStorage tokens) =>
-    AuthRepositoryImpl(remote: ApiAuthRemoteDataSource(api), tokenStorage: tokens);
+    AuthRepositoryImpl(remote: ApiAuthRemoteDataSource(api), tokenStorage: tokens, capture: FakeCaptureService());
 
 void main() {
   late _FakeServer server;

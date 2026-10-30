@@ -16,13 +16,12 @@ import 'package:kovoit/core/services/push_service.dart';
 import 'package:kovoit/core/mock/fake_driver.dart';
 import 'package:kovoit/core/mock/fake_wallet.dart';
 import 'package:kovoit/core/services/location_service.dart';
+import 'package:kovoit/core/services/photo_capture_service.dart';
 import 'package:kovoit/core/services/external_actions.dart';
 import 'package:kovoit/core/storage/token_storage.dart';
 import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/core/widgets/map_preview.dart';
 import 'package:kovoit/features/auth/presentation/providers/auth_providers.dart';
-import 'package:kovoit/features/kyc/data/services/document_capture_service.dart';
-import 'package:kovoit/features/kyc/presentation/providers/kyc_providers.dart';
 import 'package:kovoit/features/search/domain/repositories/search_repository.dart';
 import 'package:kovoit/features/search/presentation/providers/search_providers.dart';
 import 'package:kovoit/features/wallet/presentation/wallet_providers.dart';
@@ -172,7 +171,7 @@ class InMemoryTokenStorage extends TokenStorage {
 }
 
 /// Appareil photo simulé : renvoie un chemin factice (aucun fichier réel) et trace les suppressions.
-class FakeCaptureService implements DocumentCaptureService {
+class FakeCaptureService implements PhotoCaptureService {
   final List<CaptureSource> requests = [];
   final List<String> discarded = [];
 
@@ -242,7 +241,8 @@ class TestEnv {
   List<Override> get overrides => [
         tokenStorageProvider.overrideWithValue(storage),
         fakeBackendProvider.overrideWithValue(backend),
-        documentCaptureServiceProvider.overrideWithValue(camera),
+        photoCaptureServiceProvider.overrideWithValue(camera),
+        profilePhotoCaptureServiceProvider.overrideWithValue(camera),
         splashMinDurationProvider.overrideWithValue(Duration.zero),
         recentSearchRepositoryProvider.overrideWithValue(recentSearches),
         mapTileProviderProvider.overrideWithValue(TransparentTileProvider()),

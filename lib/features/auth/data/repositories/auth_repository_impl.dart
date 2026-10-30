@@ -1,4 +1,5 @@
 import '../../../../core/network/api_exception.dart';
+import '../../../../core/services/photo_capture_service.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/entities/otp_challenge.dart';
@@ -6,10 +7,13 @@ import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
-  AuthRepositoryImpl({required this._remote, required this._tokenStorage});
+  AuthRepositoryImpl({required this._remote, required this._tokenStorage, required this._capture});
 
   final AuthRemoteDataSource _remote;
   final TokenStorage _tokenStorage;
+
+  /// Supprime la photo de profil temporaire après l'envoi.
+  final PhotoCaptureService _capture;
 
   /// Délai entre deux envois (paramètre backend `otp_delai_renvoi_s`, non renvoyé par l'API).
   static const resendDelay = Duration(seconds: 60);
@@ -56,6 +60,16 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<AppUser> updateMode(UserMode mode) async => (await _remote.updateMode(mode.apiValue)).toEntity();
+
+  @override
+  Future<AppUser> updatePhoto(String path) async {
+    try {
+      return (await _remote.updatePhoto(path)).toEntity();
+    } finally {
+      // Succès ou échec : aucune copie de la photo ne reste sur l'appareil.
+      await _capture.discard(path);
+    }
+  }
 
   @override
   Future<void> deleteAccount(String confirmation) async {

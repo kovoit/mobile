@@ -1,0 +1,37 @@
+{
+  "statut": "success",
+  "message": "Profil mis à jour.",
+  "reponse": {
+    "id": "3f2b8c1e-6a4d-4e2f-9b1a-7c5d2e8f0a11",
+    "email": "ama@exemple.com",
+    "telephone": "+22890112233",
+    "nom": "Mensah",
+    "prenom": "Ama",
+    "photo": "/media/photos_profil/moi.jpg",
+    "email_verifie": true,
+    "mode_actif": "passager",
+    "statut_compte": "actif",
+    "suspendu_jusqu_au": null,
+    "profil_complet": true,
+    "cgu_acceptees": true,
+    "cgu_url": "https://kovoittg.com/conditions-utilisation/",
+    "kyc": {
+      "passager": "verifie",
+      "conducteur": "non_verifie"
+    },
+    "etat": {
+      "badge_kyc": false,
+      "acces": {
+        "peut_rechercher": true,
+        "peut_reserver": true,
+        "peut_publier": false
+      },
+      "mode_conducteur": {
+        "disponible": false,
+        "kyc_conducteur_verifie": false,
+        "vehicule_declare": false
+      },
+      "alertes": []
+    }
+  }
+}

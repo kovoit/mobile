@@ -4,8 +4,10 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kovoit/core/config/env.dart';
 import 'package:kovoit/core/network/api_exception.dart';
 import 'package:kovoit/core/network/api_service.dart';
+import 'package:kovoit/features/auth/data/datasources/auth_remote_data_source.dart';
 import 'package:kovoit/features/booking/data/datasources/booking_remote_data_source.dart';
 import 'package:kovoit/features/driver/data/datasources/driver_remote_data_source.dart';
 import 'package:kovoit/features/driver/data/dto/driver_dto.dart';
@@ -123,6 +125,17 @@ void main() {
     expect(trip.payment!.montantTotal, trip.prixPassager, reason: 'le paiement porte sur le prix du passager');
     expect(trip.pickupPoints, isNotEmpty);
     expect(trip.trace, isNull, reason: 'fixture sans `trace` (trajet publié avant les tracés)');
+  });
+
+  test('détail d’un trajet : photos relatives du conducteur et du véhicule complétées (Q1 révisée, F-003)', () async {
+    backend.routes['GET /trajets/T/'] = 'trajet_detail_photo';
+    final trip = (await ApiTripRemoteDataSource(api).fetchTrip((id: 'T', pickupId: null, arriveeLat: null, arriveeLng: null)))
+        .toEntity();
+    final origin = Uri.parse(Env.apiBaseUrl).origin;
+    expect(trip.driver.photoUrl, '$origin/media/photos_profil/kodjo.jpg');
+    expect(Uri.parse(trip.driver.photoUrl!).isAbsolute, isTrue);
+    expect(trip.driver.photoUrl, isNot(contains('/api/v1')));
+    expect(trip.vehicle.photoUrl, '$origin/media/vehicules/corolla.jpg');
   });
 
   test('détail d’un trajet avec le tracé de la route (contrat C1, F-057)', () async {
@@ -260,6 +273,37 @@ void main() {
     await ApiDevicesRepository(api).registerDevice(token: 'fcm', platform: 'android');
     expect(backend.last.path, '/notifications/appareils/');
     expect(body(), {'jeton': 'fcm', 'plateforme': 'android'});
+  });
+
+  test('photo de profil : PATCH /moi/ en multipart, champ photo (contrat C3, F-003)', () async {
+    final dir = await Directory.systemTemp.createTemp('kovoit_photo_contrat');
+    addTearDown(() => dir.delete(recursive: true));
+    final photo = await File('${dir.path}/moi.jpg').writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+    final remote = ApiAuthRemoteDataSource(api);
+    backend.routes['PATCH /moi/'] = 'moi_photo';
+
+    final profil = await remote.updatePhoto(photo.path);
+
+    expect(backend.last.method, 'PATCH');
+    expect(backend.last.path, '/moi/');
+    final form = backend.last.data as FormData;
+    expect(form.files.map((f) => f.key), ['photo']);
+    expect(form.fields, isEmpty);
+    // Décision Q1 révisée : chemin relatif renvoyé par le backend, complété avec l'origine de l'API.
+    expect(profil.photo, '/media/photos_profil/moi.jpg');
+    expect(profil.toEntity().photoUrl, '${Uri.parse(Env.apiBaseUrl).origin}/media/photos_profil/moi.jpg');
+
+    backend
+      ..status = 400
+      ..routes['PATCH /moi/'] = 'erreur_photo';
+    await expectLater(
+      remote.updatePhoto(photo.path),
+      throwsA(
+        isA<BadRequestApiException>()
+            .having((e) => e.code, 'code', 'DONNEES_INVALIDES')
+            .having((e) => e.fieldErrors['photo'], 'erreurs.photo', contains('image valide')),
+      ),
+    );
   });
 
   test('erreur du backend : code métier conservé', () async {

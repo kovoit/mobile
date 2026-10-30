@@ -46,7 +46,7 @@ class DriverRequestDto {
           prenom: passager.prenom,
           nom: passager.nom,
           verifie: passager.confiance.passagerVerifie,
-          photoUrl: passager.photo,
+          photoUrl: passager.photoUrl,
           note: passager.confiance.noteMoyenne,
         ),
         status: BookingStatus.fromApi(statut),

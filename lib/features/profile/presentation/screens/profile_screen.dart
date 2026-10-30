@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/services/photo_capture_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -20,6 +22,7 @@ import '../../../kyc/presentation/widgets/kyc_labels.dart';
 import '../../../vehicle/presentation/providers/vehicle_providers.dart';
 import '../mode_switcher.dart';
 import '../../../notifications/presentation/notifications_providers.dart';
+import '../widgets/profile_photo_picker.dart';
 import '../widgets/profile_tile.dart';
 
 /// Profil (retour UX du 08/10) : point d'entrée du KYC et du basculement de mode.
@@ -36,6 +39,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _loggingOut = false;
   bool _switching = false;
+  bool _uploadingPhoto = false;
 
   Future<void> _logout() async {
     setState(() => _loggingOut = true);
@@ -48,6 +52,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await switchUserMode(context, ref, user);
     } finally {
       if (mounted) setState(() => _switching = false);
+    }
+  }
+
+  /// Photo de profil (D-19) : prise de vue réduite à la source, envoi, puis profil de session à jour.
+  /// Le fichier temporaire est supprimé par le repository, même en cas d'erreur.
+  Future<void> _changePhoto(CaptureSource source) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final String? path;
+    try {
+      path = await ref.read(profilePhotoCaptureServiceProvider).capture(source);
+    } on Exception {
+      // Permission refusée ou appareil photo indisponible.
+      messenger.showSnackBar(const SnackBar(content: Text('Impossible d’ouvrir l’appareil photo ou la galerie.')));
+      return;
+    }
+    if (path == null) return;
+    if (mounted) setState(() => _uploadingPhoto = true);
+    try {
+      await ref.read(sessionControllerProvider.notifier).updatePhoto(path);
+      messenger.showSnackBar(const SnackBar(content: Text('Photo enregistrée.')));
+    } on BadRequestApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.fieldErrors['photo'] ?? e.message)));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
     }
   }
 
@@ -73,7 +103,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         children: [
           const ScreenHeader(title: 'Profil', subtitle: 'Votre compte, vos vérifications et votre mode.'),
           const SizedBox(height: AppSpacing.lg),
-          _IdentityCard(user: user),
+          _IdentityCard(user: user, isUploadingPhoto: _uploadingPhoto, onPhotoSource: _changePhoto),
           if (user.isSuspended) ...[
             const SizedBox(height: AppSpacing.md),
             AccessRequiredCard(denial: AccessDenial.suspended, suspendedUntil: user.suspenduJusquAu),
@@ -179,16 +209,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 }
 
 class _IdentityCard extends StatelessWidget {
-  const _IdentityCard({required this.user});
+  const _IdentityCard({required this.user, required this.isUploadingPhoto, required this.onPhotoSource});
 
   final AppUser user;
+  final bool isUploadingPhoto;
+  final ValueChanged<CaptureSource> onPhotoSource;
 
   @override
   Widget build(BuildContext context) {
     return KovoitCard(
       child: Row(
         children: [
-          UserAvatar(name: user.nomComplet, photoUrl: user.photoUrl, size: 56),
+          ProfilePhotoPicker(
+            name: user.nomComplet,
+            photoUrl: user.photoUrl,
+            isUploading: isUploadingPhoto,
+            onSourceSelected: onPhotoSource,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(

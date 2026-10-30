@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../../core/network/media_url.dart';
 import '../../domain/entities/app_user.dart';
 
 part 'profil_dto.g.dart';
@@ -63,7 +64,7 @@ class ProfilDto {
         profilComplet: profilComplet,
         cguAcceptees: cguAcceptees,
         cguUrl: cguUrl,
-        photoUrl: photo,
+        photoUrl: resolveMediaUrl(photo),
         modeActif: UserMode.fromApi(modeActif),
         statutCompte: AccountStatus.fromApi(statutCompte),
         suspenduJusquAu: suspenduJusquAu,

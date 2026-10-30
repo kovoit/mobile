@@ -1,13 +1,13 @@
+import '../../../../core/services/photo_capture_service.dart';
 import '../../domain/entities/kyc_dossier.dart';
 import '../../domain/repositories/kyc_repository.dart';
 import '../datasources/kyc_remote_data_source.dart';
-import '../services/document_capture_service.dart';
 
 class KycRepositoryImpl implements KycRepository {
   KycRepositoryImpl(this._remote, this._capture);
 
   final KycRemoteDataSource _remote;
-  final DocumentCaptureService _capture;
+  final PhotoCaptureService _capture;
 
   @override
   Future<Map<KycType, KycDossier>> fetchDossiers() async {

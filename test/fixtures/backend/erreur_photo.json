@@ -1,0 +1,12 @@
+{
+  "statut": "failed",
+  "message": "Les données envoyées sont invalides.",
+  "reponse": {
+    "code": "DONNEES_INVALIDES",
+    "erreurs": {
+      "photo": [
+        "Transférez une image valide. Le fichier que vous avez transféré n'est pas une image, ou il est corrompu."
+      ]
+    }
+  }
+}

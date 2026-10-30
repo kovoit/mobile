@@ -24,12 +24,14 @@ const _profil = ProfilDto(
 void main() {
   late _MockRemote remote;
   late InMemoryTokenStorage storage;
+  late FakeCaptureService capture;
   late AuthRepositoryImpl repository;
 
   setUp(() {
     remote = _MockRemote();
     storage = InMemoryTokenStorage();
-    repository = AuthRepositoryImpl(remote: remote, tokenStorage: storage);
+    capture = FakeCaptureService();
+    repository = AuthRepositoryImpl(remote: remote, tokenStorage: storage, capture: capture);
   });
 
   test('requestCode normalise l’e-mail et renvoie le délai de renvoi', () async {
@@ -86,5 +88,67 @@ void main() {
 
     expect(storage.access, isNull);
     expect(storage.refresh, isNull);
+  });
+
+  group('updatePhoto (D-19, contrat C3)', () {
+    const url = 'https://api.kovoit.tg/media/photos_profil/afi.jpg';
+    const avecPhoto = ProfilDto(
+      id: 'b5a1-uuid',
+      email: 'afi@exemple.com',
+      prenom: 'Afi',
+      nom: 'Amégan',
+      telephone: '+22891234567',
+      photo: url,
+      profilComplet: true,
+      kyc: {'passager': 'en_attente', 'conducteur': 'non_verifie'},
+    );
+
+    test('renvoie le profil avec l’URL absolue de la photo, inchangée, et supprime le fichier', () async {
+      when(() => remote.updatePhoto('/cache/photo.jpg')).thenAnswer((_) async => avecPhoto);
+
+      final user = await repository.updatePhoto('/cache/photo.jpg');
+
+      expect(user.photoUrl, url);
+      expect(capture.discarded, ['/cache/photo.jpg']);
+    });
+
+    test('400 DONNEES_INVALIDES : erreurs.photo remonte, le fichier est quand même supprimé', () async {
+      when(() => remote.updatePhoto('/cache/photo.jpg')).thenThrow(
+        ApiException.fromResponse(400, {
+          'statut': 'failed',
+          'message': 'Les données envoyées sont invalides.',
+          'reponse': {
+            'code': 'DONNEES_INVALIDES',
+            'erreurs': {
+              'photo': ['Transférez une image valide.'],
+            },
+          },
+        }),
+      );
+
+      await expectLater(
+        repository.updatePhoto('/cache/photo.jpg'),
+        throwsA(
+          isA<BadRequestApiException>()
+              .having((e) => e.code, 'code', 'DONNEES_INVALIDES')
+              .having((e) => e.fieldErrors['photo'], 'erreurs.photo', 'Transférez une image valide.'),
+        ),
+      );
+      expect(capture.discarded, ['/cache/photo.jpg']);
+    });
+
+    test('erreur réseau : le fichier est supprimé, l’erreur est propagée', () async {
+      when(() => remote.updatePhoto('/cache/photo.jpg')).thenThrow(const NetworkApiException());
+
+      await expectLater(repository.updatePhoto('/cache/photo.jpg'), throwsA(isA<NetworkApiException>()));
+      expect(capture.discarded, ['/cache/photo.jpg']);
+    });
+
+    test('403 (compte bloqué côté serveur) : le fichier est supprimé, l’erreur est propagée', () async {
+      when(() => remote.updatePhoto('/cache/photo.jpg')).thenThrow(const ForbiddenApiException('Refusé.'));
+
+      await expectLater(repository.updatePhoto('/cache/photo.jpg'), throwsA(isA<ForbiddenApiException>()));
+      expect(capture.discarded, ['/cache/photo.jpg']);
+    });
   });
 }

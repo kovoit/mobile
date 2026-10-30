@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/network/api_service.dart';
+import '../../../../core/services/photo_capture_service.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
 import '../../data/datasources/kyc_remote_data_source.dart';
 import '../../data/repositories/kyc_repository_impl.dart';
-import '../../data/services/document_capture_service.dart';
 import '../../domain/entities/kyc_dossier.dart';
 import '../../domain/repositories/kyc_repository.dart';
 
@@ -15,10 +15,8 @@ final kycRemoteDataSourceProvider = Provider<KycRemoteDataSource>((ref) {
   return ApiKycRemoteDataSource(ref.watch(apiServiceProvider));
 });
 
-final documentCaptureServiceProvider = Provider<DocumentCaptureService>((ref) => ImagePickerCaptureService());
-
 final kycRepositoryProvider = Provider<KycRepository>(
-  (ref) => KycRepositoryImpl(ref.watch(kycRemoteDataSourceProvider), ref.watch(documentCaptureServiceProvider)),
+  (ref) => KycRepositoryImpl(ref.watch(kycRemoteDataSourceProvider), ref.watch(photoCaptureServiceProvider)),
 );
 
 /// Dossiers KYC de l'utilisateur connecté (passager et conducteur).

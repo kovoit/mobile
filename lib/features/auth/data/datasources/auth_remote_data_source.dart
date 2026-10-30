@@ -25,6 +25,10 @@ abstract interface class AuthRemoteDataSource {
   /// `passager` | `conducteur`. 403 si le mode conducteur n'est pas autorisé.
   Future<ProfilDto> updateMode(String mode);
 
+  /// `PATCH /moi/` en multipart, champ `photo` (contrat C3). 400 `DONNEES_INVALIDES` avec
+  /// `erreurs.photo` si le fichier n'est pas une image acceptée.
+  Future<ProfilDto> updatePhoto(String filePath);
+
   Future<void> logout(String refreshToken);
 
   /// Compte anonymisé côté serveur. `ConflictApiException` (SUPPRESSION_IMPOSSIBLE) avec les
@@ -72,6 +76,14 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
   @override
   Future<ProfilDto> updateMode(String mode) =>
       _api.patch(ApiEndpoints.moiMode, body: {'mode_actif': mode}, parse: _profil);
+
+  @override
+  Future<ProfilDto> updatePhoto(String filePath) => _api.upload(
+        ApiEndpoints.moi,
+        method: 'PATCH',
+        files: [UploadFile(field: 'photo', path: filePath)],
+        parse: _profil,
+      );
 
   @override
   Future<void> deleteAccount(String confirmation) =>

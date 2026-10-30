@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/network/api_exception.dart';
+import 'package:kovoit/core/services/photo_capture_service.dart';
 import 'package:kovoit/features/auth/domain/entities/app_user.dart';
 import 'package:kovoit/features/kyc/data/datasources/kyc_remote_data_source.dart';
 import 'package:kovoit/features/kyc/data/dto/kyc_dossier_dto.dart';
 import 'package:kovoit/features/kyc/data/repositories/kyc_repository_impl.dart';
-import 'package:kovoit/features/kyc/data/services/document_capture_service.dart';
 import 'package:kovoit/features/kyc/domain/entities/kyc_dossier.dart';
 import 'package:mocktail/mocktail.dart';
 

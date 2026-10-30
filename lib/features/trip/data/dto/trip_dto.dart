@@ -1,5 +1,6 @@
 import 'package:json_annotation/json_annotation.dart';
 
+import '../../../../core/network/media_url.dart';
 import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/entities/geo_place.dart';
 import '../../domain/entities/trip.dart';
@@ -87,13 +88,16 @@ class PersonDto {
   final String? photo;
   final TrustDto confiance;
 
+  /// [photo] complétée avec l'origine de l'API (le backend renvoie `/media/…`).
+  String? get photoUrl => resolveMediaUrl(photo);
+
   Map<String, dynamic> toJson() => _$PersonDtoToJson(this);
 
   TripDriver toDriver() => TripDriver(
         id: id,
         prenom: prenom,
         nom: nom,
-        photoUrl: photo,
+        photoUrl: photoUrl,
         verifie: confiance.conducteurVerifie,
         note: confiance.noteMoyenne,
         fiabilite: confiance.fiabilitePct,
@@ -131,7 +135,7 @@ class TripVehicleDto {
         modele: modele,
         couleur: couleur,
         immatriculation: immatriculation,
-        photoUrl: photo,
+        photoUrl: resolveMediaUrl(photo),
       );
 }
 
