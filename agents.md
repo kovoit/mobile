@@ -1,6 +1,8 @@
 ﻿# agents.md — Agents spécialisés Kovoit Mobile
 
-Chaque agent a un périmètre, des fichiers dont il est responsable, des règles et une définition de « terminé ». Tous respectent [claude.md](claude.md) (méthode) et [PRD.md](PRD.md) (métier).
+Chaque agent a un périmètre, des fichiers dont il est responsable, des règles et une définition de « terminé ». Tous respectent [claude.md](claude.md) (méthode) et [PRD.md](PRD.md) (métier). Les décisions du cadrage (`pilotage/cadrage.md`, section « Décisions ») l'emportent sur ces deux documents tant qu'ils ne sont pas alignés.
+
+Ces agents sont installés dans `.claude/agents/` (un fichier par agent, qui fait foi en cas d'écart avec ce résumé) et reliés depuis `groupe_7_kovoit/.claude/agents/`, où le `chef-projet` les appelle. Trois noms portent le préfixe `mobile-` pour ne pas se confondre avec les agents du back-office : `mobile-prd-guardian`, `mobile-api-integration`, `mobile-qa-tester`.
 
 **Règles communes à tous les agents**
 - Lire le PRD, la section concernée de `claude.md` et la maquette Figma (`docs/Nana Tech.zip`) avant d'écrire du code.
@@ -10,12 +12,12 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 
 ---
 
-## 1. `prd-guardian` : gardien du périmètre
+## 1. `mobile-prd-guardian` : gardien du périmètre
 
 **Mission :** vérifier que toute demande ou tout changement reste dans le MVP et respecte le PRD.
 
 - **Intervient :** avant chaque nouvelle fonctionnalité et en revue finale.
-- **Contrôle :** pas de messagerie, Mobile Money, portefeuille, OCR KYC, trajets interurbains, trajets récurrents ni IA ; pas de calcul métier dans le mobile ; code de départ jamais visible côté conducteur.
+- **Contrôle :** pas de messagerie, d'espèces, de liste de notifications in-app, d'OCR KYC, de trajets interurbains ou récurrents ni d'IA (le portefeuille Flooz / Mixx via PayGate fait partie du MVP depuis le 22/10) ; pas de calcul métier dans le mobile ; code de départ jamais visible côté conducteur.
 - **Livrable :** verdict « conforme / non conforme » avec les références PRD (§ et critère CA).
 - **Ne fait pas :** écrire du code de production.
 
@@ -37,7 +39,7 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 - **Ne fait pas :** appeler l'API directement ; il consomme des providers.
 - **Terminé quand :** l'écran correspond à la maquette, avec un widget test de rendu de base.
 
-## 4. `api-integration` : intégration backend
+## 4. `mobile-api-integration` : intégration backend
 
 **Mission :** couche `data` : DTO, datasources, repositories, client HTTP.
 
@@ -68,14 +70,14 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
   - Annulation : confirmation explicite ; l'avertissement « annulation tardive » vient de l'API.
   - Mises à jour : rafraîchissement à la réception d'une notification push et au retour sur l'écran.
   - Droits : « Réserver » et « Publier » consultent `AccessPolicy` ; en cas de refus, afficher `AccessRequiredCard` (renvoi vers le Profil / KYC), sans masquer la consultation.
-  - Paiement (écran Détails & Réservation) : Espèces, **Flooz** (Moov Africa) ou **Mixx** (Togocom), au choix du passager (D5/D7). Paiement mobile après acceptation seulement. Jamais « T-Money ».
+  - Paiement (écran Détails & Réservation) : par le **portefeuille** (décision du 22/10, remplace D5/D7) ; montant bloqué à la demande, débité à la prise en charge ; solde insuffisant → recharge **Flooz** (Moov Africa) ou **Mixx** (Togocom) via PayGate. Pas d'espèces. Jamais « T-Money ».
   - Après le trajet : `confirmer`, `noter`, `signaler` (réservation) et `noter`, `signaler` (demande vue par le conducteur), toujours selon `actions`. Notation via `RatingSheet`, signalement via la route `/signaler/:id`.
   - Notifications : toute nouvelle notification rafraîchit l'écran concerné (`NotificationsController`) ; le push passe par `PushService`, jamais directement par Firebase dans un écran.
   - Actions d'une réservation : uniquement celles du champ `actions` de l'API (`Booking.can`). Appel et partage via `ExternalActions` (simulable en test).
   - Espace Conducteur : pas de toggle Passager/Conducteur (la bascule est dans le Profil). Prix recommandé fourni par l'API (`/trajets/prix/`), jamais saisi. Le conducteur **saisit** le code de départ (`DepartureCodeDialog`), il ne le voit jamais. Absence : position via `LocationService`.
 - **Terminé quand :** les critères CA1–CA6 du PRD concernés sont couverts par des tests.
 
-## 7. `qa-tester` : qualité et tests
+## 7. `mobile-qa-tester` : qualité et tests
 
 **Mission :** garantir la non-régression et la couverture des critères d'acceptation.
 
@@ -83,29 +85,44 @@ Chaque agent a un périmètre, des fichiers dont il est responsable, des règles
 - **Règles :** un test par critère d'acceptation (CA1–CA6) ; tests des providers avec `ProviderContainer` et repositories mockés (`mocktail`) ; widget tests des écrans clés ; tests des guards (non vérifié, KYC en attente, suspendu) ; vérifier que le code de départ n'apparaît dans aucune vue conducteur.
 - **Livrable :** rapport des tests ajoutés et des cas non couverts.
 
+## 8. `flutter-mobile-dev` : développeur généraliste
+
+**Mission :** fonctionnalités sans agent spécialisé et correctifs transverses.
+
+- **Responsable de :** `features/wallet`, `features/profile`, `features/notifications`, et les correctifs qui touchent plusieurs features.
+- **Règles :** celles de `claude.md` et des agents ci-dessus (couche données comme `mobile-api-integration`, écrans comme `ui-figma-integrator`).
+- **Terminé quand :** `flutter analyze` et `flutter test` passent, avec des tests pour ce qui a changé.
+
+## 9. `mobile-security-reviewer` : revue sécurité
+
+**Mission :** relire le diff mobile qui touche auth, KYC, photos, code de départ, partage, portefeuille ou configuration réseau.
+
+- **Contrôle :** jetons dans `flutter_secure_storage` uniquement, aucun log du code de départ ni des pièces, cache des photos supprimé après envoi, pas d'URL publique, pas de `http://` en production, liens profonds gardés, mode démo absent en production, aucun secret commité.
+- **Livrable :** rapport par point (OK / faille, gravité, `fichier:ligne`, correction). **Ne fait pas :** modifier le code.
+
 ---
 
 ## Enchaînement type d'une fonctionnalité
 
 ```
-prd-guardian (périmètre OK ?)
-   → flutter-architect (squelette si nouvelle feature)
-   → api-integration (domain + data, mock si API absente)
-   → auth-kyc | booking-flow (providers + logique d'écran)
+mobile-prd-guardian (périmètre OK ?)
+   → flutter-architect (plan validé ; squelette si nouvelle feature)
+   → mobile-api-integration (domain + data, FakeBackend si API absente)
+   → auth-kyc | booking-flow | flutter-mobile-dev (providers + logique d'écran)
    → ui-figma-integrator (écran fidèle Figma)
-   → qa-tester (tests CA)
-   → prd-guardian (revue finale)
+   → mobile-qa-tester (tests CA)
+   → mobile-prd-guardian + mobile-security-reviewer (revue finale)
 ```
 
 ## Correspondance sprints → agents
 
 | Sprint | Agent principal | Support |
 |---|---|---|
-| S0 Socle | flutter-architect | ui-figma-integrator, api-integration |
-| S1 Auth | auth-kyc | api-integration, ui-figma-integrator |
-| S2 KYC + Véhicule | auth-kyc | api-integration, ui-figma-integrator |
-| S3 Recherche | booking-flow | api-integration, ui-figma-integrator |
-| S4 Réservation passager | booking-flow | qa-tester |
-| S5 Conducteur | booking-flow | qa-tester |
-| S6 Après trajet | booking-flow | qa-tester |
-| S7 Qualité | qa-tester | prd-guardian |
+| S0 Socle | flutter-architect | ui-figma-integrator, mobile-api-integration |
+| S1 Auth | auth-kyc | mobile-api-integration, ui-figma-integrator |
+| S2 KYC + Véhicule | auth-kyc | mobile-api-integration, ui-figma-integrator |
+| S3 Recherche | booking-flow | mobile-api-integration, ui-figma-integrator |
+| S4 Réservation passager | booking-flow | mobile-qa-tester |
+| S5 Conducteur | booking-flow | mobile-qa-tester |
+| S6 Après trajet | booking-flow | mobile-qa-tester |
+| S7 Qualité | mobile-qa-tester | mobile-prd-guardian |
