@@ -219,6 +219,21 @@ void main() {
       expect(backend.codesSent, isEmpty);
     });
 
+    test('renvoyer-code dans le délai de renvoi d’un compte non vérifié : 429, puis 200 après 60 s', () async {
+      await register();
+      now = now.add(const Duration(seconds: 59));
+      await expectLater(
+        remote.resendVerificationCode('afi@exemple.com'),
+        throwsA(
+          isA<TooManyAttemptsApiException>()
+              .having((e) => e.code, 'code', 'TROP_DE_REQUETES')
+              .having((e) => e.message, 'message', 'Patientez 60 secondes avant de demander un nouveau code.'),
+        ),
+      );
+      now = now.add(const Duration(seconds: 1));
+      expect((await remote.resendVerificationCode('afi@exemple.com')).delaiRenvoiS, 60);
+    });
+
     test('renvoyer-code : 429 au plafond horaire d’un compte non vérifié', () async {
       await register();
       for (var i = 1; i < FakeBackend.otpMaxPerHour; i++) {
@@ -228,7 +243,11 @@ void main() {
       now = now.add(const Duration(minutes: 2));
       await expectLater(
         remote.resendVerificationCode('afi@exemple.com'),
-        apiError<TooManyAttemptsApiException>('TROP_DE_REQUETES'),
+        throwsA(
+          isA<TooManyAttemptsApiException>()
+              .having((e) => e.code, 'code', 'TROP_DE_REQUETES')
+              .having((e) => e.message, 'message', 'Trop de codes demandés. Réessayez dans une heure.'),
+        ),
       );
     });
   });
@@ -240,6 +259,23 @@ void main() {
       expect(code.email, 'inconnu@exemple.com');
       expect(code.delaiRenvoiS, 60);
       expect(backend.codesSent, isEmpty);
+    });
+
+    test('compte éligible dans le délai de renvoi : 429 ; adresse inconnue : toujours 200', () async {
+      await remote.requestPasswordReset(DemoAccount.email);
+      await expectLater(
+        remote.requestPasswordReset(DemoAccount.email),
+        throwsA(
+          isA<TooManyAttemptsApiException>()
+              .having((e) => e.code, 'code', 'TROP_DE_REQUETES')
+              .having((e) => e.message, 'message', 'Patientez 60 secondes avant de demander un nouveau code.'),
+        ),
+      );
+      for (var i = 0; i < 2; i++) {
+        expect((await remote.requestPasswordReset('inconnu@exemple.com')).email, 'inconnu@exemple.com');
+      }
+      now = now.add(const Duration(seconds: 60));
+      expect((await remote.requestPasswordReset(DemoAccount.email)).delaiRenvoiS, 60);
     });
 
     test('mot de passe faible contrôlé avant le code : le code reste valable', () async {

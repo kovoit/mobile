@@ -70,6 +70,8 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
   }
 
   Future<void> _verify() async {
+    if (_verifying) return;
+    final verification = ref.read(emailVerificationControllerProvider.notifier);
     final email = ref.read(emailVerificationControllerProvider).email;
     final code = _code.text;
     if (email == null) return;
@@ -84,7 +86,8 @@ class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScree
     });
     try {
       await ref.read(sessionControllerProvider.notifier).verifyEmail(email: email, code: code);
-      ref.read(emailVerificationControllerProvider.notifier).reset();
+      // Notifier lu avant l'attente : l'écran peut déjà être démonté par la redirection.
+      verification.reset();
     } catch (e) {
       if (!mounted) return;
       setState(() => _codeError = authFieldErrors(e)['code'] ?? authErrorMessage(e));

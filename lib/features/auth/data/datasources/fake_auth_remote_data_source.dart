@@ -140,8 +140,11 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
     await _backend.wait();
     final normalized = _normalize(email);
     final user = _backend.userByEmail(normalized);
-    // Adresse inconnue ou déjà vérifiée : même réponse, rien n'est envoyé (D-75).
-    if (user != null && user.fields['email_verifie'] != true) _backend.sendCode(_verification, normalized);
+    // Adresse inconnue ou déjà vérifiée : même réponse, rien n'est envoyé (D-75). Compte non vérifié
+    // dans le délai de renvoi ou au plafond horaire : 429 `TROP_DE_REQUETES` (contrat M-004).
+    if (user != null && user.fields['email_verifie'] != true) {
+      _backend.sendCode(_verification, normalized, strict: true);
+    }
     return _codeEnvoye(normalized);
   }
 
@@ -173,7 +176,10 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
     await _backend.wait();
     final normalized = _normalize(email);
     // Adresse inconnue : même réponse, aucun code (pas de compte `is_staff` dans le faux serveur).
-    if (_backend.userByEmail(normalized) != null) _backend.sendCode(_reinitialisation, normalized);
+    // Compte éligible dans le délai de renvoi ou au plafond horaire : 429 `TROP_DE_REQUETES`.
+    if (_backend.userByEmail(normalized) != null) {
+      _backend.sendCode(_reinitialisation, normalized, strict: true);
+    }
     return _codeEnvoye(normalized);
   }
 

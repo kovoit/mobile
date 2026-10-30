@@ -69,7 +69,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               cguAcceptees: _termsAccepted,
             ),
           );
-      if (mounted) unawaited(context.push(Routes.emailVerification));
+      if (!mounted) return;
+      unawaited(context.push(Routes.emailVerification));
+      // Retour par « Modifier mon e-mail » : identité gardée, mot de passe redemandé.
+      _password.clear();
+      _confirmation.clear();
     } catch (e) {
       if (!mounted) return;
       final fields = authFieldErrors(e);

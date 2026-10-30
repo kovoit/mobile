@@ -60,7 +60,8 @@ class PasswordResetController extends Notifier<PasswordResetState> {
   }
 
   /// Étape 2 : l'erreur (`MOT_DE_PASSE_FAIBLE`, `CODE_OTP_INVALIDE`) est levée pour l'écran.
-  /// Succès : l'écran renvoie à la Connexion (l'état est remis à zéro à la prochaine ouverture).
+  /// Succès : l'écran renvoie à la Connexion ; le provider (`autoDispose`) est libéré avec l'écran,
+  /// l'adresse ne reste pas en mémoire.
   Future<void> reset({required String code, required String password}) async {
     final email = state.email;
     if (email == null) return;
@@ -71,5 +72,6 @@ class PasswordResetController extends Notifier<PasswordResetState> {
   void restart() => state = const PasswordResetState();
 }
 
+/// `autoDispose` : l'état (adresse comprise) disparaît quand l'écran Mot de passe oublié est fermé.
 final passwordResetControllerProvider =
-    NotifierProvider<PasswordResetController, PasswordResetState>(PasswordResetController.new);
+    NotifierProvider.autoDispose<PasswordResetController, PasswordResetState>(PasswordResetController.new);

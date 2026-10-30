@@ -282,17 +282,24 @@ class FakeBackend {
   static const int otpMaxPerHour = 5;
   static const int loginMaxPerMinute = 5;
 
-  /// Envoie (simulé) un code [objet] à [email]. `false` sans envoi si le délai de renvoi court
-  /// encore ; 429 `TROP_DE_REQUETES` au plafond horaire.
-  bool sendCode(String objet, String email) {
+  /// Envoie (simulé) un code [objet] à [email]. Dans le délai de renvoi : `false` sans envoi, ou
+  /// 429 `TROP_DE_REQUETES` si [strict] (`renvoyer-code`, `mot-de-passe/oublie`) ; 429 au plafond
+  /// horaire.
+  bool sendCode(String objet, String email, {bool strict = false}) {
     final now = clock();
     final last = codesSent['$objet:$email'];
-    if (last != null && now.difference(last) < otpResendDelay) return false;
+    if (last != null && now.difference(last) < otpResendDelay) {
+      if (!strict) return false;
+      throw TooManyAttemptsApiException(
+        'Patientez ${otpResendDelay.inSeconds} secondes avant de demander un nouveau code.',
+        code: 'TROP_DE_REQUETES',
+      );
+    }
     final sends = _sendsByEmail.putIfAbsent(email, () => [])
       ..removeWhere((t) => now.difference(t) >= const Duration(hours: 1));
     if (sends.length >= otpMaxPerHour) {
       throw const TooManyAttemptsApiException(
-        'Trop de codes demandés. Réessayez plus tard.',
+        'Trop de codes demandés. Réessayez dans une heure.',
         code: 'TROP_DE_REQUETES',
       );
     }
