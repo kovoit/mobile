@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/features/search/domain/entities/search_query.dart';
 import 'package:kovoit/features/trip/domain/entities/geo_place.dart';
+import 'package:kovoit/features/vehicle/domain/entities/vehicle.dart';
 
 const _franciscain = GeoPlace(
   id: 'lieu-1',
@@ -35,6 +36,42 @@ void main() {
     expect(parsed.depart.type, GeoPlaceType.carrefour);
     expect(parsed.arrivee.quartier, 'Tokoin');
     expect(parsed.dateTime, DateTime.utc(2026, 10, 8, 7, 30));
+  });
+
+  group('type de véhicule (F-055)', () {
+    SearchQuery query([VehicleType? type]) => SearchQuery(
+          depart: _franciscain,
+          arrivee: _universite,
+          dateTime: DateTime.utc(2026, 10, 8, 7, 30),
+          vehicleType: type,
+        );
+    SearchQuery roundTrip(SearchQuery q) => SearchQuery.fromQueryParameters(
+          Uri.parse(Uri(path: '/accueil/resultats', queryParameters: q.toQueryParameters()).toString())
+              .queryParameters,
+        )!;
+
+    test('« Moto » et « Voiture » survivent à l’aller-retour par l’URL', () {
+      expect(query(VehicleType.moto).toQueryParameters()['type'], 'moto');
+      expect(roundTrip(query(VehicleType.moto)).vehicleType, VehicleType.moto);
+      expect(roundTrip(query(VehicleType.voiture)).vehicleType, VehicleType.voiture);
+    });
+
+    test('« Tous » : pas de paramètre dans l’URL', () {
+      expect(query().toQueryParameters().containsKey('type'), isFalse);
+      expect(roundTrip(query()).vehicleType, isNull);
+    });
+
+    test('valeur inconnue dans l’URL → tous les types', () {
+      final params = {...query().toQueryParameters(), 'type': 'camion'};
+      expect(SearchQuery.fromQueryParameters(params)!.vehicleType, isNull);
+    });
+
+    test('le type fait partie de l’égalité (clé du provider des résultats)', () {
+      expect(query(VehicleType.moto), query(VehicleType.moto));
+      expect(query(VehicleType.moto).hashCode, query(VehicleType.moto).hashCode);
+      expect(query(VehicleType.moto), isNot(query()));
+      expect(query(VehicleType.moto), isNot(query(VehicleType.voiture)));
+    });
   });
 
   test('URL incomplète ou abîmée → null', () {

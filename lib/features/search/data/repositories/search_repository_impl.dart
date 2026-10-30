@@ -21,6 +21,7 @@ class SearchRepositoryImpl implements SearchRepository {
       arriveeLat: query.arrivee.lat,
       arriveeLng: query.arrivee.lng,
       dateHeure: query.dateTime,
+      typeVehicule: query.vehicleType?.apiValue,
     ));
     return SearchResult(trips: [for (final m in matches) m.toEntity()]);
   }

@@ -12,6 +12,8 @@ typedef SearchParams = ({
   double arriveeLat,
   double arriveeLng,
   DateTime dateHeure,
+  // `voiture` | `moto` ; `null` = tous les types (paramètre absent de la requête).
+  String? typeVehicule,
 });
 
 abstract interface class SearchRemoteDataSource {
@@ -42,6 +44,7 @@ class ApiSearchRemoteDataSource implements SearchRemoteDataSource {
           'arrivee_lat': p.arriveeLat,
           'arrivee_lng': p.arriveeLng,
           'date_heure': p.dateHeure.toUtc().toIso8601String(),
+          if (p.typeVehicule != null) 'type_vehicule': p.typeVehicule,
         },
         parse: (json) => [for (final item in ApiService.asList(json)) SearchMatchDto.fromJson(ApiService.asMap(item))],
       );
@@ -69,6 +72,7 @@ class FakeSearchRemoteDataSource implements SearchRemoteDataSource {
       arriveeLat: p.arriveeLat,
       arriveeLng: p.arriveeLng,
       dateHeure: p.dateHeure,
+      typeVehicule: p.typeVehicule,
     );
     return [for (final json in results) SearchMatchDto.fromJson(json)];
   }

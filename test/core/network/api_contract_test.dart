@@ -86,17 +86,32 @@ void main() {
       arriveeLat: 6.13,
       arriveeLng: 1.222,
       dateHeure: DateTime.utc(2026, 10, 22, 9),
+      typeVehicule: null,
     ));
     expect(
       backend.last.queryParameters.keys,
       containsAll(['depart_lat', 'depart_lng', 'arrivee_lat', 'arrivee_lng', 'date_heure']),
     );
     expect(backend.last.queryParameters.keys, isNot(contains('places')), reason: 'une réservation = une place');
+    expect(backend.last.queryParameters.keys, isNot(contains('type_vehicule')), reason: '« Tous » : paramètre absent');
     final trip = matches.single.toEntity();
     expect(trip.matchedPickupId, matches.single.pointPropose.id);
     expect(trip.walkingDistanceKm, isNotNull);
     expect(trip.driver.verifie, isTrue);
     expect(trip.prixPassager, matches.single.prixPassager, reason: 'prix du passager renvoyé par la recherche');
+  });
+
+  test('recherche filtrée par type de véhicule (contrat C2, F-055)', () async {
+    backend.routes['GET /trajets/recherche/'] = 'recherche';
+    await ApiSearchRemoteDataSource(api).search((
+      departLat: 6.175,
+      departLng: 1.17,
+      arriveeLat: 6.13,
+      arriveeLng: 1.222,
+      dateHeure: DateTime.utc(2026, 10, 22, 9),
+      typeVehicule: 'moto',
+    ));
+    expect(backend.last.queryParameters['type_vehicule'], 'moto');
   });
 
   test('détail d’un trajet avec l’aperçu du paiement', () async {

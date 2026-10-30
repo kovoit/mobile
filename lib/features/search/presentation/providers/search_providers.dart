@@ -7,6 +7,7 @@ import '../../../../core/network/api_service.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../core/utils/lome_time.dart';
 import '../../../trip/domain/entities/geo_place.dart';
+import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../data/datasources/search_remote_data_source.dart';
 import '../../data/repositories/recent_search_repository_impl.dart';
 import '../../data/repositories/search_repository_impl.dart';
@@ -42,13 +43,17 @@ enum SearchFormField { depart, arrivee, dateTime }
 /// Brouillon du formulaire « Rechercher un trajet ». Conservé tant que l'app est ouverte,
 /// pour retrouver ses critères en revenant des résultats.
 class SearchForm {
-  const SearchForm({required this.dateTime, this.depart, this.arrivee, this.errors = const {}});
+  const SearchForm({required this.dateTime, this.depart, this.arrivee, this.vehicleType, this.errors = const {}});
 
   final GeoPlace? depart;
   final GeoPlace? arrivee;
   final DateTime dateTime;
+
+  /// Filtre Moto / Voiture (D-12) ; `null` = « Tous » (par défaut).
+  final VehicleType? vehicleType;
   final Map<SearchFormField, String> errors;
 
+  /// Garde [vehicleType] : pour revenir à « Tous » (`null`), voir [SearchFormController.setVehicleType].
   SearchForm copyWith({
     GeoPlace? depart,
     GeoPlace? arrivee,
@@ -59,6 +64,7 @@ class SearchForm {
         depart: depart ?? this.depart,
         arrivee: arrivee ?? this.arrivee,
         dateTime: dateTime ?? this.dateTime,
+        vehicleType: vehicleType,
         errors: errors ?? this.errors,
       );
 }
@@ -87,14 +93,32 @@ class SearchFormController extends Notifier<SearchForm> {
         errors: _without(SearchFormField.dateTime),
       );
 
+  /// « Tous » (`null`), « Moto » ou « Voiture ». Posé sans [SearchForm.copyWith], qui ne sait pas remettre `null`.
+  void setVehicleType(VehicleType? type) => state = SearchForm(
+        depart: state.depart,
+        arrivee: state.arrivee,
+        dateTime: state.dateTime,
+        vehicleType: type,
+        errors: state.errors,
+      );
+
   void swapPlaces() {
     if (state.depart == null && state.arrivee == null) return;
-    state = SearchForm(depart: state.arrivee, arrivee: state.depart, dateTime: state.dateTime);
+    state = SearchForm(
+      depart: state.arrivee,
+      arrivee: state.depart,
+      dateTime: state.dateTime,
+      vehicleType: state.vehicleType,
+    );
   }
 
-  /// Reprend une recherche récente (lieux ; l'heure reste celle choisie).
-  void applyRecent(RecentSearch recent) =>
-      state = SearchForm(depart: recent.depart, arrivee: recent.arrivee, dateTime: state.dateTime);
+  /// Reprend une recherche récente (lieux ; l'heure et le type de véhicule restent ceux choisis).
+  void applyRecent(RecentSearch recent) => state = SearchForm(
+        depart: recent.depart,
+        arrivee: recent.arrivee,
+        dateTime: state.dateTime,
+        vehicleType: state.vehicleType,
+      );
 
   /// Valide le formulaire (contrôles de saisie uniquement) et renvoie la requête, ou `null`.
   SearchQuery? submit() {
@@ -108,7 +132,12 @@ class SearchFormController extends Notifier<SearchForm> {
     };
     state = state.copyWith(errors: errors);
     if (errors.isNotEmpty) return null;
-    return SearchQuery(depart: state.depart!, arrivee: state.arrivee!, dateTime: state.dateTime);
+    return SearchQuery(
+      depart: state.depart!,
+      arrivee: state.arrivee!,
+      dateTime: state.dateTime,
+      vehicleType: state.vehicleType,
+    );
   }
 }
 

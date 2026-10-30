@@ -52,6 +52,28 @@ void main() {
     expect(find.text('Adidogomé → Université de Lomé'), findsOneWidget);
   });
 
+  testWidgets('CA-055-1 : filtre Moto → seul le trajet moto ; Tous → voitures et moto', (tester) async {
+    await pumpKovoitApp(tester, env: TestEnv.demoSession());
+
+    expect(find.text('Tous'), findsOneWidget, reason: '« Tous » par défaut (CA-055-2)');
+    await scrollAndTap(tester, find.text('Moto'));
+    await _searchFranciscainToUniversity(tester);
+
+    expect(find.text('1 trajet disponible'), findsOneWidget);
+    expect(find.text('Yawo Dzidzo'), findsOneWidget);
+    expect(find.text('Koffi Mensah'), findsNothing);
+
+    // Retour au formulaire : le filtre est conservé, puis « Tous » rend les deux types.
+    await tester.tap(find.byIcon(Icons.chevron_left_rounded));
+    await tester.pumpAndSettle();
+    await scrollAndTap(tester, find.text('Tous'));
+    await scrollAndTap(tester, find.widgetWithText(FilledButton, 'Rechercher un trajet'));
+
+    expect(find.text('4 trajets disponibles'), findsOneWidget);
+    expect(find.text('Koffi Mensah'), findsOneWidget);
+    expect(find.text('Yawo Dzidzo'), findsOneWidget);
+  });
+
   testWidgets('Validation : départ et destination obligatoires', (tester) async {
     await pumpKovoitApp(tester, env: TestEnv.demoSession());
 

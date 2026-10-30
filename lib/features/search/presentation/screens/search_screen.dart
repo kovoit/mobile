@@ -13,6 +13,7 @@ import '../../../auth/domain/access_policy.dart';
 import '../../../auth/presentation/providers/session_controller.dart';
 import '../../../kyc/presentation/widgets/access_required_card.dart';
 import '../../../trip/domain/entities/geo_place.dart';
+import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/repositories/search_repository.dart';
 import '../providers/search_providers.dart';
 
@@ -72,6 +73,17 @@ class SearchScreen extends ConsumerWidget {
             AccessRequiredCard(denial: bookingDenial, suspendedUntil: user?.suspenduJusquAu),
             const SizedBox(height: AppSpacing.md),
           ],
+          // Filtre Moto / Voiture (D-12) : appliqué par le backend (`type_vehicule`).
+          SegmentedToggle<VehicleType?>(
+            selected: form.vehicleType,
+            onChanged: ref.read(searchFormProvider.notifier).setVehicleType,
+            options: const [
+              SegmentedOption(value: null, label: 'Tous', icon: Icons.commute_rounded),
+              SegmentedOption(value: VehicleType.moto, label: 'Moto', icon: Icons.two_wheeler_rounded),
+              SegmentedOption(value: VehicleType.voiture, label: 'Voiture', icon: Icons.directions_car_filled_outlined),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
           KovoitCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

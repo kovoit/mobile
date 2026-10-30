@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import '../network/api_exception.dart';
+
 /// Données et règles **serveur** simulées pour la recherche (`Env.useMockApi`).
 /// Le JSON suit exactement le backend (TrajetSerializer, ResultatRechercheSerializer,
 /// LieuConnuSerializer) ; il n'est jamais utilisé avec le vrai backend.
@@ -142,19 +144,33 @@ abstract final class FakeTrips {
     return lieux.where((l) => normalize('${l['libelle']} ${l['quartier']}').contains(q)).take(20).toList();
   }
 
+  /// Valeurs acceptées par le filtre `type_vehicule` de la recherche (contrat C2, F-055).
+  static const typesVehicule = {'voiture', 'moto'};
+
   /// `GET /trajets/recherche/` : liste de `{trajet, point_propose, distance_marche_km,
   /// ecart_minutes}`, triée par heure de départ puis distance de marche (comme le serveur).
+  /// [typeVehicule] absent ou vide → tous les types ; valeur inconnue → 400 `DONNEES_INVALIDES`.
   static List<Map<String, dynamic>> search({
     required double departLat,
     required double departLng,
     required double arriveeLat,
     required double arriveeLng,
     required DateTime dateHeure,
+    String? typeVehicule,
   }) {
+    final type = (typeVehicule == null || typeVehicule.isEmpty) ? null : typeVehicule;
+    if (type != null && !typesVehicule.contains(type)) {
+      throw const BadRequestApiException(
+        'Les données envoyées sont invalides.',
+        code: 'DONNEES_INVALIDES',
+        fieldErrors: {'type_vehicule': 'Choisissez « voiture » ou « moto ».'},
+      );
+    }
     final requested = dateHeure.toUtc();
     final results = <Map<String, dynamic>>[];
 
     for (final (index, template) in _templates.indexed) {
+      if (type != null && template.vehicle['type_vehicule'] != type) continue;
       final departure = DateTime.utc(requested.year, requested.month, requested.day, template.hour, template.minute);
       final gapMin = departure.difference(requested).inMinutes.abs();
       if (gapMin > fenetreHoraireMin || template.places < 1) continue;

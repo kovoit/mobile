@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/utils/clock.dart';
 import 'package:kovoit/features/search/presentation/providers/search_providers.dart';
+import 'package:kovoit/features/search/domain/repositories/search_repository.dart';
 import 'package:kovoit/features/trip/domain/entities/geo_place.dart';
+import 'package:kovoit/features/vehicle/domain/entities/vehicle.dart';
 
 const _a = GeoPlace(id: 'lieu-1', libelle: 'Carrefour Franciscain', quartier: 'Adidogomé', lat: 6.166, lng: 1.165);
 const _b = GeoPlace(id: 'lieu-4', libelle: 'Université de Lomé', quartier: 'Tokoin', lat: 6.168, lng: 1.214);
@@ -68,5 +70,51 @@ void main() {
       ..swapPlaces();
     expect(state().depart, _b);
     expect(state().arrivee, _a);
+  });
+
+  group('CA-055-2 : filtre Moto / Voiture', () {
+    test('« Tous » par défaut sur un formulaire neuf', () {
+      expect(state().vehicleType, isNull);
+      form()
+        ..setDepart(_a)
+        ..setArrivee(_b);
+      expect(form().submit()!.vehicleType, isNull);
+    });
+
+    test('le type choisi part dans la requête, et « Tous » se remet', () {
+      form()
+        ..setDepart(_a)
+        ..setArrivee(_b)
+        ..setVehicleType(VehicleType.moto);
+      expect(form().submit()!.vehicleType, VehicleType.moto);
+      form().setVehicleType(null);
+      expect(form().submit()!.vehicleType, isNull);
+    });
+
+    test('le type est conservé en modifiant les lieux, la date ou l’heure', () {
+      form()
+        ..setVehicleType(VehicleType.voiture)
+        ..setDepart(_a)
+        ..setArrivee(_b)
+        ..setTime(8, 0);
+      expect(state().vehicleType, VehicleType.voiture);
+    });
+
+    test('le type est conservé après l’échange départ / destination', () {
+      form()
+        ..setDepart(_a)
+        ..setArrivee(_b)
+        ..setVehicleType(VehicleType.moto)
+        ..swapPlaces();
+      expect(state().vehicleType, VehicleType.moto);
+    });
+
+    test('le type est conservé en reprenant une recherche récente', () {
+      form()
+        ..setVehicleType(VehicleType.moto)
+        ..applyRecent(const RecentSearch(depart: _b, arrivee: _a));
+      expect(state().depart, _b);
+      expect(state().vehicleType, VehicleType.moto);
+    });
   });
 }
