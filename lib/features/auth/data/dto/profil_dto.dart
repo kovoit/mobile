@@ -5,7 +5,7 @@ import '../../domain/entities/app_user.dart';
 
 part 'profil_dto.g.dart';
 
-/// `ProfilSerializer` du backend (`GET /moi/`, `utilisateur` de `POST /auth/otp/verifier/`).
+/// `ProfilSerializer` du backend (`GET /moi/`, `utilisateur` de la `SESSION` d'inscription ou de connexion).
 @JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class ProfilDto {
   const ProfilDto({

@@ -1,0 +1,12 @@
+{
+  "statut": "failed",
+  "message": "Un compte existe déjà avec cette adresse e-mail.",
+  "reponse": {
+    "code": "EMAIL_DEJA_UTILISE",
+    "erreurs": {
+      "email": [
+        "Un compte existe déjà avec cette adresse e-mail."
+      ]
+    }
+  }
+}

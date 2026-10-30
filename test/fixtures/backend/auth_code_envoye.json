@@ -1,0 +1,8 @@
+{
+  "statut": "success",
+  "message": "Un code de vérification a été envoyé à votre adresse e-mail.",
+  "reponse": {
+    "email": "ama.mensah@exemple.tg",
+    "delai_renvoi_s": 60
+  }
+}

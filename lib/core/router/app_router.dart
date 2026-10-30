@@ -4,8 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/session_controller.dart';
 import '../../features/auth/presentation/screens/complete_profile_screen.dart';
+import '../../features/auth/presentation/screens/email_verification_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/otp_verification_screen.dart';
+import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/booking/presentation/screens/booking_screen.dart';
 import '../../features/booking/presentation/screens/my_trips_screen.dart';
@@ -66,8 +68,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => authRedirect(ref.read(sessionControllerProvider), state.matchedLocation),
     routes: [
       GoRoute(path: Routes.splash, builder: (context, state) => const SplashScreen()),
-      GoRoute(path: Routes.login, builder: (context, state) => const LoginScreen()),
-      GoRoute(path: Routes.otp, builder: (context, state) => const OtpVerificationScreen()),
+      GoRoute(
+        path: Routes.login,
+        builder: (context, state) =>
+            LoginScreen(passwordReset: state.uri.queryParameters[Routes.passwordResetParam] == '1'),
+      ),
+      GoRoute(path: Routes.register, builder: (context, state) => const RegisterScreen()),
+      GoRoute(path: Routes.emailVerification, builder: (context, state) => const EmailVerificationScreen()),
+      GoRoute(path: Routes.forgotPassword, builder: (context, state) => const ForgotPasswordScreen()),
       GoRoute(path: Routes.completeProfile, builder: (context, state) => const CompleteProfileScreen()),
       GoRoute(path: Routes.acceptTerms, builder: (context, state) => const AcceptTermsScreen()),
       StatefulShellRoute.indexedStack(

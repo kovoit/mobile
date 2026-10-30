@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/config/env.dart';
+import 'package:kovoit/core/constants/api_constants.dart';
 import 'package:kovoit/core/network/api_exception.dart';
 import 'package:kovoit/core/network/api_service.dart';
 import 'package:kovoit/features/auth/data/datasources/auth_remote_data_source.dart';
@@ -338,6 +339,136 @@ void main() {
             .having((e) => e.fieldErrors['photo'], 'erreurs.photo', contains('image valide')),
       ),
     );
+  });
+
+  group('authentification par e-mail + mot de passe (M-004 T0, F-070 à F-073)', () {
+    late ApiAuthRemoteDataSource remote;
+
+    setUp(() => remote = ApiAuthRemoteDataSource(api));
+
+    test('inscription : 201 CODE_ENVOYE, corps du contrat (sans la confirmation)', () async {
+      backend
+        ..status = 201
+        ..routes['POST /auth/inscription/'] = 'auth_code_envoye';
+
+      final code = await remote.register(
+        prenom: 'Ama',
+        nom: 'Mensah',
+        email: 'ama.mensah@exemple.tg',
+        telephone: '+22890112233',
+        motDePasse: 'Trajet-Lome-26',
+        cguAcceptees: true,
+      );
+
+      expect(body(), {
+        'prenom': 'Ama',
+        'nom': 'Mensah',
+        'email': 'ama.mensah@exemple.tg',
+        'telephone': '+22890112233',
+        'mot_de_passe': 'Trajet-Lome-26',
+        'cgu_acceptees': true,
+      });
+      expect(code.toEntity().email, 'ama.mensah@exemple.tg');
+      expect(code.toEntity().resendIn, const Duration(seconds: 60));
+    });
+
+    test('inscription/verifier puis connexion : SESSION décodée (nouveau_compte)', () async {
+      backend.routes['POST /auth/inscription/verifier/'] = 'auth_session_inscription';
+      final inscrit = await remote.verifyEmail(email: 'ama.mensah@exemple.tg', code: '123456');
+      expect(body(), {'email': 'ama.mensah@exemple.tg', 'code': '123456'});
+      expect(inscrit.nouveauCompte, isTrue);
+      expect(inscrit.access, 'jeton-acces');
+      expect(inscrit.utilisateur.toEntity().profilComplet, isTrue);
+
+      backend.routes['POST /auth/connexion/'] = 'auth_session_connexion';
+      final connecte = await remote.login(email: 'ama.mensah@exemple.tg', motDePasse: 'Trajet-Lome-26');
+      expect(body(), {'email': 'ama.mensah@exemple.tg', 'mot_de_passe': 'Trajet-Lome-26'});
+      expect(connecte.nouveauCompte, isFalse);
+      expect(connecte.refresh, 'jeton-rafraichissement');
+      expect(connecte.utilisateur.toEntity().email, 'ama.mensah@exemple.tg');
+    });
+
+    test('renvoyer-code, oublie, reinitialiser : chemins et corps', () async {
+      backend
+        ..routes['POST /auth/inscription/renvoyer-code/'] = 'auth_code_envoye'
+        ..routes['POST /auth/mot-de-passe/oublie/'] = 'auth_code_envoye'
+        ..routes['POST /auth/mot-de-passe/reinitialiser/'] = 'auth_reinitialise';
+
+      expect((await remote.resendVerificationCode('ama.mensah@exemple.tg')).delaiRenvoiS, 60);
+      expect(body(), {'email': 'ama.mensah@exemple.tg'});
+      expect((await remote.requestPasswordReset('ama.mensah@exemple.tg')).email, 'ama.mensah@exemple.tg');
+      expect(body(), {'email': 'ama.mensah@exemple.tg'});
+      await remote.resetPassword(email: 'ama.mensah@exemple.tg', code: '123456', motDePasse: 'Nouveau-2026');
+      expect(body(), {'email': 'ama.mensah@exemple.tg', 'code': '123456', 'mot_de_passe': 'Nouveau-2026'});
+
+      expect(backend.requests.map((r) => '${r.method} ${r.path}'), [
+        'POST /auth/inscription/renvoyer-code/',
+        'POST /auth/mot-de-passe/oublie/',
+        'POST /auth/mot-de-passe/reinitialiser/',
+      ]);
+    });
+
+    test('erreurs du contrat : code métier, message de l’API et erreurs par champ', () async {
+      Future<ApiException> rejected(int status, String route, String fixture, Future<Object?> Function() call) async {
+        backend
+          ..status = status
+          ..routes[route] = fixture;
+        try {
+          await call();
+        } on ApiException catch (e) {
+          return e;
+        }
+        fail('$route aurait dû échouer');
+      }
+
+      Future<Object?> inscrire() => remote.register(
+            prenom: 'Ama',
+            nom: 'Mensah',
+            email: 'ama.mensah@exemple.tg',
+            telephone: '+22890112233',
+            motDePasse: '12345678',
+            cguAcceptees: true,
+          );
+
+      final identifiants = await rejected(401, 'POST /auth/connexion/', 'auth_erreur_identifiants',
+          () => remote.login(email: 'x@exemple.tg', motDePasse: 'faux'));
+      expect(identifiants, isA<UnauthorizedApiException>());
+      expect(identifiants.code, 'IDENTIFIANTS_INVALIDES');
+      expect(identifiants.message, 'Email ou mot de passe incorrect.');
+
+      final nonVerifie = await rejected(403, 'POST /auth/connexion/', 'auth_erreur_email_non_verifie',
+          () => remote.login(email: 'x@exemple.tg', motDePasse: 'bon'));
+      expect(nonVerifie, isA<ForbiddenApiException>());
+      expect(nonVerifie.code, 'EMAIL_NON_VERIFIE');
+
+      final dejaUtilise = await rejected(409, 'POST /auth/inscription/', 'auth_erreur_email_deja_utilise', inscrire);
+      expect(dejaUtilise, isA<ConflictApiException>());
+      expect(dejaUtilise.code, 'EMAIL_DEJA_UTILISE');
+      expect(dejaUtilise.details['email'], ['Un compte existe déjà avec cette adresse e-mail.']);
+
+      final faible = await rejected(400, 'POST /auth/inscription/', 'auth_erreur_mot_de_passe_faible', inscrire);
+      expect(faible.code, 'MOT_DE_PASSE_FAIBLE');
+      expect((faible as BadRequestApiException).fieldErrors['mot_de_passe'], 'Ce mot de passe est trop courant.');
+
+      final code = await rejected(400, 'POST /auth/mot-de-passe/reinitialiser/', 'auth_erreur_code_invalide',
+          () => remote.resetPassword(email: 'x@exemple.tg', code: '000000', motDePasse: 'Nouveau-2026'));
+      expect(code.code, 'CODE_OTP_INVALIDE');
+      expect(code.message, 'Code invalide ou expiré.');
+    });
+
+    test('les 6 routes auth/… sont publiques (sans refresh) ; plus aucune route auth/otp/ (D-70)', () {
+      expect(ApiEndpoints.sansRafraichissement, containsAll([
+        '/auth/inscription/',
+        '/auth/inscription/verifier/',
+        '/auth/inscription/renvoyer-code/',
+        '/auth/connexion/',
+        '/auth/mot-de-passe/oublie/',
+        '/auth/mot-de-passe/reinitialiser/',
+      ]));
+      expect(ApiEndpoints.sansRafraichissement.where((p) => p.startsWith('/auth/otp/')), isEmpty);
+      final source = File('lib/core/constants/api_constants.dart').readAsStringSync();
+      expect(source, isNot(contains('/auth/otp/')));
+    });
   });
 
   test('erreur du backend : code métier conservé', () async {

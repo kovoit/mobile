@@ -34,9 +34,14 @@ abstract final class ApiEndpoints {
   // Santé
   static const sante = '/sante/';
 
-  // Authentification sans mot de passe : code à 6 chiffres envoyé par e-mail
-  static const otpDemander = '/auth/otp/demander/';
-  static const otpVerifier = '/auth/otp/verifier/';
+  // Authentification par e-mail + mot de passe (D-68) ; e-mail vérifié une fois par un code à
+  // 6 chiffres. Les routes `auth/otp/*` ne sont plus appelées (D-70).
+  static const inscription = '/auth/inscription/';
+  static const inscriptionVerifier = '/auth/inscription/verifier/';
+  static const inscriptionRenvoyerCode = '/auth/inscription/renvoyer-code/';
+  static const connexion = '/auth/connexion/';
+  static const motDePasseOublie = '/auth/mot-de-passe/oublie/';
+  static const motDePasseReinitialiser = '/auth/mot-de-passe/reinitialiser/';
   static const jetonRafraichir = '/auth/jeton/rafraichir/';
   static const deconnexion = '/auth/deconnexion/';
 
@@ -99,6 +104,15 @@ abstract final class ApiEndpoints {
   static const appareils = '/notifications/appareils/';
   static String appareil(String jeton) => '/notifications/appareils/$jeton/';
 
-  /// Requêtes qui ne doivent jamais déclencher un rafraîchissement du jeton.
-  static const sansRafraichissement = {otpDemander, otpVerifier, jetonRafraichir};
+  /// Requêtes publiques : jamais de jeton envoyé, jamais de rafraîchissement sur 401 (un 401
+  /// `IDENTIFIANTS_INVALIDES` de la connexion ne doit ni rafraîchir ni fermer la session).
+  static const sansRafraichissement = {
+    inscription,
+    inscriptionVerifier,
+    inscriptionRenvoyerCode,
+    connexion,
+    motDePasseOublie,
+    motDePasseReinitialiser,
+    jetonRafraichir,
+  };
 }

@@ -36,6 +36,13 @@ abstract final class Validators {
     return null;
   }
 
+  /// Confirmation identique au mot de passe saisi (format seulement : le backend juge la force).
+  static String? passwordConfirmation(String? value, String password) {
+    if (value == null || value.isEmpty) return 'Confirmez le mot de passe.';
+    if (value != password) return 'Les mots de passe ne correspondent pas.';
+    return null;
+  }
+
   /// Code numérique de longueur fixe : OTP SMS (6) ou code de départ (4).
   static String? numericCode(String? value, {required int length}) {
     if (value == null || !RegExp('^\\d{$length}\$').hasMatch(value)) {

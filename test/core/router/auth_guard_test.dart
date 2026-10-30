@@ -26,9 +26,11 @@ void main() {
   group('déconnecté', () {
     const session = AsyncData<AppUser?>(null);
 
-    test('accède à la saisie de l’e-mail et du code', () {
+    test('accède à la Connexion, à l’Inscription, à la Vérification et au Mot de passe oublié', () {
       expect(authRedirect(session, Routes.login), isNull);
-      expect(authRedirect(session, Routes.otp), isNull);
+      expect(authRedirect(session, Routes.register), isNull);
+      expect(authRedirect(session, Routes.emailVerification), isNull);
+      expect(authRedirect(session, Routes.forgotPassword), isNull);
     });
 
     test('est renvoyé vers la connexion ailleurs', () {
@@ -38,10 +40,11 @@ void main() {
     });
   });
 
-  test('nouveau compte : profil à compléter avant l’application', () {
+  test('compte ancien sans nom ou téléphone (D-80) : profil à compléter avant l’application', () {
     final session = AsyncData<AppUser?>(_user(complete: false));
     expect(authRedirect(session, Routes.home), Routes.completeProfile);
-    expect(authRedirect(session, Routes.otp), Routes.completeProfile);
+    expect(authRedirect(session, Routes.login), Routes.completeProfile);
+    expect(authRedirect(session, Routes.emailVerification), Routes.completeProfile);
     expect(authRedirect(session, Routes.completeProfile), isNull);
   });
 
@@ -59,7 +62,9 @@ void main() {
     expect(authRedirect(session, Routes.profile), isNull);
     expect(authRedirect(session, Routes.splash), Routes.home);
     expect(authRedirect(session, Routes.login), Routes.home);
-    expect(authRedirect(session, Routes.otp), Routes.home);
+    expect(authRedirect(session, Routes.register), Routes.home);
+    expect(authRedirect(session, Routes.emailVerification), Routes.home);
+    expect(authRedirect(session, Routes.forgotPassword), Routes.home);
     expect(authRedirect(session, Routes.completeProfile), Routes.home);
   });
 }

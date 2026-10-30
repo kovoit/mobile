@@ -1,14 +1,48 @@
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/network/api_service.dart';
+import '../dto/code_envoye_dto.dart';
 import '../dto/connexion_dto.dart';
 import '../dto/profil_dto.dart';
 
-/// Appels HTTP d'authentification et de profil. Toute erreur est levée en [ApiException].
-abstract interface class AuthRemoteDataSource {
-  Future<void> requestCode(String email);
+/// Noms des champs envoyés aux routes `auth/…` (contrat M-004 T0).
+abstract final class AuthFields {
+  static const email = 'email';
+  static const motDePasse = 'mot_de_passe';
+  static const prenom = 'prenom';
+  static const nom = 'nom';
+  static const telephone = 'telephone';
+  static const cguAcceptees = 'cgu_acceptees';
+  static const code = 'code';
+}
 
-  Future<ConnexionDto> verifyCode({required String email, required String code});
+/// Appels HTTP d'authentification et de profil. Toute erreur est levée en [ApiException].
+/// Le mot de passe ne fait que transiter dans le corps de la requête (jamais journalisé).
+abstract interface class AuthRemoteDataSource {
+  /// `POST auth/inscription/` → 201 `CODE_ENVOYE`, aucun jeton.
+  Future<CodeEnvoyeDto> register({
+    required String prenom,
+    required String nom,
+    required String email,
+    required String telephone,
+    required String motDePasse,
+    required bool cguAcceptees,
+  });
+
+  /// `POST auth/inscription/verifier/` → `SESSION` (`nouveau_compte` vrai).
+  Future<ConnexionDto> verifyEmail({required String email, required String code});
+
+  /// `POST auth/inscription/renvoyer-code/` → `CODE_ENVOYE`.
+  Future<CodeEnvoyeDto> resendVerificationCode(String email);
+
+  /// `POST auth/connexion/` → `SESSION` (`nouveau_compte` faux).
+  Future<ConnexionDto> login({required String email, required String motDePasse});
+
+  /// `POST auth/mot-de-passe/oublie/` → `CODE_ENVOYE`.
+  Future<CodeEnvoyeDto> requestPasswordReset(String email);
+
+  /// `POST auth/mot-de-passe/reinitialiser/` → `reponse` null.
+  Future<void> resetPassword({required String email, required String code, required String motDePasse});
 
   Future<ProfilDto> me();
 
@@ -43,15 +77,60 @@ class ApiAuthRemoteDataSource implements AuthRemoteDataSource {
 
   static ProfilDto _profil(Object? json) => ProfilDto.fromJson(ApiService.asMap(json));
 
-  @override
-  Future<void> requestCode(String email) =>
-      _api.post<void>(ApiEndpoints.otpDemander, body: {'email': email}, parse: (_) {});
+  static ConnexionDto _session(Object? json) => ConnexionDto.fromJson(ApiService.asMap(json));
+
+  static CodeEnvoyeDto _codeEnvoye(Object? json) => CodeEnvoyeDto.fromJson(ApiService.asMap(json));
 
   @override
-  Future<ConnexionDto> verifyCode({required String email, required String code}) => _api.post(
-        ApiEndpoints.otpVerifier,
-        body: {'email': email, 'code': code},
-        parse: (json) => ConnexionDto.fromJson(ApiService.asMap(json)),
+  Future<CodeEnvoyeDto> register({
+    required String prenom,
+    required String nom,
+    required String email,
+    required String telephone,
+    required String motDePasse,
+    required bool cguAcceptees,
+  }) =>
+      _api.post(
+        ApiEndpoints.inscription,
+        body: {
+          AuthFields.prenom: prenom,
+          AuthFields.nom: nom,
+          AuthFields.email: email,
+          AuthFields.telephone: telephone,
+          AuthFields.motDePasse: motDePasse,
+          AuthFields.cguAcceptees: cguAcceptees,
+        },
+        parse: _codeEnvoye,
+      );
+
+  @override
+  Future<ConnexionDto> verifyEmail({required String email, required String code}) => _api.post(
+        ApiEndpoints.inscriptionVerifier,
+        body: {AuthFields.email: email, AuthFields.code: code},
+        parse: _session,
+      );
+
+  @override
+  Future<CodeEnvoyeDto> resendVerificationCode(String email) =>
+      _api.post(ApiEndpoints.inscriptionRenvoyerCode, body: {AuthFields.email: email}, parse: _codeEnvoye);
+
+  @override
+  Future<ConnexionDto> login({required String email, required String motDePasse}) => _api.post(
+        ApiEndpoints.connexion,
+        body: {AuthFields.email: email, AuthFields.motDePasse: motDePasse},
+        parse: _session,
+      );
+
+  @override
+  Future<CodeEnvoyeDto> requestPasswordReset(String email) =>
+      _api.post(ApiEndpoints.motDePasseOublie, body: {AuthFields.email: email}, parse: _codeEnvoye);
+
+  @override
+  Future<void> resetPassword({required String email, required String code, required String motDePasse}) =>
+      _api.post<void>(
+        ApiEndpoints.motDePasseReinitialiser,
+        body: {AuthFields.email: email, AuthFields.code: code, AuthFields.motDePasse: motDePasse},
+        parse: (_) {},
       );
 
   @override

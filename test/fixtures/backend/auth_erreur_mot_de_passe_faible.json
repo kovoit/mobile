@@ -1,0 +1,13 @@
+{
+  "statut": "failed",
+  "message": "Mot de passe trop faible.",
+  "reponse": {
+    "code": "MOT_DE_PASSE_FAIBLE",
+    "erreurs": {
+      "mot_de_passe": [
+        "Ce mot de passe est trop courant.",
+        "Ce mot de passe est entièrement numérique."
+      ]
+    }
+  }
+}

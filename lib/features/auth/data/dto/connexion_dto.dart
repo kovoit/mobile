@@ -4,7 +4,8 @@ import 'profil_dto.dart';
 
 part 'connexion_dto.g.dart';
 
-/// Réponse de `POST /auth/otp/verifier/`.
+/// `SESSION` : réponse de `POST /auth/inscription/verifier/` (`nouveau_compte` vrai) et de
+/// `POST /auth/connexion/` (`nouveau_compte` faux).
 @JsonSerializable(fieldRename: FieldRename.snake, createToJson: false)
 class ConnexionDto {
   const ConnexionDto({

@@ -31,3 +31,9 @@ véhicule (les données de démo n'en ont pas) ; `recherche_photo.json` est, de 
 avec une photo relative pour le conducteur et le véhicule. À remplacer par des fixtures régénérées dès que le
 script du backend couvre ces cas (`PATCH /moi/` avec photo, le même envoi avec un fichier qui n'est
 pas une image, détail et recherche d'un trajet dont le conducteur a une photo).
+
+**Exception provisoire (M-004, F-070 à F-073)** : les fichiers `auth_*.json` sont écrits à la main
+d'après le contrat figé T0 (`pilotage/missions/M-004-connexion-mot-de-passe.md` : `CODE_ENVOYE`,
+`SESSION` avec le `ProfilSerializer` de `moi_photo.json`, erreurs `IDENTIFIANTS_INVALIDES`,
+`EMAIL_NON_VERIFIE`, `EMAIL_DEJA_UTILISE`, `MOT_DE_PASSE_FAIBLE`, `CODE_OTP_INVALIDE`). Les messages
+de succès sont indicatifs. À régénérer par le script du backend dès les routes `auth/…` livrées.

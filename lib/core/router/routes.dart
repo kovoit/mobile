@@ -3,9 +3,16 @@
 abstract final class Routes {
   static const String splash = '/';
 
-  // Authentification : e-mail → code reçu par e-mail → profil à compléter (nouveau compte)
+  // Authentification (D-68) : Connexion (e-mail + mot de passe), Inscription, Vérification de
+  // l'e-mail (code à 6 chiffres), Mot de passe oublié. Profil à compléter : comptes anciens (D-80).
   static const String login = '/connexion';
-  static const String otp = '/connexion/code';
+  static const String register = '/inscription';
+  static const String emailVerification = '/verification-email';
+  static const String forgotPassword = '/mot-de-passe-oublie';
+
+  /// Paramètre de la Connexion après une réinitialisation réussie (message de succès).
+  static const String passwordResetParam = 'reinitialise';
+  static const String loginAfterReset = '$login?$passwordResetParam=1';
   static const String completeProfile = '/completer-profil';
 
   // Onglets de la barre du bas
@@ -87,5 +94,5 @@ abstract final class Routes {
   static const String componentCatalog = '/dev/composants';
 
   /// Accessibles sans être connecté.
-  static const Set<String> publicAuth = {login, otp};
+  static const Set<String> publicAuth = {login, register, emailVerification, forgotPassword};
 }

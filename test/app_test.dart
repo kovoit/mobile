@@ -10,7 +10,9 @@ void main() {
     await pumpKovoitApp(tester);
 
     expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
-    expect(find.text('Recevoir le code'), findsOneWidget);
+    expect(find.text('Se connecter'), findsOneWidget);
+    expect(find.text('Créer un compte'), findsOneWidget);
+    expect(find.text('Mot de passe oublié ?'), findsOneWidget);
   });
 
   testWidgets('Session existante : arrivée directe sur l’accueil passager', (tester) async {

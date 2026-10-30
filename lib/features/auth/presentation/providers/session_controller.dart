@@ -7,7 +7,7 @@ import 'auth_providers.dart';
 
 /// Session courante : `null` = déconnecté. Le routeur s'appuie dessus pour les redirections.
 ///
-/// Les actions (verifyCode, completeProfile…) ne passent PAS l'état en chargement/erreur :
+/// Les actions (login, verifyEmail, completeProfile…) ne passent PAS l'état en chargement/erreur :
 /// les écrans gèrent leur propre indicateur et affichent l'erreur levée.
 /// L'état ne change qu'en cas de succès, ce qui évite de renvoyer vers le Splash.
 class SessionController extends AsyncNotifier<AppUser?> {
@@ -26,11 +26,18 @@ class SessionController extends AsyncNotifier<AppUser?> {
   /// Relance la restauration (bouton « Réessayer » du Splash).
   void retry() => ref.invalidateSelf();
 
-  /// Ouvre la session avec le code reçu par e-mail (compte créé s'il n'existait pas).
-  Future<void> verifyCode({required String email, required String code}) async {
-    state = AsyncData(await _repository.verifyCode(email: email, code: code));
+  /// Connexion par e-mail + mot de passe. 403 `EMAIL_NON_VERIFIE` levée : l'écran ouvre la Vérification.
+  /// Le mot de passe n'est passé qu'au dépôt, jamais gardé dans l'état.
+  Future<void> login({required String email, required String password}) async {
+    state = AsyncData(await _repository.login(email: email, password: password));
   }
 
+  /// Ouvre la session avec le code de vérification reçu par e-mail (après l'inscription).
+  Future<void> verifyEmail({required String email, required String code}) async {
+    state = AsyncData(await _repository.verifyEmail(email: email, code: code));
+  }
+
+  /// Compte ancien sans nom ou téléphone (D-80).
   Future<void> completeProfile({required String prenom, required String nom, required String telephone}) async {
     state = AsyncData(await _repository.completeProfile(prenom: prenom, nom: nom, telephone: telephone));
   }

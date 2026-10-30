@@ -3,8 +3,10 @@ import '../../../../core/services/photo_capture_service.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/entities/otp_challenge.dart';
+import '../../domain/entities/registration.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_data_source.dart';
+import '../dto/connexion_dto.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({required this._remote, required this._tokenStorage, required this._capture});
@@ -14,9 +16,6 @@ class AuthRepositoryImpl implements AuthRepository {
 
   /// Supprime la photo de profil temporaire après l'envoi.
   final PhotoCaptureService _capture;
-
-  /// Délai entre deux envois (paramètre backend `otp_delai_renvoi_s`, non renvoyé par l'API).
-  static const resendDelay = Duration(seconds: 60);
 
   static String _normalize(String email) => email.trim().toLowerCase();
 
@@ -34,15 +33,38 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<OtpChallenge> requestCode(String email) async {
-    final normalized = _normalize(email);
-    await _remote.requestCode(normalized);
-    return OtpChallenge(email: normalized, resendIn: resendDelay);
-  }
+  Future<OtpChallenge> register(Registration registration) async => (await _remote.register(
+        prenom: registration.prenom.trim(),
+        nom: registration.nom.trim(),
+        email: _normalize(registration.email),
+        telephone: registration.telephone,
+        motDePasse: registration.motDePasse, // tel quel : aucun espace retiré
+        cguAcceptees: registration.cguAcceptees,
+      ))
+          .toEntity();
 
   @override
-  Future<AppUser> verifyCode({required String email, required String code}) async {
-    final connexion = await _remote.verifyCode(email: _normalize(email), code: code);
+  Future<AppUser> verifyEmail({required String email, required String code}) async =>
+      _openSession(await _remote.verifyEmail(email: _normalize(email), code: code.trim()));
+
+  @override
+  Future<OtpChallenge> resendVerificationCode(String email) async =>
+      (await _remote.resendVerificationCode(_normalize(email))).toEntity();
+
+  @override
+  Future<AppUser> login({required String email, required String password}) async =>
+      _openSession(await _remote.login(email: _normalize(email), motDePasse: password));
+
+  @override
+  Future<OtpChallenge> requestPasswordReset(String email) async =>
+      (await _remote.requestPasswordReset(_normalize(email))).toEntity();
+
+  @override
+  Future<void> resetPassword({required String email, required String code, required String password}) =>
+      _remote.resetPassword(email: _normalize(email), code: code.trim(), motDePasse: password);
+
+  /// Seuls les jetons sont conservés (stockage sécurisé), jamais le mot de passe.
+  Future<AppUser> _openSession(ConnexionDto connexion) async {
     await _tokenStorage.saveTokens(access: connexion.access, refresh: connexion.refresh);
     return connexion.utilisateur.toEntity();
   }

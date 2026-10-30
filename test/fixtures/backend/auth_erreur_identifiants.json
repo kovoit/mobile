@@ -1,0 +1,8 @@
+{
+  "statut": "failed",
+  "message": "Email ou mot de passe incorrect.",
+  "reponse": {
+    "code": "IDENTIFIANTS_INVALIDES",
+    "erreurs": {}
+  }
+}

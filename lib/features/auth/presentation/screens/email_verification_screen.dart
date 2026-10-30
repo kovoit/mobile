@@ -12,21 +12,25 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/clock.dart';
 import '../../../../core/widgets/widgets.dart';
-import '../providers/otp_controller.dart';
+import '../providers/email_verification_controller.dart';
 import '../providers/session_controller.dart';
 import '../widgets/auth_error.dart';
+import '../widgets/form_error_text.dart';
+import '../widgets/resend_code_section.dart';
 
-/// Saisie du code de connexion à 6 chiffres reçu par e-mail (≠ code de départ à 4 chiffres).
-class OtpVerificationScreen extends ConsumerStatefulWidget {
-  const OtpVerificationScreen({super.key});
+/// Écran 4 · Vérification de l'e-mail : code à 6 chiffres reçu après l'inscription, ou après une
+/// connexion refusée par `EMAIL_NON_VERIFIE` (≠ code de départ à 4 chiffres). Le bon code ouvre
+/// la session : le routeur affiche l'accueil.
+class EmailVerificationScreen extends ConsumerStatefulWidget {
+  const EmailVerificationScreen({super.key});
 
   static const int codeLength = 6;
 
   @override
-  ConsumerState<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+  ConsumerState<EmailVerificationScreen> createState() => _EmailVerificationScreenState();
 }
 
-class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
+class _EmailVerificationScreenState extends ConsumerState<EmailVerificationScreen> {
   final _code = TextEditingController();
   Timer? _ticker;
   bool _verifying = false;
@@ -38,8 +42,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
-    // Ouvert sans code demandé (lien direct, redémarrage) : retour à la saisie de l'e-mail.
-    if (ref.read(otpControllerProvider).email == null) {
+    // Ouvert sans adresse à vérifier (lien direct, redémarrage) : retour à la Connexion.
+    if (ref.read(emailVerificationControllerProvider).email == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) context.go(Routes.login);
       });
@@ -53,12 +57,24 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
     super.dispose();
   }
 
+  void _back() => context.canPop() ? context.pop() : context.go(Routes.login);
+
+  /// D-75 : « Modifier mon e-mail » = retour à l'inscription avec une autre adresse.
+  void _changeEmail() {
+    final origin = ref.read(emailVerificationControllerProvider).origin;
+    if (origin == VerificationOrigin.registration && context.canPop()) {
+      context.pop();
+    } else {
+      context.go(Routes.register);
+    }
+  }
+
   Future<void> _verify() async {
-    final email = ref.read(otpControllerProvider).email;
+    final email = ref.read(emailVerificationControllerProvider).email;
     final code = _code.text;
     if (email == null) return;
-    if (code.length != OtpVerificationScreen.codeLength) {
-      setState(() => _codeError = 'Saisissez les ${OtpVerificationScreen.codeLength} chiffres reçus par e-mail.');
+    if (code.length != EmailVerificationScreen.codeLength) {
+      setState(() => _codeError = 'Saisissez les ${EmailVerificationScreen.codeLength} chiffres reçus par e-mail.');
       return;
     }
     FocusScope.of(context).unfocus();
@@ -67,8 +83,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       _codeError = null;
     });
     try {
-      await ref.read(sessionControllerProvider.notifier).verifyCode(email: email, code: code);
-      ref.read(otpControllerProvider.notifier).reset();
+      await ref.read(sessionControllerProvider.notifier).verifyEmail(email: email, code: code);
+      ref.read(emailVerificationControllerProvider.notifier).reset();
     } catch (e) {
       if (!mounted) return;
       setState(() => _codeError = authFieldErrors(e)['code'] ?? authErrorMessage(e));
@@ -80,11 +96,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final otp = ref.watch(otpControllerProvider);
-    final remaining = otp.remaining(ref.read(clockProvider)());
+    final verification = ref.watch(emailVerificationControllerProvider);
+    final remaining = verification.remaining(ref.read(clockProvider)());
 
     return Scaffold(
-      appBar: KovoitAppBar(onBack: () => context.go(Routes.login)),
+      appBar: KovoitAppBar(onBack: _back),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
@@ -99,14 +115,14 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          const Center(child: StatusChip(label: 'CONNEXION · CODE E-MAIL', tone: StatusTone.info)),
+          const Center(child: StatusChip(label: 'VÉRIFICATION · CODE E-MAIL', tone: StatusTone.info)),
           const SizedBox(height: AppSpacing.md),
           const Text('Saisissez le code à 6 chiffres envoyé à', textAlign: TextAlign.center, style: AppTextStyles.subtitle),
           const SizedBox(height: AppSpacing.xs),
-          Text(otp.email ?? '—', textAlign: TextAlign.center, style: AppTextStyles.title),
+          Text(verification.email ?? '—', textAlign: TextAlign.center, style: AppTextStyles.title),
           Center(
             child: TextButton(
-              onPressed: _verifying ? null : () => context.go(Routes.login),
+              onPressed: _verifying ? null : _changeEmail,
               child: Text('Modifier mon e-mail', style: AppTextStyles.label.copyWith(color: AppColors.textPrimary)),
             ),
           ),
@@ -115,11 +131,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('Code de connexion', style: AppTextStyles.label),
+                const Text('Code de vérification', style: AppTextStyles.label),
                 const SizedBox(height: AppSpacing.sm),
                 OtpCodeInput(
                   controller: _code,
-                  length: OtpVerificationScreen.codeLength,
+                  length: EmailVerificationScreen.codeLength,
                   hasError: _codeError != null,
                   onChanged: (code) {
                     // Le champ est vidé après un code faux : on garde le message jusqu'à la nouvelle saisie.
@@ -129,22 +145,18 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
                 if (_codeError != null) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    _codeError!,
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.error),
-                  ),
+                  FormErrorText(_codeError!),
                 ],
                 const SizedBox(height: AppSpacing.md),
-                _ResendSection(
+                ResendCodeSection(
                   remaining: remaining,
-                  isSending: otp.isSending,
-                  error: otp.error,
-                  onResend: () => ref.read(otpControllerProvider.notifier).resend(),
+                  isSending: verification.isSending,
+                  error: verification.error,
+                  onResend: () => ref.read(emailVerificationControllerProvider.notifier).resend(),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 PrimaryButton(
-                  label: 'Se connecter',
+                  label: 'Vérifier mon e-mail',
                   icon: Icons.arrow_forward_rounded,
                   isLoading: _verifying,
                   onPressed: _verify,
@@ -176,39 +188,6 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _ResendSection extends StatelessWidget {
-  const _ResendSection({required this.remaining, required this.isSending, required this.error, required this.onResend});
-
-  final Duration remaining;
-  final bool isSending;
-  final String? error;
-  final VoidCallback onResend;
-
-  String get _countdown {
-    final minutes = remaining.inMinutes.toString().padLeft(2, '0');
-    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text('Vous n’avez pas reçu l’e-mail ? Pensez aux spams.', textAlign: TextAlign.center, style: AppTextStyles.subtitle),
-        const SizedBox(height: AppSpacing.xxs),
-        if (isSending)
-          const Text('Envoi du code…', style: AppTextStyles.subtitle)
-        else if (remaining > Duration.zero)
-          Text('Renvoyer le code dans $_countdown', style: AppTextStyles.subtitle)
-        else
-          TextButton(onPressed: onResend, child: const Text('Renvoyer le code')),
-        if (error != null)
-          Text(error!, textAlign: TextAlign.center, style: AppTextStyles.caption.copyWith(color: AppColors.error)),
-      ],
     );
   }
 }

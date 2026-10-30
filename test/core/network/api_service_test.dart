@@ -181,36 +181,77 @@ void main() {
   });
 
   group('AuthRepositoryImpl + ApiAuthRemoteDataSource', () {
-    test('vérification du code : jetons stockés, profil mappé, profil à compléter', () async {
-      server.handlers[ApiEndpoints.otpVerifier] = (options) {
+    test('vérification de l’e-mail : sans jeton envoyé, jetons stockés, profil mappé', () async {
+      tokens.access = 'ancien';
+      server.handlers[ApiEndpoints.inscriptionVerifier] = (options) {
         expect(options.headers.containsKey('Authorization'), isFalse);
         expect(options.data, {'email': 'ama@kovoit.tg', 'code': '123456'});
         return (
           200,
-          _ok({'utilisateur': _profil(telephone: ''), 'nouveau_compte': true, 'access': 'A', 'refresh': 'R'}),
+          _ok({'utilisateur': _profil(), 'nouveau_compte': true, 'access': 'A', 'refresh': 'R'}),
         );
       };
 
-      final user = await _repository(api, tokens).verifyCode(email: ' Ama@Kovoit.tg ', code: '123456');
+      final user = await _repository(api, tokens).verifyEmail(email: ' Ama@Kovoit.tg ', code: '123456');
 
       expect(user.id, '3f1c2b9e-0000-4000-8000-000000000001');
-      expect(user.profilComplet, isFalse);
-      expect(user.hasTelephone, isFalse);
+      expect(user.profilComplet, isTrue);
       expect(user.vehiculeDeclare, isTrue);
       expect(tokens.access, 'A');
       expect(tokens.refresh, 'R');
     });
 
-    test('code faux : pas de refresh tenté, code métier remonté', () async {
-      tokens.refresh = 'ancien';
-      server.handlers[ApiEndpoints.otpVerifier] =
-          (_) => (400, _failed('Code incorrect ou expiré.', 'CODE_OTP_INVALIDE'));
+    test('connexion : 401 IDENTIFIANTS_INVALIDES sans refresh ni fin de session', () async {
+      tokens
+        ..access = 'A'
+        ..refresh = 'R';
+      server.handlers[ApiEndpoints.connexion] = (options) {
+        expect(options.headers.containsKey('Authorization'), isFalse);
+        return (401, _failed('Email ou mot de passe incorrect.', 'IDENTIFIANTS_INVALIDES'));
+      };
 
       await expectLater(
-        _repository(api, tokens).verifyCode(email: 'a@b.tg', code: '000000'),
+        _repository(api, tokens).login(email: 'ama@kovoit.tg', password: 'mauvais'),
+        throwsA(isA<UnauthorizedApiException>().having((e) => e.code, 'code', 'IDENTIFIANTS_INVALIDES')),
+      );
+      expect(server.requests.map((r) => r.path), [ApiEndpoints.connexion]);
+      expect(sessionExpired, 0);
+      expect(tokens.access, 'A');
+      expect(tokens.refresh, 'R');
+    });
+
+    test('les 6 routes auth/… : un 401 ne déclenche jamais de refresh', () async {
+      tokens.refresh = 'R';
+      for (final path in [
+        ApiEndpoints.inscription,
+        ApiEndpoints.inscriptionVerifier,
+        ApiEndpoints.inscriptionRenvoyerCode,
+        ApiEndpoints.connexion,
+        ApiEndpoints.motDePasseOublie,
+        ApiEndpoints.motDePasseReinitialiser,
+      ]) {
+        server.handlers[path] = (_) => (401, _failed('Refusé.', 'IDENTIFIANTS_INVALIDES'));
+        await expectLater(
+          api.post<void>(path, body: const {}, parse: (_) {}),
+          throwsA(isA<UnauthorizedApiException>()),
+          reason: path,
+        );
+      }
+      expect(server.requests.where((r) => r.path == ApiEndpoints.jetonRafraichir), isEmpty);
+      expect(sessionExpired, 0);
+      expect(tokens.refresh, 'R');
+    });
+
+    test('code faux : pas de refresh tenté, code métier remonté', () async {
+      tokens.refresh = 'ancien';
+      server.handlers[ApiEndpoints.inscriptionVerifier] =
+          (_) => (400, _failed('Code invalide ou expiré.', 'CODE_OTP_INVALIDE'));
+
+      await expectLater(
+        _repository(api, tokens).verifyEmail(email: 'a@b.tg', code: '000000'),
         throwsA(isA<BadRequestApiException>().having((e) => e.code, 'code', 'CODE_OTP_INVALIDE')),
       );
-      expect(server.requests.map((r) => r.path), [ApiEndpoints.otpVerifier]);
+      expect(server.requests.map((r) => r.path), [ApiEndpoints.inscriptionVerifier]);
     });
 
     test('déconnexion : refresh envoyé puis session locale effacée, même hors ligne', () async {

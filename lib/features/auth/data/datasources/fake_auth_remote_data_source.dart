@@ -1,34 +1,202 @@
 import '../../../../core/config/demo_account.dart';
 import '../../../../core/mock/fake_backend.dart';
 import '../../../../core/network/api_exception.dart';
+import '../dto/code_envoye_dto.dart';
 import '../dto/connexion_dto.dart';
 import '../dto/profil_dto.dart';
 import 'auth_remote_data_source.dart';
 
 /// Fausse API d'authentification (`Env.useMockApi`), branchée sur le [FakeBackend] partagé.
-/// Reproduit le backend : connexion par code e-mail, compte créé au premier code valide.
+/// Reproduit le contrat M-004 (T0) avec le même JSON : inscription, vérification de l'e-mail,
+/// connexion par mot de passe, mot de passe oublié. Aucune règle propre au mobile : ce sont
+/// celles du serveur, simplifiées.
 ///
-/// - Comptes de démonstration : `demo@kovoit.tg` (passager), `conducteur@kovoit.tg` (conducteur).
-/// - Code accepté : `123456`. Toute autre adresse crée un nouveau compte (profil à compléter).
+/// - Comptes de démo : `demo@kovoit.tg` (passager), `conducteur@kovoit.tg` (conducteur), mot de
+///   passe [DemoAccount.password] ; `ancien@kovoit.tg` sans mot de passe (D-69).
+/// - Code reçu « par e-mail » : `123456` (vérification et réinitialisation).
 class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
   FakeAuthRemoteDataSource(this._backend);
 
   final FakeBackend _backend;
 
+  static const _verification = 'verification_email';
+  static const _reinitialisation = 'reinitialisation';
+
   ProfilDto _profil(int id) => ProfilDto.fromJson(_backend.profilJson(id));
 
-  @override
-  Future<void> requestCode(String email) => _backend.wait();
+  static String _normalize(String email) => email.trim().toLowerCase();
+
+  /// Lève l'erreur à partir de l'enveloppe du backend (`{statut, message, reponse: {code, erreurs}}`).
+  static Never _fail(int status, String message, String code, [Map<String, List<String>>? erreurs]) =>
+      throw ApiException.fromResponse(status, {
+        'statut': 'failed',
+        'message': message,
+        'reponse': {'code': code, 'erreurs': ?erreurs},
+      });
+
+  CodeEnvoyeDto _codeEnvoye(String email) => CodeEnvoyeDto.fromJson({
+        'email': email,
+        'delai_renvoi_s': FakeBackend.otpResendDelay.inSeconds,
+      });
+
+  static final _emailFormat = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+  static final _phoneFormat = RegExp(r'^\+228[79]\d{7}$');
+  static const _commonPasswords = {
+    'password', 'motdepasse', 'azertyuiop', 'qwertyuiop', '12345678', '123456789', 'iloveyou', 'kovoit123',
+  };
+
+  /// Les 4 validateurs Django (D-79), simplifiés : longueur, mot courant, tout numérique,
+  /// ressemblance avec le prénom, le nom ou l'e-mail.
+  static List<String> _passwordProblems(String password, {String prenom = '', String nom = '', String email = ''}) {
+    final lower = password.toLowerCase();
+    bool similar(String attribute) {
+      final value = attribute.trim().toLowerCase();
+      return value.length >= 3 && (lower.contains(value) || value.contains(lower));
+    }
+
+    return [
+      if (password.length < 8) 'Ce mot de passe est trop court. Il doit contenir au minimum 8 caractères.',
+      if (_commonPasswords.contains(lower)) 'Ce mot de passe est trop courant.',
+      if (RegExp(r'^\d+$').hasMatch(password)) 'Ce mot de passe est entièrement numérique.',
+      if (similar(prenom)) 'Le mot de passe est trop semblable au champ « prénom ».'
+      else if (similar(nom)) 'Le mot de passe est trop semblable au champ « nom ».'
+      else if (similar(email.split('@').first)) 'Le mot de passe est trop semblable au champ « adresse e-mail ».',
+    ];
+  }
+
+  static void _checkPassword(String password, {String prenom = '', String nom = '', String email = ''}) {
+    final problems = _passwordProblems(password, prenom: prenom, nom: nom, email: email);
+    if (problems.isNotEmpty) {
+      _fail(400, 'Mot de passe trop faible.', 'MOT_DE_PASSE_FAIBLE', {'mot_de_passe': problems});
+    }
+  }
 
   @override
-  Future<ConnexionDto> verifyCode({required String email, required String code}) async {
+  Future<CodeEnvoyeDto> register({
+    required String prenom,
+    required String nom,
+    required String email,
+    required String telephone,
+    required String motDePasse,
+    required bool cguAcceptees,
+  }) async {
     await _backend.wait();
-    if (code != DemoAccount.otpCode) {
-      throw const BadRequestApiException('Code incorrect ou expiré.', code: 'CODE_OTP_INVALIDE');
+    final normalized = _normalize(email);
+    const obligatoire = 'Ce champ est obligatoire.';
+    final invalid = <String, List<String>>{
+      if (!cguAcceptees) 'cgu_acceptees': ['Vous devez accepter les conditions d’utilisation.'],
+      if (prenom.trim().isEmpty) 'prenom': [obligatoire],
+      if (prenom.length > 100) 'prenom': ['Assurez-vous que ce champ comporte au plus 100 caractères.'],
+      if (nom.trim().isEmpty) 'nom': [obligatoire],
+      if (nom.length > 100) 'nom': ['Assurez-vous que ce champ comporte au plus 100 caractères.'],
+      if (!_emailFormat.hasMatch(normalized)) 'email': ['Saisissez une adresse e-mail valide.'],
+      if (motDePasse.isEmpty) 'mot_de_passe': [obligatoire],
+      if (motDePasse.length > 128) 'mot_de_passe': ['Assurez-vous que ce champ comporte au plus 128 caractères.'],
+    };
+    if (invalid.isNotEmpty) _fail(400, 'Les données envoyées sont invalides.', 'DONNEES_INVALIDES', invalid);
+    if (!_phoneFormat.hasMatch(telephone)) {
+      _fail(400, 'Numéro de téléphone invalide.', 'TELEPHONE_INVALIDE', {
+        'telephone': ['Saisissez un numéro mobile togolais (8 chiffres commençant par 7 ou 9).'],
+      });
     }
-    final existing = _backend.userByEmail(email);
-    final id = existing?.id ?? _backend.createUser(fields: {'email': email});
-    return ConnexionDto.fromJson(_backend.issueTokens(id, nouveauCompte: existing == null));
+    _checkPassword(motDePasse, prenom: prenom, nom: nom, email: normalized);
+    // D-66 : le téléphone n'est pas unique ; D-75 : l'adresse l'est (vérifiée ou non).
+    if (_backend.userByEmail(normalized) != null) {
+      _fail(409, 'Un compte existe déjà avec cette adresse e-mail.', 'EMAIL_DEJA_UTILISE', {
+        'email': ['Un compte existe déjà avec cette adresse e-mail.'],
+      });
+    }
+    _backend.createUser(
+      password: motDePasse,
+      fields: {
+        'prenom': prenom.trim(),
+        'nom': nom.trim(),
+        'email': normalized,
+        'telephone': telephone,
+        'email_verifie': false,
+        'cgu_acceptees': true,
+      },
+    );
+    _backend.sendCode(_verification, normalized);
+    return _codeEnvoye(normalized);
+  }
+
+  @override
+  Future<ConnexionDto> verifyEmail({required String email, required String code}) async {
+    await _backend.wait();
+    final normalized = _normalize(email);
+    final user = _backend.userByEmail(normalized);
+    final pending = _backend.codesSent.containsKey('$_verification:$normalized');
+    if (code != DemoAccount.otpCode || user == null || user.fields['email_verifie'] == true || !pending) {
+      _fail(400, 'Code invalide ou expiré.', 'CODE_OTP_INVALIDE');
+    }
+    _backend.codesSent.remove('$_verification:$normalized');
+    _backend.updateUser(user.id, {'email_verifie': true});
+    return ConnexionDto.fromJson(_backend.issueTokens(user.id, nouveauCompte: true));
+  }
+
+  @override
+  Future<CodeEnvoyeDto> resendVerificationCode(String email) async {
+    await _backend.wait();
+    final normalized = _normalize(email);
+    final user = _backend.userByEmail(normalized);
+    // Adresse inconnue ou déjà vérifiée : même réponse, rien n'est envoyé (D-75).
+    if (user != null && user.fields['email_verifie'] != true) _backend.sendCode(_verification, normalized);
+    return _codeEnvoye(normalized);
+  }
+
+  @override
+  Future<ConnexionDto> login({required String email, required String motDePasse}) async {
+    await _backend.wait();
+    _backend.countLoginRequest();
+    final normalized = _normalize(email);
+    final user = _backend.userByEmail(normalized);
+    // Inconnu, supprimé, sans mot de passe utilisable ou mauvais mot de passe : même 401 (D-74).
+    if (user == null || user.password == null || user.password != motDePasse) {
+      _fail(401, 'Email ou mot de passe incorrect.', 'IDENTIFIANTS_INVALIDES');
+    }
+    if (user.fields['email_verifie'] != true) {
+      // D-73 : nouveau code hors délai et sous le plafond, sinon même 403 sans envoi.
+      try {
+        _backend.sendCode(_verification, normalized);
+      } on TooManyAttemptsApiException {
+        // plafond atteint : aucun envoi, réponse inchangée
+      }
+      _fail(403, 'Adresse e-mail non vérifiée. Saisissez le code reçu par e-mail.', 'EMAIL_NON_VERIFIE');
+    }
+    // Compte suspendu : connexion acceptée, l'alerte COMPTE_SUSPENDU est dans le profil (D-74).
+    return ConnexionDto.fromJson(_backend.issueTokens(user.id));
+  }
+
+  @override
+  Future<CodeEnvoyeDto> requestPasswordReset(String email) async {
+    await _backend.wait();
+    final normalized = _normalize(email);
+    // Adresse inconnue : même réponse, aucun code (pas de compte `is_staff` dans le faux serveur).
+    if (_backend.userByEmail(normalized) != null) _backend.sendCode(_reinitialisation, normalized);
+    return _codeEnvoye(normalized);
+  }
+
+  @override
+  Future<void> resetPassword({required String email, required String code, required String motDePasse}) async {
+    await _backend.wait();
+    final normalized = _normalize(email);
+    final user = _backend.userByEmail(normalized);
+    // Contrôlé avant le code : un mot de passe refusé ne consomme pas le code.
+    _checkPassword(
+      motDePasse,
+      prenom: user?.fields['prenom'] as String? ?? '',
+      nom: user?.fields['nom'] as String? ?? '',
+      email: normalized,
+    );
+    final pending = _backend.codesSent.containsKey('$_reinitialisation:$normalized');
+    if (code != DemoAccount.otpCode || user == null || !pending) {
+      _fail(400, 'Code invalide ou expiré.', 'CODE_OTP_INVALIDE');
+    }
+    _backend.codesSent.remove('$_reinitialisation:$normalized');
+    user.password = motDePasse;
+    // D-77 : une réinitialisation réussie vérifie l'adresse.
+    _backend.updateUser(user.id, {'email_verifie': true});
   }
 
   @override
@@ -54,13 +222,7 @@ class FakeAuthRemoteDataSource implements AuthRemoteDataSource {
   }) async {
     await _backend.wait();
     final id = await _backend.currentUserId();
-    if (_backend.phoneTaken(telephone, exceptId: id)) {
-      throw const BadRequestApiException(
-        'Données invalides.',
-        code: 'DONNEES_INVALIDES',
-        fieldErrors: {'telephone': 'Ce numéro est déjà utilisé.'},
-      );
-    }
+    // D-66 : deux comptes peuvent partager un numéro.
     _backend.updateUser(id, {
       'prenom': prenom,
       'nom': nom,

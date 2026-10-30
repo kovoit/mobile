@@ -1,0 +1,8 @@
+{
+  "statut": "failed",
+  "message": "Code invalide ou expiré.",
+  "reponse": {
+    "code": "CODE_OTP_INVALIDE",
+    "erreurs": {}
+  }
+}

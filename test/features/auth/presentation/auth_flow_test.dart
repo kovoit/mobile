@@ -12,9 +12,10 @@ Finder _field(String label) => find.descendant(
 
 Future<void> _tapButton(WidgetTester tester, String label) => scrollAndTap(tester, find.text(label));
 
-Future<void> _requestCode(WidgetTester tester, String email) async {
+Future<void> _login(WidgetTester tester, String email, String password) async {
   await tester.enterText(_field('Adresse e-mail'), email);
-  await _tapButton(tester, 'Recevoir le code');
+  await tester.enterText(_field('Mot de passe'), password);
+  await _tapButton(tester, 'Se connecter');
 }
 
 Future<void> _enterCode(WidgetTester tester, String code) async {
@@ -22,85 +23,146 @@ Future<void> _enterCode(WidgetTester tester, String code) async {
   await tester.pumpAndSettle();
 }
 
+const _home = 'Le même chemin, à plusieurs. Et moins cher.';
+
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
 
-  testWidgets('Compte existant : e-mail → code → Rechercher', (tester) async {
-    await pumpKovoitApp(tester);
+  testWidgets('Compte de démo : e-mail + mot de passe → Rechercher', (tester) async {
+    final env = await pumpKovoitApp(tester);
 
-    await _requestCode(tester, DemoAccount.email);
-    expect(find.text('Vérification'), findsOneWidget);
-    expect(find.text(DemoAccount.email), findsOneWidget);
-    expect(find.textContaining('Renvoyer le code dans'), findsOneWidget);
+    await _login(tester, DemoAccount.email, DemoAccount.password);
 
-    await _enterCode(tester, DemoAccount.otpCode);
-
-    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
+    expect(find.text(_home), findsOneWidget);
+    expect(env.storage.access, 'mock-access-1');
   });
 
-  testWidgets('Code faux : message d’erreur, reste sur l’écran du code', (tester) async {
-    await pumpKovoitApp(tester);
-    await _requestCode(tester, DemoAccount.email);
+  testWidgets('Mauvais mot de passe : message de l’API, reste sur la Connexion', (tester) async {
+    final env = await pumpKovoitApp(tester);
 
-    await _enterCode(tester, '000000');
+    await _login(tester, DemoAccount.email, 'mauvais-mot-de-passe');
 
-    expect(find.text('Code incorrect ou expiré.'), findsOneWidget);
-    expect(find.text('Vérification'), findsOneWidget);
+    expect(find.text('Email ou mot de passe incorrect.'), findsOneWidget);
+    expect(find.text('Connectez-vous pour commencer votre trajet'), findsOneWidget);
+    expect(env.storage.access, isNull);
   });
 
-  testWidgets('Validation locale de l’e-mail avant tout appel', (tester) async {
+  testWidgets('Validation locale du format avant tout appel', (tester) async {
     await pumpKovoitApp(tester);
 
-    await _tapButton(tester, 'Recevoir le code');
+    await _tapButton(tester, 'Se connecter');
 
     expect(find.text("L'adresse e-mail est obligatoire."), findsOneWidget);
+    expect(find.text('Le mot de passe est obligatoire.'), findsOneWidget);
   });
 
-  testWidgets('Modifier mon e-mail : retour à la saisie, adresse conservée', (tester) async {
-    await pumpKovoitApp(tester);
-    await _requestCode(tester, 'afi@exemple.com');
-
-    await _tapButton(tester, 'Modifier mon e-mail');
-
-    expect(find.text('Recevoir le code'), findsOneWidget);
-    expect(find.text('afi@exemple.com'), findsOneWidget);
-  });
-
-  testWidgets('Nouveau compte : code → profil à compléter → Rechercher (KYC à faire)', (tester) async {
-    await pumpKovoitApp(tester);
-    await _requestCode(tester, 'afi@exemple.com');
-    await _enterCode(tester, DemoAccount.otpCode);
-
-    expect(find.text('Votre profil'), findsOneWidget);
-    await _tapButton(tester, 'Continuer');
-    expect(find.text('Le prénom est obligatoire.'), findsOneWidget);
+  testWidgets('Inscription → Vérification → Rechercher (KYC à faire)', (tester) async {
+    final env = await pumpKovoitApp(tester);
+    await _tapButton(tester, 'Créer un compte');
+    expect(find.text('Créer un compte'), findsOneWidget); // titre de l'Inscription
 
     await tester.enterText(_field('Prénom'), 'Afi');
     await tester.enterText(_field('Nom'), 'Amégan');
-    await tester.enterText(_field('Numéro de téléphone'), '91 23 45 67');
-    await _tapButton(tester, 'Continuer');
-    expect(find.text('Acceptez les conditions d’utilisation pour continuer.'), findsOneWidget);
+    await tester.enterText(_field('Adresse e-mail'), 'afi@exemple.com');
+    await tester.enterText(_field('Numéro de téléphone'), '90 12 34 56'); // numéro du compte démo (D-66)
+    await tester.enterText(_field('Mot de passe'), 'Lome-Trajet-2026');
+    await tester.enterText(_field('Confirmer le mot de passe'), 'Autre-chose-2026');
     await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
-    await _tapButton(tester, 'Continuer');
+    await _tapButton(tester, 'Créer mon compte');
+    expect(find.text('Les mots de passe ne correspondent pas.'), findsOneWidget);
 
-    // Retour UX : pas de blocage KYC à l'inscription. L'accueil s'ouvre avec la restriction affichée.
-    expect(find.text('Le même chemin, à plusieurs. Et moins cher.'), findsOneWidget);
+    await tester.enterText(_field('Confirmer le mot de passe'), 'Lome-Trajet-2026');
+    await _tapButton(tester, 'Créer mon compte');
+
+    expect(find.text('Vérification'), findsOneWidget);
+    expect(find.text('afi@exemple.com'), findsOneWidget);
+    expect(find.textContaining('Renvoyer le code dans'), findsOneWidget);
+    expect(env.storage.access, isNull);
+
+    await _enterCode(tester, '000000');
+    expect(find.text('Code invalide ou expiré.'), findsOneWidget);
+
+    await _enterCode(tester, DemoAccount.otpCode);
+    expect(find.text(_home), findsOneWidget);
     expect(find.text('Vérifiez votre identité'), findsOneWidget);
   });
 
-  testWidgets('Profil : numéro déjà utilisé → erreur sous le champ', (tester) async {
+  testWidgets('Inscription : adresse déjà utilisée → message sous le champ e-mail', (tester) async {
     await pumpKovoitApp(tester);
-    await _requestCode(tester, 'afi@exemple.com');
-    await _enterCode(tester, DemoAccount.otpCode);
+    await _tapButton(tester, 'Créer un compte');
 
     await tester.enterText(_field('Prénom'), 'Afi');
     await tester.enterText(_field('Nom'), 'Amégan');
-    await tester.enterText(_field('Numéro de téléphone'), '90 12 34 56'); // numéro du compte démo
+    await tester.enterText(_field('Adresse e-mail'), DemoAccount.email);
+    await tester.enterText(_field('Numéro de téléphone'), '91 23 45 67');
+    await tester.enterText(_field('Mot de passe'), 'Lome-Trajet-2026');
+    await tester.enterText(_field('Confirmer le mot de passe'), 'Lome-Trajet-2026');
+    await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
+    await _tapButton(tester, 'Créer mon compte');
+
+    expect(find.text('Un compte existe déjà avec cette adresse e-mail.'), findsOneWidget);
+    expect(find.text('Créer mon compte'), findsOneWidget);
+  });
+
+  testWidgets('Connexion d’une adresse non vérifiée → écran Vérification', (tester) async {
+    final env = TestEnv();
+    final id = env.backend.createUser(
+      password: 'Lome-Trajet-2026',
+      fields: {
+        'prenom': 'Afi',
+        'nom': 'Amégan',
+        'email': 'afi@exemple.com',
+        'telephone': '+22891234567',
+        'email_verifie': false,
+        'cgu_acceptees': true,
+      },
+    );
+    await pumpKovoitApp(tester, env: env);
+
+    await _login(tester, 'afi@exemple.com', 'Lome-Trajet-2026');
+
+    expect(find.text('Vérification'), findsOneWidget);
+    expect(find.text('afi@exemple.com'), findsOneWidget);
+    await _enterCode(tester, DemoAccount.otpCode);
+    expect(find.text(_home), findsOneWidget);
+    expect(env.storage.access, 'mock-access-$id');
+  });
+
+  testWidgets('Mot de passe oublié : e-mail → code + nouveau mot de passe → Connexion avec succès', (tester) async {
+    await pumpKovoitApp(tester);
+    await _tapButton(tester, 'Mot de passe oublié ?');
+
+    await tester.enterText(_field('Adresse e-mail'), DemoAccount.email);
+    await _tapButton(tester, 'Recevoir le code');
+    expect(find.text(DemoAccount.email), findsOneWidget);
+
+    await _enterCode(tester, DemoAccount.otpCode);
+    await tester.enterText(_field('Nouveau mot de passe'), 'Nouveau-Trajet-26');
+    await tester.enterText(_field('Confirmer le mot de passe'), 'Nouveau-Trajet-26');
+    await _tapButton(tester, 'Changer mon mot de passe');
+
+    expect(find.text('Mot de passe modifié'), findsOneWidget);
+    await _login(tester, DemoAccount.email, 'Nouveau-Trajet-26');
+    expect(find.text(_home), findsOneWidget);
+  });
+
+  testWidgets('Compte ancien (D-69, D-80) : premier mot de passe, puis profil à compléter', (tester) async {
+    await pumpKovoitApp(tester);
+    await _tapButton(tester, 'Mot de passe oublié ?');
+    await tester.enterText(_field('Adresse e-mail'), DemoAccount.legacyEmail);
+    await _tapButton(tester, 'Recevoir le code');
+    await _enterCode(tester, DemoAccount.otpCode);
+    await tester.enterText(_field('Nouveau mot de passe'), 'Premier-Trajet-26');
+    await tester.enterText(_field('Confirmer le mot de passe'), 'Premier-Trajet-26');
+    await _tapButton(tester, 'Changer mon mot de passe');
+
+    await _login(tester, DemoAccount.legacyEmail, 'Premier-Trajet-26');
+
+    expect(find.text('Votre profil'), findsOneWidget);
+    await tester.enterText(_field('Numéro de téléphone'), '90 12 34 56'); // même numéro qu'un autre compte (D-66)
     await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
     await _tapButton(tester, 'Continuer');
-
-    expect(find.text('Ce numéro est déjà utilisé.'), findsOneWidget);
-    expect(find.text('Votre profil'), findsOneWidget);
+    expect(find.text(_home), findsOneWidget);
   });
 
   testWidgets('Déconnexion depuis le Profil → connexion', (tester) async {

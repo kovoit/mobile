@@ -1,0 +1,8 @@
+{
+  "statut": "failed",
+  "message": "Adresse e-mail non vérifiée. Saisissez le code reçu par e-mail.",
+  "reponse": {
+    "code": "EMAIL_NON_VERIFIE",
+    "erreurs": {}
+  }
+}

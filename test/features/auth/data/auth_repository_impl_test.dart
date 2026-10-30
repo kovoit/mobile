@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kovoit/core/network/api_exception.dart';
 import 'package:kovoit/features/auth/data/datasources/auth_remote_data_source.dart';
+import 'package:kovoit/features/auth/data/dto/code_envoye_dto.dart';
 import 'package:kovoit/features/auth/data/dto/connexion_dto.dart';
 import 'package:kovoit/features/auth/data/dto/profil_dto.dart';
 import 'package:kovoit/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:kovoit/features/auth/domain/entities/app_user.dart';
+import 'package:kovoit/features/auth/domain/entities/registration.dart';
 import 'package:mocktail/mocktail.dart';
 
 import '../../../helpers/test_app.dart';
@@ -34,28 +36,163 @@ void main() {
     repository = AuthRepositoryImpl(remote: remote, tokenStorage: storage, capture: capture);
   });
 
-  test('requestCode normalise l’e-mail et renvoie le délai de renvoi', () async {
-    when(() => remote.requestCode('afi@exemple.com')).thenAnswer((_) async {});
-
-    final challenge = await repository.requestCode('  AFI@exemple.com ');
-
-    expect(challenge.email, 'afi@exemple.com');
-    expect(challenge.resendIn, AuthRepositoryImpl.resendDelay);
-  });
-
-  test('verifyCode stocke les jetons et mappe l’utilisateur', () async {
-    when(() => remote.verifyCode(email: 'afi@exemple.com', code: '123456')).thenAnswer(
-      (_) async => const ConnexionDto(utilisateur: _profil, access: 'a', refresh: 'r'),
+  group('inscription et vérification de l’e-mail (F-070, F-071)', () {
+    const registration = Registration(
+      prenom: ' Afi ',
+      nom: ' Amégan ',
+      email: '  AFI@exemple.com ',
+      telephone: '+22891234567',
+      motDePasse: ' Secret du 30/10 ',
+      cguAcceptees: true,
     );
 
-    final user = await repository.verifyCode(email: ' Afi@exemple.com', code: '123456');
+    void stubRegister() => when(
+          () => remote.register(
+            prenom: any(named: 'prenom'),
+            nom: any(named: 'nom'),
+            email: any(named: 'email'),
+            telephone: any(named: 'telephone'),
+            motDePasse: any(named: 'motDePasse'),
+            cguAcceptees: any(named: 'cguAcceptees'),
+          ),
+        ).thenAnswer((_) async => const CodeEnvoyeDto(email: 'afi@exemple.com', delaiRenvoiS: 45));
 
-    expect(storage.access, 'a');
-    expect(storage.refresh, 'r');
-    expect(user.id, 'b5a1-uuid');
-    expect(user.nomComplet, 'Afi Amégan');
-    expect(user.kycPassager, KycStatus.enAttente);
-    expect(user.profilComplet, isTrue);
+    test('register : e-mail normalisé, noms nettoyés, mot de passe tel quel, délai du serveur, aucun jeton', () async {
+      stubRegister();
+
+      final challenge = await repository.register(registration);
+
+      verify(
+        () => remote.register(
+          prenom: 'Afi',
+          nom: 'Amégan',
+          email: 'afi@exemple.com',
+          telephone: '+22891234567',
+          motDePasse: ' Secret du 30/10 ',
+          cguAcceptees: true,
+        ),
+      ).called(1);
+      expect(challenge.email, 'afi@exemple.com');
+      expect(challenge.resendIn, const Duration(seconds: 45));
+      expect(storage.access, isNull);
+      expect(storage.refresh, isNull);
+    });
+
+    test('register : 409 EMAIL_DEJA_UTILISE propagé, aucun jeton', () async {
+      when(
+        () => remote.register(
+          prenom: any(named: 'prenom'),
+          nom: any(named: 'nom'),
+          email: any(named: 'email'),
+          telephone: any(named: 'telephone'),
+          motDePasse: any(named: 'motDePasse'),
+          cguAcceptees: any(named: 'cguAcceptees'),
+        ),
+      ).thenThrow(const ConflictApiException('Déjà utilisé.', code: 'EMAIL_DEJA_UTILISE'));
+
+      await expectLater(
+        repository.register(registration),
+        throwsA(isA<ConflictApiException>().having((e) => e.code, 'code', 'EMAIL_DEJA_UTILISE')),
+      );
+      expect(storage.access, isNull);
+    });
+
+    test('le mot de passe n’apparaît pas dans toString()', () {
+      expect(registration.toString(), isNot(contains('Secret')));
+    });
+
+    test('verifyEmail stocke les jetons et mappe l’utilisateur', () async {
+      when(() => remote.verifyEmail(email: 'afi@exemple.com', code: '123456')).thenAnswer(
+        (_) async => const ConnexionDto(utilisateur: _profil, access: 'a', refresh: 'r', nouveauCompte: true),
+      );
+
+      final user = await repository.verifyEmail(email: ' Afi@exemple.com', code: '123456');
+
+      expect(storage.access, 'a');
+      expect(storage.refresh, 'r');
+      expect(user.id, 'b5a1-uuid');
+      expect(user.nomComplet, 'Afi Amégan');
+      expect(user.kycPassager, KycStatus.enAttente);
+      expect(user.profilComplet, isTrue);
+    });
+
+    test('verifyEmail : CODE_OTP_INVALIDE propagé, aucun jeton', () async {
+      when(() => remote.verifyEmail(email: any(named: 'email'), code: any(named: 'code')))
+          .thenThrow(const BadRequestApiException('Code invalide ou expiré.', code: 'CODE_OTP_INVALIDE'));
+
+      await expectLater(
+        repository.verifyEmail(email: 'afi@exemple.com', code: '000000'),
+        throwsA(isA<BadRequestApiException>().having((e) => e.code, 'code', 'CODE_OTP_INVALIDE')),
+      );
+      expect(storage.access, isNull);
+    });
+
+    test('resendVerificationCode normalise l’e-mail et renvoie delai_renvoi_s', () async {
+      when(() => remote.resendVerificationCode('afi@exemple.com'))
+          .thenAnswer((_) async => const CodeEnvoyeDto(email: 'afi@exemple.com', delaiRenvoiS: 60));
+
+      final challenge = await repository.resendVerificationCode(' AFI@exemple.com');
+
+      expect(challenge.email, 'afi@exemple.com');
+      expect(challenge.resendIn, const Duration(seconds: 60));
+    });
+  });
+
+  group('connexion (F-072)', () {
+    test('login : e-mail normalisé, mot de passe tel quel, jetons stockés (jamais le mot de passe)', () async {
+      when(() => remote.login(email: 'afi@exemple.com', motDePasse: ' Mot de passe ')).thenAnswer(
+        (_) async => const ConnexionDto(utilisateur: _profil, access: 'a', refresh: 'r'),
+      );
+
+      final user = await repository.login(email: ' AFI@exemple.com ', password: ' Mot de passe ');
+
+      expect(user.email, 'afi@exemple.com');
+      expect(storage.access, 'a');
+      expect(storage.refresh, 'r');
+    });
+
+    for (final (label, error) in [
+      ('401 IDENTIFIANTS_INVALIDES', const UnauthorizedApiException('Email ou mot de passe incorrect.', code: 'IDENTIFIANTS_INVALIDES')),
+      ('403 EMAIL_NON_VERIFIE', const ForbiddenApiException('Adresse non vérifiée.', code: 'EMAIL_NON_VERIFIE')),
+      ('429 TROP_DE_REQUETES', const TooManyAttemptsApiException('Trop de tentatives.', code: 'TROP_DE_REQUETES')),
+    ]) {
+      test('login : $label propagé, aucun jeton', () async {
+        when(() => remote.login(email: any(named: 'email'), motDePasse: any(named: 'motDePasse'))).thenThrow(error);
+
+        await expectLater(
+          repository.login(email: 'afi@exemple.com', password: 'mauvais'),
+          throwsA(isA<ApiException>().having((e) => e.code, 'code', error.code)),
+        );
+        expect(storage.access, isNull);
+        expect(storage.refresh, isNull);
+      });
+    }
+  });
+
+  group('mot de passe oublié (F-073)', () {
+    test('requestPasswordReset normalise l’e-mail et renvoie le délai', () async {
+      when(() => remote.requestPasswordReset('afi@exemple.com'))
+          .thenAnswer((_) async => const CodeEnvoyeDto(email: 'afi@exemple.com', delaiRenvoiS: 60));
+
+      final challenge = await repository.requestPasswordReset('Afi@Exemple.com ');
+
+      expect(challenge.email, 'afi@exemple.com');
+      expect(challenge.resendIn, const Duration(seconds: 60));
+    });
+
+    test('resetPassword : e-mail normalisé, code et mot de passe envoyés, aucun jeton stocké', () async {
+      when(
+        () => remote.resetPassword(email: 'afi@exemple.com', code: '123456', motDePasse: 'Nouveau-2026'),
+      ).thenAnswer((_) async {});
+
+      await repository.resetPassword(email: ' AFI@exemple.com', code: '123456', password: 'Nouveau-2026');
+
+      verify(
+        () => remote.resetPassword(email: 'afi@exemple.com', code: '123456', motDePasse: 'Nouveau-2026'),
+      ).called(1);
+      expect(storage.access, isNull);
+      expect(storage.refresh, isNull);
+    });
   });
 
   test('restoreSession sans jeton ne fait aucun appel', () async {

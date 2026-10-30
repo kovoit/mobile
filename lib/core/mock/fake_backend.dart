@@ -83,11 +83,13 @@ class FakeBackend {
       },
     ];
     _users[1] = FakeUserRecord(
+      password: DemoAccount.password,
       fields: {
         'id': 1,
         'prenom': 'Kodjo',
         'nom': 'Mensah',
         'email': DemoAccount.email,
+        'email_verifie': true,
         'telephone': '+22890123456',
         'photo': null,
         'mode_actif': 'passager',
@@ -100,11 +102,13 @@ class FakeBackend {
 
     // Conducteur de démo : tous les droits, véhicule déclaré, en mode conducteur.
     _users[2] = FakeUserRecord(
+      password: DemoAccount.password,
       fields: {
         'id': 2,
         'prenom': 'Yao',
         'nom': 'Agbodjan',
         'email': DemoAccount.driverEmail,
+        'email_verifie': true,
         'telephone': '+22891000002',
         'photo': null,
         'mode_actif': 'conducteur',
@@ -140,7 +144,24 @@ class FakeBackend {
         'montant': 18500,
       },
     ];
-    _nextId = 3;
+    // Compte créé par l'ancienne connexion par code (D-69) : aucun mot de passe utilisable
+    // (« Mot de passe oublié » pour en fixer un) ni téléphone (« Profil à compléter », D-80).
+    _users[3] = FakeUserRecord(
+      fields: {
+        'id': 3,
+        'prenom': 'Akossiwa',
+        'nom': 'Dogbé',
+        'email': DemoAccount.legacyEmail,
+        'email_verifie': true,
+        'telephone': null,
+        'cgu_acceptees': true,
+        'photo': null,
+        'mode_actif': 'passager',
+        'statut_compte': 'actif',
+        'suspendu_jusqu_au': null,
+      },
+    );
+    _nextId = 4;
   }
 
   /// Dossiers complets (voir docs/api/kyc.md) : le conducteur fournit aussi identité et selfie,
@@ -183,14 +204,14 @@ class FakeBackend {
   /// Compte supprimé (anonymisé côté serveur) : il ne peut plus se connecter.
   void deleteUser(int id) => _users.remove(id);
 
-  bool phoneTaken(String telephone, {int? exceptId}) =>
-      _users.values.any((u) => u.fields['telephone'] == telephone && u.fields['id'] != exceptId);
-
-  /// Crée un compte (premier code valide pour une adresse inconnue). Profil à compléter.
-  int createUser({required Map<String, dynamic> fields}) {
+  /// Crée un compte. Sans [fields] complets (tests), le profil est à compléter.
+  /// [password] reste hors de `fields` : il n'apparaît jamais dans le JSON renvoyé.
+  int createUser({required Map<String, dynamic> fields, String? password}) {
     final id = _nextId++;
     _users[id] = FakeUserRecord(
+      password: password,
       fields: {
+        'email_verifie': true,
         'prenom': '',
         'nom': '',
         'telephone': null,
@@ -226,7 +247,7 @@ class FakeBackend {
       ...user,
       'id': '$id',
       'telephone': user['telephone'] ?? '',
-      'email_verifie': true,
+      'email_verifie': user['email_verifie'] ?? true,
       'profil_complet': filled('prenom') && filled('nom') && filled('telephone'),
       // Comptes de démo : CGU déjà acceptées ; un nouveau compte les accepte avec son profil
       'cgu_acceptees': user['cgu_acceptees'] ?? true,
@@ -237,13 +258,61 @@ class FakeBackend {
     };
   }
 
-  /// Réponse de `POST /auth/otp/verifier/`.
+  /// `SESSION` : réponse de `POST /auth/inscription/verifier/` et de `POST /auth/connexion/`.
   Map<String, dynamic> issueTokens(int id, {bool nouveauCompte = false}) => {
         'access': 'mock-access-$id',
         'refresh': 'mock-refresh-$id',
         'nouveau_compte': nouveauCompte,
         'utilisateur': profilJson(id),
       };
+
+  // ---------------------------------------------------------------- Codes et limites (auth)
+
+  /// Dernier code envoyé, par `objet:email` (`verification_email` ou `reinitialisation`).
+  final Map<String, DateTime> codesSent = {};
+
+  /// Envois de codes de la dernière heure, par adresse (plafond `otp_max_par_heure`, tous objets).
+  final Map<String, List<DateTime>> _sendsByEmail = {};
+
+  /// Requêtes de `auth/connexion/` (limite DRF de 5 par minute et par IP : un seul appareil ici).
+  final List<DateTime> _loginRequests = [];
+
+  /// Valeurs par défaut des paramètres `otp_delai_renvoi_s` et `otp_max_par_heure`.
+  static const Duration otpResendDelay = Duration(seconds: 60);
+  static const int otpMaxPerHour = 5;
+  static const int loginMaxPerMinute = 5;
+
+  /// Envoie (simulé) un code [objet] à [email]. `false` sans envoi si le délai de renvoi court
+  /// encore ; 429 `TROP_DE_REQUETES` au plafond horaire.
+  bool sendCode(String objet, String email) {
+    final now = clock();
+    final last = codesSent['$objet:$email'];
+    if (last != null && now.difference(last) < otpResendDelay) return false;
+    final sends = _sendsByEmail.putIfAbsent(email, () => [])
+      ..removeWhere((t) => now.difference(t) >= const Duration(hours: 1));
+    if (sends.length >= otpMaxPerHour) {
+      throw const TooManyAttemptsApiException(
+        'Trop de codes demandés. Réessayez plus tard.',
+        code: 'TROP_DE_REQUETES',
+      );
+    }
+    sends.add(now);
+    codesSent['$objet:$email'] = now;
+    return true;
+  }
+
+  /// Compte une requête de connexion ; 429 au-delà de 5 par minute.
+  void countLoginRequest() {
+    final now = clock();
+    _loginRequests.removeWhere((t) => now.difference(t) >= const Duration(minutes: 1));
+    if (_loginRequests.length >= loginMaxPerMinute) {
+      throw const TooManyAttemptsApiException(
+        'Trop de tentatives. Réessayez dans une minute.',
+        code: 'TROP_DE_REQUETES',
+      );
+    }
+    _loginRequests.add(now);
+  }
 
   // ---------------------------------------------------------------- KYC
 
@@ -288,9 +357,12 @@ class FakeBackend {
 }
 
 class FakeUserRecord {
-  FakeUserRecord({required this.fields});
+  FakeUserRecord({required this.fields, this.password});
 
   final Map<String, dynamic> fields;
+
+  /// Mot de passe en clair, en mémoire du faux serveur seulement (`null` : inutilisable).
+  String? password;
 
   int get id => fields['id'] as int;
 }

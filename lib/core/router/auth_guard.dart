@@ -7,9 +7,11 @@ import 'routes.dart';
 /// Fonction pure pour être testée sans widget. Retourne `null` si la route est autorisée.
 ///
 /// 1. Session en cours de restauration ou en erreur → Splash (qui affiche « Réessayer »).
-/// 2. Déconnecté → saisie de l'e-mail et du code uniquement.
-/// 3. Connecté, profil incomplet (prénom, nom, téléphone) → complétion du profil.
-/// 4. Profil complet → l'application ; les écrans d'entrée renvoient vers l'accueil.
+/// 2. Déconnecté → Connexion, Inscription, Vérification de l'e-mail, Mot de passe oublié.
+/// 3. Connecté, profil incomplet (compte ancien sans nom ou téléphone, D-80) → complétion du profil.
+///    Un compte inscrit avec le nouveau parcours a toujours un profil complet.
+/// 4. CGU en vigueur non acceptées → acceptation.
+/// 5. Sinon → l'application ; les écrans d'entrée renvoient vers l'accueil.
 ///
 /// Le KYC ne bloque PAS la navigation (retour UX du 08/10) : il se fait depuis le Profil.
 /// Réserver, publier et passer en mode conducteur sont contrôlés au moment de l'action
