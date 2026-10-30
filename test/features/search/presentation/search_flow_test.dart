@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:kovoit/core/widgets/driver_card.dart';
 
 import '../../../helpers/flows.dart';
 import '../../../helpers/test_app.dart';
@@ -72,6 +73,25 @@ void main() {
     expect(find.text('4 trajets disponibles'), findsOneWidget);
     expect(find.text('Koffi Mensah'), findsOneWidget);
     expect(find.text('Yawo Dzidzo'), findsOneWidget);
+  });
+
+  testWidgets('CA-055-1 : filtre Voiture → les 3 trajets en voiture, sans la moto', (tester) async {
+    await pumpKovoitApp(tester, env: TestEnv.demoSession());
+
+    await scrollAndTap(tester, find.text('Voiture'));
+    await _searchFranciscainToUniversity(tester);
+
+    expect(find.text('3 trajets disponibles'), findsOneWidget);
+    expect(find.text('Yawo Dzidzo'), findsNothing, reason: 'seul trajet moto de la recherche');
+    for (final name in ['Koffi Mensah', 'Akossiwa Amégan', 'Kossi Akakpo']) {
+      await scrollTo(tester, find.text(name));
+      expect(find.text(name), findsOneWidget, reason: name);
+    }
+    expect(
+      find.descendant(of: find.byType(DriverCard), matching: find.byIcon(Icons.two_wheeler_rounded)),
+      findsNothing,
+      reason: 'aucune carte moto',
+    );
   });
 
   testWidgets('Validation : départ et destination obligatoires', (tester) async {

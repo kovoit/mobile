@@ -1,0 +1,67 @@
+{
+  "statut": "success",
+  "message": "1 trajet(s) trouvé(s).",
+  "reponse": [
+    {
+      "trajet": {
+        "id": "edece4fa-d963-4b0f-accc-0fe8a464d819",
+        "conducteur": {
+          "id": "3a9fb770-dd0a-4d9c-98b8-eb68280a0f48",
+          "prenom": "Kodjo",
+          "nom": "Amegah",
+          "photo": "/media/photos_profil/kodjo.jpg",
+          "confiance": {
+            "note_moyenne": null,
+            "nombre_notes": 0,
+            "fiabilite_pct": 100,
+            "passager_verifie": false,
+            "conducteur_verifie": true
+          }
+        },
+        "vehicule": {
+          "id": "2688ab71-666b-45a5-a54c-297b2c3b8b8c",
+          "type_vehicule": "voiture",
+          "marque": "Toyota",
+          "modele": "Corolla",
+          "couleur": "Grise",
+          "immatriculation": "TG0000AB",
+          "nb_places": 5,
+          "photo": "/media/vehicules/corolla.jpg"
+        },
+        "depart_lat": 6.1745,
+        "depart_lng": 1.169,
+        "depart_libelle": "Adidogomé",
+        "arrivee_lat": 6.13,
+        "arrivee_lng": 1.222,
+        "arrivee_libelle": "Grand Marché",
+        "points": [
+          {
+            "id": "b63d5af7-105f-450a-b09c-52173f973b76",
+            "ordre": 1,
+            "lat": 6.175,
+            "lng": 1.17,
+            "libelle": "Carrefour Adidogomé"
+          }
+        ],
+        "depart_le": "2026-10-24T12:21:52.952154Z",
+        "places_total": 3,
+        "places_restantes": 3,
+        "distance_km": "9.97",
+        "duree_min": 24,
+        "prix_place": 300,
+        "frais_service": 0,
+        "statut": "publie"
+      },
+      "point_propose": {
+        "id": "b63d5af7-105f-450a-b09c-52173f973b76",
+        "ordre": 1,
+        "lat": 6.175,
+        "lng": 1.17,
+        "libelle": "Carrefour Adidogomé"
+      },
+      "distance_marche_km": 0.0,
+      "ecart_minutes": 0,
+      "prix_passager": 300
+    }
+  ]
+}

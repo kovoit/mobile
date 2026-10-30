@@ -27,6 +27,7 @@ main d'après le contrat C3 et `ProfilSerializer` (`backend/apps/accounts/api/se
 `photo` en chemin **relatif** (`/media/…`), comme toutes les routes du backend (décision Q1 révisée :
 le mobile complète le chemin avec l'origine de l'API, `lib/core/network/media_url.dart`).
 `trajet_detail_photo.json` est `trajet_detail.json` avec une photo relative pour le conducteur et le
-véhicule (les données de démo n'en ont pas). À remplacer par des fixtures régénérées dès que le
+véhicule (les données de démo n'en ont pas) ; `recherche_photo.json` est, de même, `recherche.json`
+avec une photo relative pour le conducteur et le véhicule. À remplacer par des fixtures régénérées dès que le
 script du backend couvre ces cas (`PATCH /moi/` avec photo, le même envoi avec un fichier qui n'est
-pas une image, détail d'un trajet dont le conducteur a une photo).
+pas une image, détail et recherche d'un trajet dont le conducteur a une photo).

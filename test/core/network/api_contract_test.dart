@@ -116,6 +116,40 @@ void main() {
     expect(backend.last.queryParameters['type_vehicule'], 'moto');
   });
 
+  test('recherche filtrée sur les voitures : type_vehicule=voiture envoyé (contrat C2, F-055)', () async {
+    backend.routes['GET /trajets/recherche/'] = 'recherche';
+    await ApiSearchRemoteDataSource(api).search((
+      departLat: 6.175,
+      departLng: 1.17,
+      arriveeLat: 6.13,
+      arriveeLng: 1.222,
+      dateHeure: DateTime.utc(2026, 10, 22, 9),
+      typeVehicule: 'voiture',
+    ));
+    expect(backend.last.path, '/trajets/recherche/');
+    expect(backend.last.queryParameters['type_vehicule'], 'voiture');
+    expect(backend.last.uri.query, contains('type_vehicule=voiture'));
+  });
+
+  test('recherche : photos relatives du conducteur et du véhicule complétées (Q1 révisée, F-003)', () async {
+    backend.routes['GET /trajets/recherche/'] = 'recherche_photo';
+    final matches = await ApiSearchRemoteDataSource(api).search((
+      departLat: 6.175,
+      departLng: 1.17,
+      arriveeLat: 6.13,
+      arriveeLng: 1.222,
+      dateHeure: DateTime.utc(2026, 10, 22, 9),
+      typeVehicule: null,
+    ));
+    final trip = matches.single.toEntity();
+    final origin = Uri.parse(Env.apiBaseUrl).origin;
+    expect(matches.single.trajet.conducteur.photo, '/media/photos_profil/kodjo.jpg', reason: 'le backend renvoie /media/…');
+    expect(trip.driver.photoUrl, '$origin/media/photos_profil/kodjo.jpg');
+    expect(Uri.parse(trip.driver.photoUrl!).isAbsolute, isTrue);
+    expect(trip.driver.photoUrl, isNot(contains('/api/v1')));
+    expect(trip.vehicle.photoUrl, '$origin/media/vehicules/corolla.jpg');
+  });
+
   test('détail d’un trajet avec l’aperçu du paiement', () async {
     backend.routes['GET /trajets/T/'] = 'trajet_detail';
     const query = (id: 'T', pickupId: 'P', arriveeLat: 6.13, arriveeLng: 1.22);
