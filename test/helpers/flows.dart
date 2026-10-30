@@ -37,3 +37,51 @@ Future<void> scrollTo(WidgetTester tester, Finder finder) async {
     scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first,
   );
 }
+
+// ---------------------------------------------------------------- Authentification (M-004)
+
+/// Champ de saisie d'un formulaire d'authentification, retrouvé par son libellé visible.
+Finder authField(String label) => find.descendant(
+      of: find.ancestor(of: find.text(label), matching: find.byType(Column)).first,
+      matching: find.byType(TextFormField),
+    );
+
+/// Remplit l'écran Inscription (D-68). La case CGU n'est cochée que si [acceptTerms].
+Future<void> fillRegistration(
+  WidgetTester tester, {
+  String prenom = 'Ama',
+  String nom = 'Mensah',
+  String email = 'ama.mensah@exemple.tg',
+  String phone = '91 23 45 67',
+  String password = 'Lome-Trajet-2026',
+  String? confirmation,
+  bool acceptTerms = true,
+}) async {
+  await tester.enterText(authField('Prénom'), prenom);
+  await tester.enterText(authField('Nom'), nom);
+  await tester.enterText(authField('Adresse e-mail'), email);
+  await tester.enterText(authField('Numéro de téléphone'), phone);
+  await tester.enterText(authField('Mot de passe'), password);
+  await tester.enterText(authField('Confirmer le mot de passe'), confirmation ?? password);
+  if (acceptTerms) await scrollAndTap(tester, find.text('J’accepte les conditions d’utilisation de Kovoit'));
+}
+
+/// Depuis la Connexion : ouvre l'Inscription, la remplit et touche « Créer mon compte ».
+Future<void> registerFromLogin(WidgetTester tester, {String email = 'ama.mensah@exemple.tg', String password = 'Lome-Trajet-2026'}) async {
+  await scrollAndTap(tester, find.text('Créer un compte'));
+  await fillRegistration(tester, email: email, password: password);
+  await scrollAndTap(tester, find.text('Créer mon compte'));
+}
+
+/// Saisit un code à 6 chiffres dans le premier champ de code de l'écran.
+Future<void> enterEmailCode(WidgetTester tester, String code) async {
+  await tester.enterText(find.byType(TextField).first, code);
+  await tester.pumpAndSettle();
+}
+
+/// Connexion par e-mail + mot de passe depuis l'écran Connexion.
+Future<void> loginWithPassword(WidgetTester tester, String email, String password) async {
+  await tester.enterText(authField('Adresse e-mail'), email);
+  await tester.enterText(authField('Mot de passe'), password);
+  await scrollAndTap(tester, find.text('Se connecter'));
+}

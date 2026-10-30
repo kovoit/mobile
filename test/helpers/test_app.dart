@@ -271,12 +271,13 @@ Future<void> scrollAndTap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<TestEnv> pumpKovoitApp(WidgetTester tester, {TestEnv? env}) async {
+/// [overrides] s'ajoutent à ceux de [TestEnv] (ex. un `AuthRepository` simulé avec mocktail).
+Future<TestEnv> pumpKovoitApp(WidgetTester tester, {TestEnv? env, List<Override> overrides = const []}) async {
   final testEnv = env ?? TestEnv();
   tester.view.physicalSize = const Size(1080, 2400);
   tester.view.devicePixelRatio = 2.75;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(ProviderScope(overrides: testEnv.overrides, child: const KovoitApp()));
+  await tester.pumpWidget(ProviderScope(overrides: [...testEnv.overrides, ...overrides], child: const KovoitApp()));
   await tester.pumpAndSettle();
   return testEnv;
 }
