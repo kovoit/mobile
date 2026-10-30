@@ -26,6 +26,26 @@ const String kOsmUserAgent = 'com.kovoit.kovoit';
 /// surchargé dans les tests (pas de réseau ni de `path_provider`).
 final mapTileProviderProvider = Provider<TileProvider?>((ref) => null);
 
+/// Nature d'un point intermédiaire affiché sur la carte.
+enum MapWaypointKind {
+  /// Carrefour de prise en charge du conducteur.
+  pickup,
+
+  /// Carrefour proposé au passager (mis en avant).
+  proposedPickup,
+
+  /// Point d'arrêt (descente) choisi par le passager.
+  passengerStop,
+}
+
+/// Point intermédiaire de la carte (carrefour, point d'arrêt), pris dans le cadrage.
+class MapWaypoint {
+  const MapWaypoint(this.point, {this.kind = MapWaypointKind.pickup});
+
+  final LatLng point;
+  final MapWaypointKind kind;
+}
+
 /// Aperçu de carte OpenStreetMap (écrans « Conducteurs disponibles » et « Suivi du trajet »).
 /// Le tracé [route] et les positions viennent de l'API (OSRM côté backend) :
 /// aucun calcul d'itinéraire ni de distance dans l'application.
@@ -35,6 +55,7 @@ class MapPreview extends StatelessWidget {
     required this.start,
     required this.end,
     this.route = const [],
+    this.waypoints = const [],
     this.vehiclePosition,
     this.startLabel,
     this.endLabel,
@@ -47,6 +68,9 @@ class MapPreview extends StatelessWidget {
   final LatLng start;
   final LatLng end;
   final List<LatLng> route;
+
+  /// Carrefours et point d'arrêt, dessinés entre le départ et l'arrivée.
+  final List<MapWaypoint> waypoints;
   final LatLng? vehiclePosition;
   final String? startLabel;
   final String? endLabel;
@@ -72,7 +96,7 @@ class MapPreview extends StatelessWidget {
           child: FlutterMap(
             options: MapOptions(
               initialCameraFit: CameraFit.coordinates(
-                coordinates: [start, end, ...route],
+                coordinates: [start, end, ...route, for (final w in waypoints) w.point],
                 padding: const EdgeInsets.all(36),
               ),
               interactionOptions: InteractionOptions(
@@ -88,6 +112,7 @@ class MapPreview extends StatelessWidget {
                 markers: [
                   Marker(point: start, width: 18, height: 18, child: const _Dot(color: AppColors.accent)),
                   Marker(point: end, width: 18, height: 18, child: const _Dot(color: AppColors.primary)),
+                  for (final w in waypoints) _waypointMarker(w),
                   if (vehiclePosition != null)
                     Marker(point: vehiclePosition!, width: 34, height: 34, child: const _VehicleMarker()),
                 ],
@@ -107,10 +132,51 @@ class MapPreview extends StatelessWidget {
   }
 }
 
+Marker _waypointMarker(MapWaypoint w) => switch (w.kind) {
+      MapWaypointKind.pickup => Marker(
+          point: w.point,
+          width: 14,
+          height: 14,
+          child: const _Dot(color: AppColors.surface, borderColor: AppColors.primary),
+        ),
+      MapWaypointKind.proposedPickup => Marker(
+          point: w.point,
+          width: 30,
+          height: 30,
+          child: const _IconMarker(icon: Icons.hail_rounded, color: AppColors.accent),
+        ),
+      MapWaypointKind.passengerStop => Marker(
+          point: w.point,
+          width: 30,
+          height: 30,
+          child: const _IconMarker(icon: Icons.flag_rounded, color: AppColors.success),
+        ),
+    };
+
+class _IconMarker extends StatelessWidget {
+  const _IconMarker({required this.icon, required this.color});
+
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: AppColors.surface, width: 3),
+      ),
+      child: Icon(icon, size: 14, color: AppColors.surface),
+    );
+  }
+}
+
 class _Dot extends StatelessWidget {
-  const _Dot({required this.color});
+  const _Dot({required this.color, this.borderColor = Colors.white});
 
   final Color color;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +184,7 @@ class _Dot extends StatelessWidget {
       decoration: BoxDecoration(
         color: color,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
+        border: Border.all(color: borderColor, width: 3),
       ),
     );
   }

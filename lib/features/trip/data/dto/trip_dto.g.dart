@@ -113,6 +113,20 @@ Map<String, dynamic> _$PaymentPreviewDtoToJson(PaymentPreviewDto instance) =>
       'recharge_suggeree': instance.rechargeSuggeree,
     };
 
+TraceDto _$TraceDtoFromJson(Map<String, dynamic> json) => TraceDto(
+  source: json['source'] as String,
+  points: (json['points'] as List<dynamic>)
+      .map(
+        (e) => (e as List<dynamic>).map((e) => (e as num).toDouble()).toList(),
+      )
+      .toList(),
+);
+
+Map<String, dynamic> _$TraceDtoToJson(TraceDto instance) => <String, dynamic>{
+  'source': instance.source,
+  'points': instance.points,
+};
+
 TripDto _$TripDtoFromJson(Map<String, dynamic> json) => TripDto(
   id: json['id'] as String,
   conducteur: PersonDto.fromJson(json['conducteur'] as Map<String, dynamic>),
@@ -137,6 +151,9 @@ TripDto _$TripDtoFromJson(Map<String, dynamic> json) => TripDto(
   paiement: json['paiement'] == null
       ? null
       : PaymentPreviewDto.fromJson(json['paiement'] as Map<String, dynamic>),
+  trace: json['trace'] == null
+      ? null
+      : TraceDto.fromJson(json['trace'] as Map<String, dynamic>),
 );
 
 Map<String, dynamic> _$TripDtoToJson(TripDto instance) => <String, dynamic>{
@@ -159,4 +176,5 @@ Map<String, dynamic> _$TripDtoToJson(TripDto instance) => <String, dynamic>{
   'frais_service': instance.fraisService,
   'statut': instance.statut,
   'paiement': instance.paiement?.toJson(),
+  'trace': instance.trace?.toJson(),
 };

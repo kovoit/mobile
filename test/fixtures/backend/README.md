@@ -17,3 +17,7 @@ flutter test test/core/network/api_contract_test.dart
 ```
 
 Les identifiants (UUID) et les dates changent à chaque génération : c'est normal.
+
+**Exception provisoire (M-003, F-057)** : `trajet_detail_trace.json` est écrit à la main d'après le
+contrat C1 (`pilotage/missions/M-003-demo-trace-filtre-photo.md`), en attendant que le backend
+renvoie `trace` dans le détail. À remplacer par une fixture régénérée dès la route livrée.

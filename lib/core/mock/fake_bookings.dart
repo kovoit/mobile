@@ -222,7 +222,10 @@ class FakeBookings {
   /// Vue du **passager** : seule vue qui contient le code de départ (réservation acceptée).
   Map<String, dynamic> _json(String id) {
     final b = _backend.bookings[id]!;
-    final trip = _trip(b)..remove('paiement');
+    // Le tracé et l'aperçu du paiement n'existent que dans le détail du trajet.
+    final trip = _trip(b)
+      ..remove('paiement')
+      ..remove('trace');
     final points = (trip['points'] as List).cast<Map<String, dynamic>>();
     final status = b['statut'] as String;
     return {

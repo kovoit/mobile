@@ -19,6 +19,7 @@ import 'package:kovoit/features/report/domain/report_repository.dart';
 import 'package:kovoit/features/search/data/datasources/search_remote_data_source.dart';
 import 'package:kovoit/features/trip/data/datasources/trip_remote_data_source.dart';
 import 'package:kovoit/features/trip/domain/entities/geo_place.dart';
+import 'package:kovoit/features/trip/domain/entities/trip.dart';
 import 'package:kovoit/features/vehicle/data/datasources/vehicle_remote_data_source.dart';
 import 'package:kovoit/features/wallet/data/wallet_remote_data_source.dart';
 import 'package:kovoit/features/wallet/domain/wallet.dart';
@@ -106,6 +107,19 @@ void main() {
     expect(trip.payment, isNotNull);
     expect(trip.payment!.montantTotal, trip.prixPassager, reason: 'le paiement porte sur le prix du passager');
     expect(trip.pickupPoints, isNotEmpty);
+    expect(trip.trace, isNull, reason: 'fixture sans `trace` (trajet publié avant les tracés)');
+  });
+
+  test('détail d’un trajet avec le tracé de la route (contrat C1, F-057)', () async {
+    backend.routes['GET /trajets/T/'] = 'trajet_detail_trace';
+    final trip = (await ApiTripRemoteDataSource(api).fetchTrip((id: 'T', pickupId: null, arriveeLat: null, arriveeLng: null)))
+        .toEntity();
+    expect(trip.trace, isNotNull);
+    expect(trip.trace!.source, TraceSource.routage);
+    expect(trip.trace!.points, [(lat: 6.1745, lng: 1.169), (lat: 6.17501, lng: 1.17003), (lat: 6.13, lng: 1.222)]);
+    expect(trip.trace!.points.first, (lat: trip.depart.lat, lng: trip.depart.lng), reason: 'du départ…');
+    expect(trip.trace!.points.last, (lat: trip.arrivee.lat, lng: trip.arrivee.lng), reason: '…à l’arrivée');
+    expect(trip.prixPassager, 300, reason: 'prix inchangé par le tracé');
   });
 
   test('réservation : demande, liste, suivi avec code, annulation, partage, confirmation', () async {

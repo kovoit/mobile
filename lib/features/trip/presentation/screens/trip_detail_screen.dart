@@ -17,6 +17,7 @@ import '../../../vehicle/domain/entities/vehicle.dart';
 import '../../domain/entities/trip.dart';
 import '../../domain/repositories/trip_repository.dart';
 import '../providers/trip_providers.dart';
+import '../widgets/trip_route_map.dart';
 
 /// Maquette « Détails & Réservation » : prise en charge, conducteur (note, fiabilité), véhicule
 /// (photo + immatriculation), prix et paiement par le portefeuille renvoyés par l'API, demande
@@ -144,6 +145,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           subtitle: '${Formatters.longDate(trip.departureAt)} · 1 place en ${isMoto ? 'moto' : 'voiture'}',
         ),
         const SizedBox(height: AppSpacing.lg),
+        if (trip.trace != null) ...[
+          TripRouteMap(
+            trip: trip,
+            passengerStop: widget.arrivee == null ? null : (lat: widget.arrivee!.lat, lng: widget.arrivee!.lng),
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
         _ItineraryCard(trip: trip, pickup: pickup),
         const SizedBox(height: AppSpacing.md),
         _DriverCard(trip: trip),

@@ -83,6 +83,28 @@ class PaymentPreview {
   final int rechargeSuggeree;
 }
 
+/// Origine du tracé, telle que renvoyée par le backend.
+enum TraceSource {
+  /// Itinéraire calculé par le routage (OSRM).
+  routage,
+
+  /// Routage indisponible à la publication : segments droits départ → carrefours → arrivée.
+  estimation;
+
+  static TraceSource fromApi(String? value) => value == 'routage' ? routage : estimation;
+}
+
+/// Tracé de la route du conducteur (détail d'un trajet) : du départ à l'arrivée en passant par
+/// les carrefours de prise en charge, dans l'ordre. Fourni par l'API, jamais calculé par l'app.
+class TripTrace {
+  const TripTrace({required this.source, required this.points});
+
+  final TraceSource source;
+
+  /// Au moins 2 points, du départ à l'arrivée.
+  final List<({double lat, double lng})> points;
+}
+
 /// Trajet publié. Prix, frais, places et distances sont fournis par l'API : aucun calcul côté app.
 /// Une réservation = une place (décision MVP).
 class Trip {
@@ -102,6 +124,7 @@ class Trip {
     this.payment,
     this.matchedPickupId,
     this.walkingDistanceKm,
+    this.trace,
   }) : prixPassager = prixPassager ?? prixPlace;
 
   final String id;
@@ -131,6 +154,10 @@ class Trip {
   /// Distance de marche jusqu'au point proposé (renvoyée par la recherche uniquement).
   final double? walkingDistanceKm;
 
+  /// Tracé de la route (détail d'un trajet uniquement ; `null` pour un trajet publié avant
+  /// l'enregistrement des tracés, ou dans la recherche).
+  final TripTrace? trace;
+
   PickupPoint? get matchedPickup =>
       pickupPoints.where((p) => p.id == matchedPickupId).firstOrNull ?? pickupPoints.firstOrNull;
 
@@ -152,5 +179,6 @@ class Trip {
         payment: payment,
         matchedPickupId: pickupId,
         walkingDistanceKm: walkingDistanceKm ?? this.walkingDistanceKm,
+        trace: trace,
       );
 }

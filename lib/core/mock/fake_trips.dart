@@ -77,6 +77,36 @@ abstract final class FakeTrips {
     ),
   ];
 
+  /// Tracés « par la route » dessinés à la main (`source: routage`), par indice de modèle.
+  /// Les autres modèles reçoivent des segments droits (`estimation`), sauf ceux de
+  /// [_tripsWithoutTrace] (trajets publiés avant l'enregistrement des tracés : `trace: null`).
+  static const Map<int, List<List<double>>> _routedTraces = {
+    // Koffi : Carrefour Franciscain → Avedji → Totsi → Université de Lomé.
+    0: [
+      [6.16600, 1.16500], [6.16650, 1.17000], [6.16720, 1.17550], [6.16810, 1.18000], [6.16900, 1.18400],
+      [6.17150, 1.18800], [6.17420, 1.19250], [6.17800, 1.19800], [6.17640, 1.20300], [6.17300, 1.20750],
+      [6.17020, 1.21100], [6.16800, 1.21400],
+    ],
+    // Yawo (moto) : Carrefour Franciscain → Avedji → Université de Lomé.
+    3: [
+      [6.16600, 1.16500], [6.16650, 1.17000], [6.16720, 1.17550], [6.16810, 1.18000], [6.16900, 1.18400],
+      [6.16950, 1.19000], [6.16920, 1.19700], [6.16880, 1.20400], [6.16840, 1.20900], [6.16800, 1.21400],
+    ],
+  };
+  static const Set<int> _tripsWithoutTrace = {6};
+
+  /// Bloc `trace` du détail (TrajetDetailSerializer) : départ → carrefours (ordre) → arrivée.
+  static Map<String, dynamic>? _traceJson(int index, _TripTemplate t) {
+    if (_tripsWithoutTrace.contains(index)) return null;
+    final routed = _routedTraces[index];
+    if (routed != null) return {'source': 'routage', 'points': routed};
+    List<double> pair(int lieuId) => [_lieu(lieuId)['lat'] as double, _lieu(lieuId)['lng'] as double];
+    return {
+      'source': 'estimation',
+      'points': [pair(t.departId), for (final id in t.pickupIds) pair(id), pair(t.arriveeId)],
+    };
+  }
+
   /// Profil public (PersonneSerializer) : jamais d'email ni de téléphone.
   static Map<String, dynamic> _driver(int id, String prenom, String nom, double note, int fiabilite, int notes) => {
         'id': 'u$id',
@@ -154,7 +184,7 @@ abstract final class FakeTrips {
     return results;
   }
 
-  /// `GET /trajets/{id}/` avec l'aperçu du paiement pour un passager qui dispose de
+  /// `GET /trajets/{id}/` avec l'aperçu du paiement et le tracé, pour un passager qui dispose de
   /// [soldeDisponible] F CFA. L'identifiant encode la date et le modèle : `trajet-AAAAMMJJ-II`.
   static Map<String, dynamic>? tripById(String id, {int soldeDisponible = 0}) {
     final match = RegExp(r'^trajet-(\d{8})-(\d{2})$').firstMatch(id);
@@ -168,6 +198,7 @@ abstract final class FakeTrips {
     final disponible = math.max(soldeDisponible, 0);
     return _tripJson(index, template, departure)
       ..['prix_passager'] = template.price
+      ..['trace'] = _traceJson(index, template)
       ..['paiement'] = {
         'montant_total': montant,
         'solde_disponible': disponible,

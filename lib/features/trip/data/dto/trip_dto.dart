@@ -184,6 +184,31 @@ class PaymentPreviewDto {
       );
 }
 
+/// Bloc `trace` du détail d'un trajet : `{source, points: [[lat, lng], …]}`.
+@JsonSerializable()
+class TraceDto {
+  const TraceDto({required this.source, required this.points});
+
+  factory TraceDto.fromJson(Map<String, dynamic> json) => _$TraceDtoFromJson(json);
+
+  /// `routage` | `estimation`.
+  final String source;
+
+  /// Paires `[lat, lng]`, du départ à l'arrivée.
+  final List<List<double>> points;
+
+  Map<String, dynamic> toJson() => _$TraceDtoToJson(this);
+
+  /// Défense : une paire incomplète est ignorée ; moins de 2 points → pas de tracé.
+  TripTrace? toEntity() {
+    final pairs = [
+      for (final p in points)
+        if (p.length >= 2) (lat: p[0], lng: p[1]),
+    ];
+    return pairs.length < 2 ? null : TripTrace(source: TraceSource.fromApi(source), points: pairs);
+  }
+}
+
 /// Trajet (backend : TrajetSerializer, TrajetDetailSerializer avec `paiement`).
 @JsonSerializable(fieldRename: FieldRename.snake, explicitToJson: true)
 class TripDto {
@@ -207,6 +232,7 @@ class TripDto {
     this.fraisService = 0,
     this.statut = 'publie',
     this.paiement,
+    this.trace,
   });
 
   factory TripDto.fromJson(Map<String, dynamic> json) => _$TripDtoFromJson(json);
@@ -234,6 +260,10 @@ class TripDto {
   final String statut;
   final PaymentPreviewDto? paiement;
 
+  /// Tracé de la route : détail d'un trajet seulement (absent de la recherche), `null` pour un
+  /// trajet publié avant l'enregistrement des tracés.
+  final TraceDto? trace;
+
   Map<String, dynamic> toJson() => _$TripDtoToJson(this);
 
   Trip toEntity() => Trip(
@@ -250,5 +280,6 @@ class TripDto {
         fraisService: fraisService,
         statut: statut,
         payment: paiement?.toEntity(),
+        trace: trace?.toEntity(),
       );
 }
