@@ -99,7 +99,13 @@ void main() {
     await scrollAndTap(tester, find.text('Publier mon trajet'));
 
     final tripId = env.backend.driverTrips.keys.last;
-    final requestId = ((env.backend.driverTrips[tripId]!['demandes'] as List).first as Map)['id'] as String;
+    env.driver.simulatePassengerRequests(
+      tripId,
+    ); // un passager (simulé) a demandé une place
+    final requestId =
+        ((env.backend.driverTrips[tripId]!['demandes'] as List).first
+                as Map)['id']
+            as String;
     await tester.runAsync(() async {
       await env.driver.accept(requestId);
       await env.driver.submitCode(requestId, DemoAccount.fakePassengerCode);

@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../../core/config/env.dart';
-import '../../../../core/mock/fake_bookings.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/services/external_actions.dart';
@@ -303,11 +301,11 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           PrimaryButton.outlined(label: 'Annuler', isLoading: _cancelling, onPressed: () => _cancel(booking)),
         ],
         const SizedBox(height: AppSpacing.sm),
-        Text(_footer(booking), textAlign: TextAlign.center, style: AppTextStyles.caption),
-        if (Env.useMockApi && status.isUpcoming) ...[
-          const SizedBox(height: AppSpacing.lg),
-          _DemoDriverTools(bookingId: booking.id, onDone: _controller.refresh),
-        ],
+        Text(
+          _footer(booking),
+          textAlign: TextAlign.center,
+          style: AppTextStyles.caption,
+        ),
       ],
     );
   }
@@ -364,48 +362,6 @@ class _DriverSummary extends StatelessWidget {
             '${trip.vehicle.label} · ${trip.vehicle.immatriculation} · ${Formatters.fcfa(booking.montantTotal)} · '
             'portefeuille',
             style: AppTextStyles.caption,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Mode démo : joue le rôle du conducteur (accepter, refuser, saisir le code).
-class _DemoDriverTools extends ConsumerWidget {
-  const _DemoDriverTools({required this.bookingId, required this.onDone});
-
-  final String bookingId;
-  final Future<void> Function() onDone;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final fake = ref.read(fakeBookingsProvider);
-    Widget button(String label, Future<void> Function(String) action) => OutlinedButton(
-          onPressed: () async {
-            await action(bookingId);
-            await onDone();
-          },
-          style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
-          child: Text(label),
-        );
-
-    return KovoitCard(
-      color: AppColors.accentLight,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Mode démo · simuler le conducteur', style: AppTextStyles.label),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.xs,
-            runSpacing: AppSpacing.xs,
-            children: [
-              button('Accepter', fake.simulateDriverAccepts),
-              button('Refuser', fake.simulateDriverRefuses),
-              button('Saisir le code', fake.simulatePickup),
-              button('Terminer le trajet', fake.simulateTripFinished),
-            ],
           ),
         ],
       ),

@@ -8,7 +8,11 @@ liens externes, notifications push.
 
 ### APK de démo (sans serveur)
 
-Données simulées, aucun argent réel. Idéal pour tester les écrans, l'appareil photo et le GPS.
+Données simulées, aucun argent réel. Convient pour les écrans, l'appareil photo, le GPS et la
+recherche. La démo ne joue jamais le conducteur ni le passager : un trajet publié reste sans
+demande et une réservation reste « En attente ». Seule simulation conservée : Profil → « Mode
+démo » → **Valider / Refuser les dossiers** (décision de l'administrateur KYC, sur clic). Les
+vérifications marquées *(vrai backend)* demandent l'APK branché sur le vrai backend.
 
 ```bash
 flutter build apk --release --dart-define=ENV=dev --dart-define=USE_MOCK_API=true
@@ -18,7 +22,10 @@ APK produit : `build/app/outputs/flutter-apk/app-release.apk`. L'envoyer sur le 
 (WhatsApp, câble USB, Google Drive) puis l'ouvrir ; Android demande d'autoriser l'installation
 depuis cette source.
 
-Connexion de démo : `demo@kovoit.tg` (passager) ou `conducteur@kovoit.tg` (conducteur), code `123456`.
+Connexion de démo par e-mail + mot de passe : `demo@kovoit.tg` (passager) ou
+`conducteur@kovoit.tg` (conducteur). Le mot de passe est rappelé sur l'écran de connexion en démo
+(`lib/core/config/demo_account.dart`). Le code `123456` sert seulement à vérifier l'e-mail et à
+« Mot de passe oublié ».
 
 ### APK branché sur le vrai backend
 
@@ -33,7 +40,17 @@ flutter build apk --release --dart-define=ENV=dev --dart-define=USE_MOCK_API=fal
   --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api/v1
 ```
 
-Les codes de connexion arrivent par email (en local : affichés dans les logs du backend).
+Connexion par e-mail + mot de passe. Les codes de vérification de l'e-mail et de « Mot de passe
+oublié » arrivent par e-mail (en local : affichés dans les logs du backend).
+
+### Parcours complet : deux comptes, deux téléphones
+
+Acceptation, code de départ, partage de position, fin du trajet et notation ne se testent que sur
+le vrai backend : un compte conducteur sur un téléphone, un compte passager sur l'autre, l'app
+construite ou lancée avec `--dart-define=USE_MOCK_API=false`, et le temps avancé sur le PC par
+`python manage.py avancer_trajet`. Comptes de test et scénario pas à pas :
+[backend/README.md](../../backend/README.md), section « Tester un trajet complet avec deux
+téléphones ».
 
 ## 2. Liste de vérifications
 
@@ -41,8 +58,9 @@ Noter pour chaque ligne : ✅ OK, ❌ problème (avec une capture d'écran), et 
 téléphone et la version d'Android.
 
 ### Compte
-- [ ] Connexion par code email ; profil à compléter ; case CGU obligatoire ; le lien « Lire les
-      conditions » ouvre le navigateur.
+- [ ] Inscription (prénom, nom, e-mail, téléphone, mot de passe) ; case CGU obligatoire ; le lien
+      « Lire les conditions » ouvre le navigateur ; code de vérification de l'e-mail.
+- [ ] Connexion par e-mail + mot de passe ; « Mot de passe oublié » par code.
 - [ ] Profil → Supprimer mon compte : refus expliqué si une réservation est en cours.
 
 ### Passager
@@ -50,18 +68,20 @@ téléphone et la version d'Android.
 - [ ] Vérification d'identité : photo de la pièce (appareil photo et galerie), selfie (caméra avant).
 - [ ] Détail d'un trajet : prix par place, places restantes, total, mention « prix figé ».
 - [ ] Réservation payée par le portefeuille ; recharge Flooz / Mixx (simulée en démo).
-- [ ] Code de départ affiché après acceptation ; « Partager mon trajet » ouvre le partage.
+- [ ] *(vrai backend)* Code de départ affiché après acceptation par le conducteur ; « Partager mon
+      trajet » ouvre le partage.
 - [ ] Notifications : Profil → Notifications ; toucher une notification ouvre la réservation.
 
 ### Conducteur
 - [ ] Véhicule : consommation facultative (refus au-delà de 30 L/100 km).
 - [ ] Publication : le détail du prix s'affiche dès le départ et la destination choisis.
-- [ ] Accepter une demande, saisir le code de départ, déclarer une absence (position GPS demandée).
-- [ ] **Partage de position en arrière-plan** : après avoir accepté un passager, quitter l'écran du
-      trajet puis l'application. Vérifier la notification Android « Kovoit partage votre position ».
+- [ ] *(vrai backend)* Accepter une demande, saisir le code de départ, déclarer une absence
+      (position GPS demandée).
+- [ ] *(vrai backend)* **Partage de position en arrière-plan** : après avoir accepté un passager,
+      quitter l'écran du trajet puis l'application. Vérifier la notification Android « Kovoit partage votre position ».
       Sur le lien partagé (page de suivi), la position doit se mettre à jour toutes les 30 s
       environ. Après « Terminer le trajet », la notification disparaît.
-- [ ] Terminer le trajet ; noter un passager (y compris un passager absent).
+- [ ] *(vrai backend)* Terminer le trajet ; noter un passager (y compris un passager absent).
 
 ### Général
 - [ ] Mode sombre, petite et grande taille de police, rotation de l'écran.

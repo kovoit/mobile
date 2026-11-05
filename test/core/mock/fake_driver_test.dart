@@ -35,6 +35,13 @@ void main() {
 
   Future<List<Map<String, dynamic>>> requests(Map<String, dynamic> trip) => driver.requests(trip['id'] as String);
 
+  /// Publie puis simule deux demandes de passagers fictifs (jamais faites par l'app).
+  Future<Map<String, dynamic>> publishWithRequests() async {
+    final trip = await driver.publish(body());
+    driver.simulatePassengerRequests(trip['id'] as String);
+    return trip;
+  }
+
   test('publication : erreurs métier du backend', () async {
     await expectLater(
       driver.publish(body(when: DateTime.utc(2026, 10, 8, 7))),
@@ -58,32 +65,57 @@ void main() {
     );
   });
 
-  test('publication : prix calculé et figé, demandes fictives, aucun code de départ exposé', () async {
-    final trip = await driver.publish(body());
-    expect(trip['statut'], 'publie');
-    final prix = trip['prix_place'] as int;
-    expect(prix, (trip['tarification'] as Map)['prix_place']);
-    expect(trip['nb_demandes'], 2);
-    final dto = DriverTripDto.fromJson(trip).toEntity();
-    expect(dto.id, startsWith('trajet-pub-'));
-    final reqs = await requests(trip);
-    expect(reqs, hasLength(2));
-    expect(reqs.toString(), isNot(contains('code_depart')));
-    final demande = DriverRequestDto.fromJson(reqs.first).toEntity();
-    expect(demande.prix, prix);
-    expect(demande.montant + demande.commission, prix, reason: 'le conducteur reçoit le net');
-    expect(DriverTripDto.fromJson(trip).toEntity().pricing!.prixPlace, prix);
-  });
+  test(
+    'publication en démo : aucune demande tant qu’aucun passager ne réserve',
+    () async {
+      final trip = await driver.publish(body());
+      expect(trip['nb_demandes'], 0);
+      expect(await requests(trip), isEmpty);
+      env.now = DateTime.utc(2026, 10, 8, 7, 25);
+      expect(
+        await requests(trip),
+        isEmpty,
+        reason: 'aucun passager fictif ne joue l’autre rôle',
+      );
+      expect((await driver.myTrips()).single['nb_demandes'], 0);
+    },
+  );
+
+  test(
+    'publication : prix calculé et figé, demandes simulées, aucun code de départ exposé',
+    () async {
+      final trip = await publishWithRequests();
+      expect(trip['statut'], 'publie');
+      final prix = trip['prix_place'] as int;
+      expect(prix, (trip['tarification'] as Map)['prix_place']);
+      expect((await driver.trip(trip['id'] as String))['nb_demandes'], 2);
+      final dto = DriverTripDto.fromJson(trip).toEntity();
+      expect(dto.id, startsWith('trajet-pub-'));
+      final reqs = await requests(trip);
+      expect(reqs, hasLength(2));
+      expect(reqs.toString(), isNot(contains('code_depart')));
+      final demande = DriverRequestDto.fromJson(reqs.first).toEntity();
+      expect(demande.prix, prix);
+      expect(
+        demande.montant + demande.commission,
+        prix,
+        reason: 'le conducteur reçoit le net',
+      );
+      expect(DriverTripDto.fromJson(trip).toEntity().pricing!.prixPlace, prix);
+    },
+  );
 
   test('sans KYC conducteur ni véhicule → 403', () async {
     final passenger = TestEnv.demoSession();
     await expectLater(passenger.driver.publish(body()), throwsA(isA<ForbiddenApiException>()));
   });
 
-  test('accepter retire une place ; trajet complet ; plus de place pour les autres', () async {
-    final trip = await driver.publish(body());
-    final reqs = await requests(trip);
-    await driver.accept(reqs.first['id'] as String);
+  test(
+    'accepter retire une place ; trajet complet ; plus de place pour les autres',
+    () async {
+      final trip = await publishWithRequests();
+      final reqs = await requests(trip);
+      await driver.accept(reqs.first['id'] as String);
 
     final updated = await driver.trip(trip['id'] as String);
     expect(updated['places_restantes'], 0);
@@ -95,7 +127,7 @@ void main() {
   });
 
   test('code de départ : essais comptés, puis en_cours', () async {
-    final trip = await driver.publish(body());
+    final trip = await publishWithRequests();
     final id = (await requests(trip)).first['id'] as String;
     await driver.accept(id);
 
@@ -110,7 +142,7 @@ void main() {
   });
 
   test('5 codes faux → code bloqué', () async {
-    final trip = await driver.publish(body());
+    final trip = await publishWithRequests();
     final id = (await requests(trip)).first['id'] as String;
     await driver.accept(id);
     for (var i = 0; i < FakeDriver.maxCodeAttempts; i++) {
@@ -122,10 +154,12 @@ void main() {
     );
   });
 
-  test('absence : refusée avant départ + tolérance, acceptée ensuite, conducteur crédité', () async {
-    final trip = await driver.publish(body());
-    final id = (await requests(trip)).first['id'] as String;
-    await driver.accept(id);
+  test(
+    'absence : refusée avant départ + tolérance, acceptée ensuite, conducteur crédité',
+    () async {
+      final trip = await publishWithRequests();
+      final id = (await requests(trip)).first['id'] as String;
+      await driver.accept(id);
 
     await expectLater(
       driver.declareAbsence(id, lat: 6.166, lng: 1.165),
@@ -139,22 +173,33 @@ void main() {
     expect((await driver.savings())['mois_en_cours'], 18500 + net, reason: 'net de la commission');
   });
 
-  test('terminer : refusé tant qu’un passager accepté n’est pas pris en charge', () async {
-    final trip = await driver.publish(body());
-    final id = (await requests(trip)).first['id'] as String;
-    await driver.accept(id);
-    await expectLater(
-      driver.finishTrip(trip['id'] as String),
-      throwsA(isA<ConflictApiException>().having((e) => e.code, 'code', 'PASSAGERS_EN_ATTENTE')),
-    );
-  });
+  test(
+    'terminer : refusé tant qu’un passager accepté n’est pas pris en charge',
+    () async {
+      final trip = await publishWithRequests();
+      final id = (await requests(trip)).first['id'] as String;
+      await driver.accept(id);
+      await expectLater(
+        driver.finishTrip(trip['id'] as String),
+        throwsA(
+          isA<ConflictApiException>().having(
+            (e) => e.code,
+            'code',
+            'PASSAGERS_EN_ATTENTE',
+          ),
+        ),
+      );
+    },
+  );
 
-  test('terminer : passagers terminés, économies par trajet et du mois', () async {
-    expect((await driver.savings())['mois_en_cours'], 18500);
-    final trip = await driver.publish(body());
-    final id = (await requests(trip)).first['id'] as String;
-    await driver.accept(id);
-    await driver.submitCode(id, DemoAccount.fakePassengerCode);
+  test(
+    'terminer : passagers terminés, économies par trajet et du mois',
+    () async {
+      expect((await driver.savings())['mois_en_cours'], 18500);
+      final trip = await publishWithRequests();
+      final id = (await requests(trip)).first['id'] as String;
+      await driver.accept(id);
+      await driver.submitCode(id, DemoAccount.fakePassengerCode);
 
     final finished = await driver.finishTrip(trip['id'] as String);
     expect(finished['statut'], 'termine');
@@ -167,7 +212,7 @@ void main() {
   });
 
   test('annuler le trajet : demandes annulées', () async {
-    final trip = await driver.publish(body());
+    final trip = await publishWithRequests();
     final cancelled = await driver.cancelTrip(trip['id'] as String);
     expect(cancelled['statut'], 'annule');
     expect((await requests(trip)).every((r) => r['statut'] == 'annulee'), isTrue);

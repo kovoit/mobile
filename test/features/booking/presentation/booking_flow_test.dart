@@ -12,35 +12,86 @@ String _bookingId(TestEnv env) => env.backend.bookings.keys.last;
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
 
-  testWidgets('Réservation par le portefeuille : demande → acceptation → code de départ → partage', (tester) async {
-    final env = await pumpKovoitApp(tester, env: TestEnv.demoSession()); // 2 000 F disponibles
-    await openKoffiTrip(tester);
+  testWidgets(
+    'Réservation par le portefeuille : demande → acceptation → code de départ → partage',
+    (tester) async {
+      final env = await pumpKovoitApp(
+        tester,
+        env: TestEnv.demoSession(),
+      ); // 2 000 F disponibles
+      await openKoffiTrip(tester);
 
-    await scrollTo(tester, find.text('Payé avec mon portefeuille'));
-    expect(find.text('Payé avec mon portefeuille'), findsOneWidget);
-    expect(find.textContaining('Il manque'), findsNothing);
-    await scrollAndTap(tester, find.text('Réserver ma place'));
+      await scrollTo(tester, find.text('Payé avec mon portefeuille'));
+      expect(find.text('Payé avec mon portefeuille'), findsOneWidget);
+      expect(find.textContaining('Il manque'), findsNothing);
+      await scrollAndTap(tester, find.text('Réserver ma place'));
 
-    expect(find.text('Demande envoyée'), findsOneWidget);
-    expect(find.text('En attente'), findsOneWidget);
-    expect(find.byType(DepartureCodeCard), findsNothing, reason: 'pas de code avant acceptation');
-    expect(env.wallet.balanceOf(1)['bloque'], 300, reason: 'montant réservé sur le portefeuille');
+      expect(find.text('Demande envoyée'), findsOneWidget);
+      expect(find.text('En attente'), findsOneWidget);
+      expect(
+        find.byType(DepartureCodeCard),
+        findsNothing,
+        reason: 'pas de code avant acceptation',
+      );
+      expect(
+        env.wallet.balanceOf(1)['bloque'],
+        300,
+        reason: 'montant réservé sur le portefeuille',
+      );
 
-    // Le conducteur accepte → code de départ affiché au passager.
-    await env.bookings.simulateDriverAccepts(_bookingId(env));
-    await tester.pump(BookingScreen.statusPollInterval);
-    await tester.pumpAndSettle();
+      // Le conducteur accepte → code de départ affiché au passager.
+      await env.bookings.simulateDriverAccepts(_bookingId(env));
+      await tester.pump(BookingScreen.statusPollInterval);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Suivi du trajet & Code de départ'), findsOneWidget);
-    expect(find.byType(DepartureCodeCard), findsOneWidget);
-    final code = env.backend.bookings[_bookingId(env)]!['code_depart'] as String;
-    expect(find.textContaining(code, findRichText: true), findsOneWidget);
+      expect(find.text('Suivi du trajet & Code de départ'), findsOneWidget);
+      expect(find.byType(DepartureCodeCard), findsOneWidget);
+      final code =
+          env.backend.bookings[_bookingId(env)]!['code_depart'] as String;
+      expect(find.textContaining(code, findRichText: true), findsOneWidget);
 
-    await scrollAndTap(tester, find.text('Partager mon trajet'));
-    expect(env.externalActions.shares.single, contains('/suivi/'));
-  });
+      await scrollAndTap(tester, find.text('Partager mon trajet'));
+      expect(env.externalActions.shares.single, contains('/suivi/'));
+    },
+  );
 
-  testWidgets('Solde insuffisant : recharge Mixx (PayGate) puis réservation', (tester) async {
+  testWidgets(
+    'Mode démo : aucun panneau « simuler le conducteur », la demande attend',
+    (tester) async {
+      final env = await pumpKovoitApp(tester, env: TestEnv.demoSession());
+      await openKoffiTrip(tester);
+      await scrollAndTap(tester, find.text('Réserver ma place'));
+      expect(find.text('Demande envoyée'), findsOneWidget);
+
+      for (final label in [
+        'Mode démo · simuler le conducteur',
+        'Accepter',
+        'Refuser',
+        'Saisir le code',
+      ]) {
+        expect(
+          find.text(label),
+          findsNothing,
+          reason: 'le passager ne joue jamais le conducteur',
+        );
+      }
+      expect(
+        find.widgetWithText(OutlinedButton, 'Terminer le trajet'),
+        findsNothing,
+      );
+
+      // Rien ne se passe tout seul : la demande reste en attente au sondage suivant.
+      await tester.pump(BookingScreen.statusPollInterval);
+      await tester.pumpAndSettle();
+      expect(find.text('Demande envoyée'), findsOneWidget);
+      expect(env.backend.bookings[_bookingId(env)]!['statut'], 'demandee');
+      expect(find.byType(DepartureCodeCard), findsNothing);
+    },
+  );
+
+  testWidgets('Solde insuffisant : recharge Mixx (PayGate) puis réservation', (
+    tester,
+  ) async {
     final env = TestEnv.demoSession();
     env.wallet.write(1, 'retrait', 1900); // il reste 100 F
     await pumpKovoitApp(tester, env: env);

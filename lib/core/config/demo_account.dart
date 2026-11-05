@@ -15,6 +15,6 @@ abstract final class DemoAccount {
   /// Conducteur de démo : KYC validés, véhicule déclaré, mode conducteur.
   static const String driverEmail = 'conducteur@kovoit.tg';
 
-  /// Code de départ des passagers fictifs qui demandent une place au conducteur de démo.
+  /// Code de départ des passagers fictifs de `FakeDriver.simulatePassengerRequests` (tests).
   static const String fakePassengerCode = '4821';
 }

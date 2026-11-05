@@ -22,7 +22,7 @@ class FakeDriver {
 
   DateTime get _now => _backend.clock().toUtc();
 
-  /// Passagers fictifs qui demandent une place dès la publication (démo).
+  /// Passagers fictifs de [simulatePassengerRequests] (tests uniquement).
   static const List<Map<String, dynamic>> _fakePassengers = [
     {'id': 'u31', 'prenom': 'Afi', 'nom': 'Amégan', 'note': 4.8},
     {'id': 'u32', 'prenom': 'Kossi', 'nom': 'Akakpo', 'note': 4.6},
@@ -137,18 +137,28 @@ class FakeDriver {
     };
     _backend.driverTrips[id] = trip;
 
-    // Démo : des passagers fictifs demandent une place au premier point de prise en charge.
+    return _tripJson(trip);
+  }
+
+  /// **Tests uniquement, jamais appelée par l'app** : des passagers fictifs demandent une place
+  /// (`places + 1` demandes) au premier point de prise en charge du trajet [tripId].
+  /// En démo comme avec le vrai backend, un trajet publié n'a aucune demande tant qu'un vrai
+  /// passager ne réserve pas.
+  void simulatePassengerRequests(String tripId) {
+    final trip = _backend.driverTrips[tripId]!;
     final firstPoint = (trip['points'] as List).first as Map<String, dynamic>;
-    final prix = tarification['prix_place'] as int;
+    final prix = trip['prix_place'] as int;
     final (commission, net) = FakePricing.repartir(prix);
-    for (final passenger in _fakePassengers.take(places + 1)) {
+    for (final passenger in _fakePassengers.take(
+      (trip['places_total'] as int) + 1,
+    )) {
       _requests(trip).add({
         'id': 'resa-${_backend.nextDriverRequestId++}',
         'passager': _person(passenger),
         'point': firstPoint,
-        'arrivee_lat': body['arrivee_lat'],
-        'arrivee_lng': body['arrivee_lng'],
-        'arrivee_libelle': body['arrivee_libelle'],
+        'arrivee_lat': trip['arrivee_lat'],
+        'arrivee_lng': trip['arrivee_lng'],
+        'arrivee_libelle': trip['arrivee_libelle'],
         'statut': 'demandee',
         'prix': prix,
         'frais_service': 0,
@@ -160,7 +170,6 @@ class FakeDriver {
         'essais_code': 0,
       });
     }
-    return _tripJson(trip);
   }
 
   /// `GET /trajets/mes-trajets/`.

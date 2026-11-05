@@ -151,7 +151,10 @@ class FakeBookings {
     return _json(id);
   }
 
-  // ------------------------------------------------------------------ Simulation du conducteur (démo)
+  // ------------------------------------------------------------------ Simulation du conducteur (tests)
+  //
+  // Tests uniquement : plus aucun bouton de l'app ne joue le conducteur, même en mode démo.
+  // Le passager attend qu'un vrai conducteur accepte, saisisse le code et termine le trajet.
 
   Future<void> simulateDriverAccepts(String id) async {
     final booking = _backend.bookings[id]!;

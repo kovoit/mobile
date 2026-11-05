@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:kovoit/app.dart';
 import 'package:kovoit/core/config/demo_account.dart';
+import 'package:kovoit/core/mock/fake_backend.dart';
+import 'package:kovoit/core/mock/fake_driver.dart';
 import 'package:kovoit/core/services/location_service.dart';
 import 'package:kovoit/features/driver/presentation/screens/driver_trip_screen.dart';
 
@@ -26,8 +30,18 @@ Future<void> _scrollToTop(WidgetTester tester) async {
 
 /// Publie Carrefour Franciscain → Université de Lomé à 07:30 (1 place), avec Avedji en 2e carrefour.
 Future<void> _publishDemoTrip(WidgetTester tester) async {
-  await choosePlace(tester, 'Carrefour, quartier, repère…', 'franc', 'Carrefour Franciscain');
-  await choosePlace(tester, 'Où allez-vous ?', 'univ', 'Université de Lomé · Entrée sud');
+  await choosePlace(
+    tester,
+    'Carrefour, quartier, repère…',
+    'franc',
+    'Carrefour Franciscain',
+  );
+  await choosePlace(
+    tester,
+    'Où allez-vous ?',
+    'univ',
+    'Université de Lomé · Entrée sud',
+  );
   await scrollAndTap(tester, find.textContaining('Ajouter un carrefour'));
   await tester.enterText(find.byType(TextFormField), 'aved');
   await tester.pump(const Duration(milliseconds: 350));
@@ -35,36 +49,87 @@ Future<void> _publishDemoTrip(WidgetTester tester) async {
   await tester.tap(find.text('Carrefour Avedji'));
   await tester.pumpAndSettle();
   await scrollAndTap(tester, find.text('Publier mon trajet'));
+  await _simulatePassengerRequests(tester);
+}
+
+/// Deux passagers (simulés par le test, jamais par l'app) demandent une place, puis l'écran
+/// du trajet relit ses demandes au sondage suivant.
+Future<void> _simulatePassengerRequests(WidgetTester tester) async {
+  final container = ProviderScope.containerOf(
+    tester.element(find.byType(KovoitApp)),
+  );
+  final tripId = container.read(fakeBackendProvider).driverTrips.keys.last;
+  container.read(fakeDriverProvider).simulatePassengerRequests(tripId);
+  await _waitForPoll(tester);
 }
 
 void main() {
   setUpAll(() => initializeDateFormatting('fr'));
 
-  testWidgets('Espace Conducteur : économies, publication, prix fixé par Kovoit, demandes reçues', (tester) async {
-    await pumpKovoitApp(tester, env: TestEnv.driverSession());
+  testWidgets(
+    'Espace Conducteur : économies, publication, prix fixé par Kovoit, demandes reçues',
+    (tester) async {
+      await pumpKovoitApp(tester, env: TestEnv.driverSession());
 
-    expect(find.text('Espace Conducteur'), findsOneWidget);
-    expect(find.text('Publier'), findsOneWidget, reason: 'onglet en mode conducteur');
-    expect(_amount('18 500 FCFA'), findsOneWidget);
-    expect(find.textContaining('Depuis le début'), findsOneWidget);
-    expect(find.text('Passager'), findsNothing, reason: 'pas de sélecteur de mode sur cet écran');
+      expect(find.text('Espace Conducteur'), findsOneWidget);
+      expect(
+        find.text('Publier'),
+        findsOneWidget,
+        reason: 'onglet en mode conducteur',
+      );
+      expect(_amount('18 500 FCFA'), findsOneWidget);
+      expect(find.textContaining('Depuis le début'), findsOneWidget);
+      expect(
+        find.text('Passager'),
+        findsNothing,
+        reason: 'pas de sélecteur de mode sur cet écran',
+      );
 
-    await choosePlace(tester, 'Carrefour, quartier, repère…', 'franc', 'Carrefour Franciscain');
-    expect(find.text('1 / 3'), findsOneWidget, reason: 'le départ est proposé comme premier carrefour');
-    await choosePlace(tester, 'Où allez-vous ?', 'univ', 'Université de Lomé · Entrée sud');
-    // Prix calculé par Kovoit (API d'estimation) dès que départ et destination sont choisis
-    await scrollTo(tester, find.text('Prix calculé par Kovoit'));
-    expect(find.text('Prix calculé par Kovoit'), findsOneWidget);
-    await scrollTo(tester, find.text('Commission Kovoit (15 %) par place'));
-    expect(find.text('Commission Kovoit (15 %) par place'), findsOneWidget);
+      await choosePlace(
+        tester,
+        'Carrefour, quartier, repère…',
+        'franc',
+        'Carrefour Franciscain',
+      );
+      expect(
+        find.text('1 / 3'),
+        findsOneWidget,
+        reason: 'le départ est proposé comme premier carrefour',
+      );
+      await choosePlace(
+        tester,
+        'Où allez-vous ?',
+        'univ',
+        'Université de Lomé · Entrée sud',
+      );
+      // Prix calculé par Kovoit (API d'estimation) dès que départ et destination sont choisis
+      await scrollTo(tester, find.text('Prix calculé par Kovoit'));
+      expect(find.text('Prix calculé par Kovoit'), findsOneWidget);
+      await scrollTo(tester, find.text('Commission Kovoit (15 %) par place'));
+      expect(find.text('Commission Kovoit (15 %) par place'), findsOneWidget);
 
-    await scrollAndTap(tester, find.text('Publier mon trajet'));
+      await scrollAndTap(tester, find.text('Publier mon trajet'));
 
-    expect(find.text('Mon trajet'), findsOneWidget);
-    expect(find.text('Demandes reçues'), findsOneWidget);
-    expect(find.text('Afi Amégan'), findsOneWidget);
-    expect(find.text('Kossi Akakpo'), findsOneWidget);
-  });
+      expect(find.text('Mon trajet'), findsOneWidget);
+      expect(find.text('Demandes reçues'), findsOneWidget);
+      expect(
+        find.text('Aucune demande pour l’instant'),
+        findsOneWidget,
+        reason: 'aucun passager fictif automatique',
+      );
+      await _waitForPoll(tester);
+      expect(
+        find.text('Aucune demande pour l’instant'),
+        findsOneWidget,
+        reason: 'rien tant que personne ne réserve',
+      );
+      expect(find.text('Afi Amégan'), findsNothing);
+
+      await _simulatePassengerRequests(tester);
+      expect(find.text('Afi Amégan'), findsOneWidget);
+      expect(find.text('Kossi Akakpo'), findsOneWidget);
+    },
+  );
 
   testWidgets('Accepter → code de départ (faux puis bon) → terminer le trajet → économies', (tester) async {
     final env = await pumpKovoitApp(tester, env: TestEnv.driverSession());

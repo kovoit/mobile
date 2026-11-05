@@ -28,15 +28,15 @@ En environnement `dev`, l'onglet **Profil** donne accès au **catalogue des comp
 
 Tant que le backend n'est pas prêt, `flutter run` utilise une fausse API en mémoire :
 
-- connexion sans mot de passe : saisir `demo@kovoit.tg` (passager) ou `conducteur@kovoit.tg` (conducteur), puis le code `123456` ;
-- toute autre adresse crée un nouveau compte, qui passe par l'écran « Votre profil » (prénom, nom, téléphone) ;
+- connexion par e-mail + mot de passe (D-68) : `demo@kovoit.tg` (passager) ou `conducteur@kovoit.tg` (conducteur) ; mot de passe dans [lib/core/config/demo_account.dart](lib/core/config/demo_account.dart) (`DemoAccount.password`), rappelé sur l'écran de connexion en démo. Le code `123456` ne sert plus qu'à la vérification de l'e-mail et à « Mot de passe oublié » ;
+- nouveau compte : « Créer un compte » (prénom, nom, e-mail, téléphone, mot de passe, CGU), puis code `123456` pour vérifier l'e-mail ; une adresse inconnue est refusée à la connexion ;
 - le compte démo a un KYC passager validé ; un nouvel inscrit arrive sans KYC (macaron orange dans le Profil) ;
-- Profil → « Mode démo » : **Valider / Refuser les dossiers** simule la décision de l'administrateur (KYC en attente) ;
+- Profil → « Mode démo » : **Valider / Refuser les dossiers** simule, sur clic, la décision de l'administrateur KYC sur les dossiers en attente. C'est la seule simulation d'un autre rôle conservée : la démo ne joue jamais le conducteur ni le passager ;
 - recherche de démo : **Carrefour Franciscain → Université de Lomé**, en voiture vers **07:30** (3 trajets) ou en moto vers 07:35. Autres trajets : Agoè-Zongo → Grand Marché (07:15), Bè Kpota → Port (moto, 08:00), Baguida → Déckon (17:30). Fenêtre de ± 15 min.
 
-- réservation de démo : sur « Détails & Réservation », choisir Espèces ou Flooz / Mixx puis « Réserver ma place ». Sur l'écran de suivi, le bloc **Mode démo** joue le conducteur (**Accepter**, **Refuser**, **Saisir le code**). Le paiement Flooz / Mixx passe « en cours » puis « Payé » quelques secondes plus tard.
+- réservation de démo : sur « Détails & Réservation », « Réserver ma place ». La place est payée par le portefeuille (montant bloqué à la demande ; pas d'espèces, D-23) ; s'il manque de l'argent, recharger d'abord le portefeuille par Flooz / Mixx (recharge simulée en démo). La démo ne joue pas le conducteur : la demande reste « En attente » (parcours complet : voir [Tester un trajet complet](#tester-un-trajet-complet-sur-le-vrai-backend)).
 
-- conducteur de démo : `conducteur@kovoit.tg` (mode conducteur, Toyota Yaris, 18 500 F d'économies ce mois). À chaque publication, deux passagers fictifs envoient une demande ; leur code de départ est `4821`.
+- conducteur de démo : `conducteur@kovoit.tg` (mode conducteur, Toyota Yaris, 18 500 F d'économies ce mois). En démo, un trajet publié reste sans demande : la recherche de démo ne propose que les trajets fixes ci-dessus, jamais ceux publiés par le conducteur. Parcours complet sur le vrai backend (voir [Tester un trajet complet](#tester-un-trajet-complet-sur-le-vrai-backend)). `FakeDriver.simulatePassengerRequests` (code de départ `4821`) sert aux tests uniquement.
 
 ## Vrai backend (`kovoit/backend`)
 
@@ -85,7 +85,15 @@ Sans configuration, l'app fonctionne : la cloche relit `/notifications/` à l'ou
 3. Ajouter le plugin Gradle `com.google.gms.google-services` (Android) et activer *Push Notifications* + *Background Modes › Remote notifications* dans Xcode (iOS, clé APNs à téléverser dans Firebase).
 4. Lancer avec `--dart-define=PUSH_ENABLED=true`. Le backend envoie les push avec le compte de service Firebase (voir [docs/api/after_trip.md](docs/api/after_trip.md)).
 
-Mode démo : sur l'écran de suivi, **Terminer le trajet** (bloc « Mode démo ») permet de tester la confirmation d'arrivée, la notation et le signalement.
+## Tester un trajet complet sur le vrai backend
+
+Le mode démo ne joue jamais le conducteur ni le passager. Acceptation, code de départ, absence, partage de position, fin du trajet, confirmation d'arrivée, notation et signalement se testent sur le vrai backend :
+
+- deux comptes (un conducteur, un passager) et deux téléphones ;
+- l'app lancée sur chaque téléphone avec `--dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://<IP du PC>:8000/api/v1` ;
+- le temps avancé côté serveur par `python manage.py avancer_trajet`.
+
+Comptes de test, commandes et scénario pas à pas : [backend/README.md](../backend/README.md), section « Tester un trajet complet avec deux téléphones ».
 
 ## Structure
 

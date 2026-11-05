@@ -102,7 +102,10 @@ void main() {
         {'lat': 6.1660, 'lng': 1.1650, 'libelle': 'Carrefour Franciscain'},
       ],
     });
-    final requestId = (await driver.driver.requests(trip['id'] as String)).first['id'] as String;
+    driver.driver.simulatePassengerRequests(trip['id'] as String);
+    final requestId =
+        (await driver.driver.requests(trip['id'] as String)).first['id']
+            as String;
     await driver.driver.accept(requestId);
     await driver.driver.submitCode(requestId, DemoAccount.fakePassengerCode);
     await driver.driver.finishTrip(trip['id'] as String);
