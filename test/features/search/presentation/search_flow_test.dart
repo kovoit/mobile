@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:kovoit/core/services/location_service.dart';
 import 'package:kovoit/core/widgets/driver_card.dart';
 
 import '../../../helpers/flows.dart';
@@ -127,5 +128,29 @@ void main() {
         scrollable: find.byWidgetPredicate((w) => w is Scrollable && w.axisDirection == AxisDirection.down).first);
     expect(find.text('Vérifiez votre identité'), findsOneWidget);
     expect(find.text('Réserver ma place'), findsNothing);
+  });
+
+  testWidgets('Départ « Ma position actuelle » : position GPS reprise dans le formulaire', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.demoSession());
+
+    await scrollAndTap(tester, find.text('Carrefour, quartier, repère…'));
+    await tester.tap(find.text('Ma position actuelle'));
+    await tester.pumpAndSettle();
+
+    expect(env.location.calls, 1);
+    expect(find.text('Ma position actuelle'), findsNothing, reason: 'sélecteur fermé');
+    expect(find.text('Ma position'), findsOneWidget);
+  });
+
+  testWidgets('Position refusée : message affiché, le sélecteur reste ouvert', (tester) async {
+    final env = await pumpKovoitApp(tester, env: TestEnv.demoSession());
+    env.location.result = const LocationUnavailable('Autorisez Kovoit à accéder à votre position.');
+
+    await scrollAndTap(tester, find.text('Carrefour, quartier, repère…'));
+    await tester.tap(find.text('Ma position actuelle'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Autorisez Kovoit à accéder à votre position.'), findsOneWidget);
+    expect(find.text('Ma position actuelle'), findsOneWidget, reason: 'sélecteur toujours ouvert');
   });
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/services/location_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -29,7 +30,8 @@ enum PlaceField {
       values.firstWhere((f) => f.param == value, orElse: () => PlaceField.depart);
 }
 
-/// Choix d'un lieu : lieux connus de Lomé (carrefours, quartiers, repères) ou point sur la carte.
+/// Choix d'un lieu : position actuelle (GPS), lieux connus de Lomé (carrefours, quartiers, repères)
+/// ou point sur la carte.
 /// Renvoie le [GeoPlace] choisi via `context.pop`. Sert à la recherche et à la publication.
 class PlacePickerScreen extends ConsumerStatefulWidget {
   const PlacePickerScreen({super.key, required this.field});
@@ -46,6 +48,7 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
   final _controller = TextEditingController();
   Timer? _debounce;
   String _query = '';
+  bool _locating = false;
 
   @override
   void dispose() {
@@ -59,6 +62,25 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
     _debounce = Timer(const Duration(milliseconds: 300), () {
       if (mounted) setState(() => _query = value.trim());
     });
+  }
+
+  /// Position GPS de l'appareil, renvoyée comme un point de la carte (libellé « Ma position »).
+  Future<void> _useCurrentPosition() async {
+    setState(() => _locating = true);
+    final result = await ref.read(locationServiceProvider).currentPosition();
+    if (!mounted) return;
+    setState(() => _locating = false);
+    switch (result) {
+      case LocationFound(:final lat, :final lng):
+        context.pop(GeoPlace(
+          libelle: 'Ma position',
+          type: GeoPlaceType.pointCarte,
+          lat: double.parse(lat.toStringAsFixed(5)),
+          lng: double.parse(lng.toStringAsFixed(5)),
+        ));
+      case LocationUnavailable(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
   }
 
   Future<void> _pickOnMap() async {
@@ -89,6 +111,15 @@ class _PlacePickerScreenState extends ConsumerState<PlacePickerScreen> {
                   prefixIconColor: widget.isDepart ? null : AppColors.accent,
                   textInputAction: TextInputAction.search,
                   onChanged: _onChanged,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                OutlinedButton.icon(
+                  onPressed: _locating ? null : _useCurrentPosition,
+                  icon: _locating
+                      ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.my_location_rounded),
+                  label: Text(_locating ? 'Localisation…' : 'Ma position actuelle'),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 OutlinedButton.icon(

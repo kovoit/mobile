@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/services/location_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/widgets.dart';
@@ -21,6 +22,25 @@ class MapPickerScreen extends ConsumerStatefulWidget {
 class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
   final _mapController = MapController();
   LatLng _center = kLomeCenter;
+  LatLng? _me;
+  bool _locating = false;
+
+  /// Centre la carte sur la position GPS de l'appareil et l'affiche (point bleu).
+  Future<void> _goToMyPosition() async {
+    setState(() => _locating = true);
+    final result = await ref.read(locationServiceProvider).currentPosition();
+    if (!mounted) return;
+    setState(() => _locating = false);
+    switch (result) {
+      case LocationFound(:final lat, :final lng):
+        final me = LatLng(lat, lng);
+        setState(() => _me = me);
+        _center = me;
+        _mapController.move(me, 17);
+      case LocationUnavailable(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
 
   @override
   void dispose() {
@@ -58,6 +78,21 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
                 userAgentPackageName: kOsmUserAgent,
                 tileProvider: ref.watch(mapTileProviderProvider),
               ),
+              if (_me != null)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: _me!,
+                    width: 22,
+                    height: 22,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                    ),
+                  ),
+                ]),
               const RichAttributionWidget(
                 showFlutterMapAttribution: false,
                 attributions: [TextSourceAttribution(kTileAttribution)],
@@ -84,6 +119,13 @@ class _MapPickerScreenState extends ConsumerState<MapPickerScreen> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.small(
+        tooltip: 'Ma position',
+        onPressed: _locating ? null : _goToMyPosition,
+        child: _locating
+            ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.my_location_rounded),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(
