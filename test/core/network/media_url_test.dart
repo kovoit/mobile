@@ -16,6 +16,11 @@ void main() {
     expect(resolveMediaUrl('http://10.0.2.2:8000/media/p.jpg', apiBaseUrl: api), 'http://10.0.2.2:8000/media/p.jpg');
   });
 
+  test('photo sur Cloudinary (CLOUDINARY_URL côté backend) : URL du CDN inchangée', () {
+    const cdn = 'https://res.cloudinary.com/kovoit/image/upload/v1/photos_profil/moi_3f9a1c2b.jpg';
+    expect(resolveMediaUrl(cdn, apiBaseUrl: api), cdn);
+  });
+
   test('chemin relatif : préfixé par l’origine de l’API, sans /api/v1', () {
     expect(
       resolveMediaUrl('/media/photos_profil/moi.jpg', apiBaseUrl: api),
