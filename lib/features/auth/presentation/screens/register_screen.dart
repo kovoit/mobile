@@ -12,6 +12,7 @@ import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/widgets.dart';
 import '../../domain/entities/registration.dart';
 import '../providers/email_verification_controller.dart';
+import '../providers/session_controller.dart';
 import '../widgets/auth_error.dart';
 import '../widgets/form_error_text.dart';
 import '../widgets/terms_checkbox.dart';
@@ -70,6 +71,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           );
       if (!mounted) return;
+      // Compte déjà vérifié par le backend (démo sans e-mail, INSCRIPTION_SANS_CODE) : session
+      // ouverte et le routeur ouvre l'accueil. Sinon (403 EMAIL_NON_VERIFIE…) : saisie du code.
+      if (await _openSessionIfVerified()) return;
+      if (!mounted) return;
       unawaited(context.push(Routes.emailVerification));
       // Retour par « Modifier mon e-mail » : identité gardée, mot de passe redemandé.
       _password.clear();
@@ -84,6 +89,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       });
     } finally {
       if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<bool> _openSessionIfVerified() async {
+    try {
+      await ref.read(sessionControllerProvider.notifier).login(email: _email.text, password: _password.text);
+      return true;
+    } catch (_) {
+      return false;
     }
   }
 
