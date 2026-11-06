@@ -1,4 +1,6 @@
-﻿import '../constants/api_constants.dart';
+﻿import 'package:flutter/foundation.dart';
+
+import '../constants/api_constants.dart';
 
 /// Environnement d'exécution, choisi au build :
 /// `flutter run --dart-define=ENV=dev` (défaut), `staging` ou `prod`.
@@ -17,14 +19,14 @@ abstract final class Env {
 
   static const String _useMockApi = String.fromEnvironment('USE_MOCK_API');
 
-  /// Fausse API en mémoire tant que le backend n'est pas disponible.
-  /// Activée par défaut en dev (`--dart-define=USE_MOCK_API=false` pour viser le vrai backend),
-  /// jamais en production.
-  static bool get useMockApi {
-    if (current == AppEnv.prod) return false;
-    if (_useMockApi.isEmpty) return isDev;
-    return _useMockApi == 'true';
-  }
+  /// Fausse API en mémoire (démo hors ligne) : `--dart-define=USE_MOCK_API=true`, jamais en
+  /// production. Par défaut, l'app vise le vrai backend (voir [apiBaseUrl]).
+  static bool get useMockApi =>
+      current != AppEnv.prod && (debugUseMockApiOverride ?? _useMockApi == 'true');
+
+  /// Tests uniquement : force la fausse API (voir `test/flutter_test_config.dart`).
+  @visibleForTesting
+  static bool? debugUseMockApiOverride;
 
   /// Notifications push FCM : nécessitent un projet Firebase configuré (voir README).
   /// `--dart-define=PUSH_ENABLED=true`. Sans push, l'app relit les notifications périodiquement.

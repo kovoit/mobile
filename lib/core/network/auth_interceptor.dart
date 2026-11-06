@@ -4,7 +4,12 @@ import '../constants/api_constants.dart';
 import '../storage/token_storage.dart';
 
 /// Ajoute le JWT à chaque requête et tente un rafraîchissement sur 401.
-/// En cas d'échec du refresh, les tokens sont effacés et [onSessionExpired] est appelé.
+///
+/// Deux échecs du refresh, traités différemment :
+/// - **refusé** (aucun refresh stocké, ou `auth/jeton/rafraichir/` répond 400 ou 401
+///   `SESSION_EXPIREE`) : les tokens sont effacés et [onSessionExpired] est appelé ;
+/// - **injoignable** (délai, connexion, 5xx, 429…) : les tokens sont gardés et l'erreur
+///   du refresh est transmise, pour que l'écran propose « Réessayer » sans déconnecter.
 ///
 /// Le backend fait tourner le jeton de rafraîchissement (rotation + liste noire) :
 /// chaque refresh renvoie un nouveau `refresh`, qui remplace l'ancien.
@@ -48,7 +53,13 @@ class AuthInterceptor extends QueuedInterceptor {
     // Une requête précédente de la file a peut-être déjà rafraîchi le jeton : on le réutilise.
     final current = await _tokenStorage.readAccessToken();
     final sentWith = options.headers['Authorization'];
-    final newAccess = current != null && sentWith != 'Bearer $current' ? current : await _refreshAccessToken();
+    final String? newAccess;
+    try {
+      newAccess = current != null && sentWith != 'Bearer $current' ? current : await _refreshAccessToken();
+    } on DioException catch (refreshError) {
+      // Refresh injoignable : la session reste valable, on garde les tokens.
+      return handler.next(refreshError);
+    }
     if (newAccess == null) {
       await _tokenStorage.clear();
       onSessionExpired?.call();
@@ -59,6 +70,9 @@ class AuthInterceptor extends QueuedInterceptor {
       options
         ..headers['Authorization'] = 'Bearer $newAccess'
         ..extra[_retriedKey] = true;
+      // Un FormData déjà envoyé est finalisé : Dio refuse de le relire, on rejoue une copie.
+      final data = options.data;
+      if (data is FormData) options.data = data.clone();
       final response = await _refreshClient.fetch<dynamic>(options);
       handler.resolve(response);
     } on DioException catch (e) {
@@ -66,6 +80,8 @@ class AuthInterceptor extends QueuedInterceptor {
     }
   }
 
+  /// Nouveau jeton d'accès, ou `null` si le refresh est refusé.
+  /// Lève la [DioException] du refresh s'il est injoignable.
   Future<String?> _refreshAccessToken() async {
     final refresh = await _tokenStorage.readRefreshToken();
     if (refresh == null) return null;
@@ -81,8 +97,16 @@ class AuthInterceptor extends QueuedInterceptor {
       if (access == null) return null;
       await _tokenStorage.saveTokens(access: access, refresh: tokens?['refresh'] as String?);
       return access;
-    } on DioException {
-      return null;
+    } on DioException catch (e) {
+      if (_isRefused(e)) return null;
+      rethrow;
     }
+  }
+
+  /// 401 `SESSION_EXPIREE` : refresh expiré, invalide ou révoqué (contrat `auth.md`).
+  /// 400 : corps refusé par le serializer (`refresh` absent ou vide) ; le rejouer ne changerait rien.
+  static bool _isRefused(DioException e) {
+    final status = e.response?.statusCode;
+    return e.type == DioExceptionType.badResponse && (status == 401 || status == 400);
   }
 }

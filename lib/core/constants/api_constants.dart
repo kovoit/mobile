@@ -2,10 +2,12 @@
 ///
 /// Changer de serveur sans toucher au code :
 /// ```bash
-/// flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://192.168.1.20:8000/api/v1
-/// flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api/v1
+/// flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1        # backend local, émulateur
+/// flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000/api/v1    # backend local, téléphone
+/// flutter run --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api/v1
 /// ```
-/// Sans `API_BASE_URL`, l'URL dépend de `ENV` (voir [ApiConstants.baseUrlFor]).
+/// Sans `API_BASE_URL`, l'URL dépend de `ENV` (voir [ApiConstants.baseUrlFor]) : `dev` et `prod`
+/// visent le backend en ligne.
 abstract final class ApiConstants {
   static const String _override = String.fromEnvironment('API_BASE_URL');
 
@@ -14,12 +16,13 @@ abstract final class ApiConstants {
   static const String stagingBaseUrl = 'https://staging-api.kovoittg.com/api/v1';
   static const String prodBaseUrl = 'https://api.kovoittg.com/api/v1';
 
-  /// URL retenue : `API_BASE_URL` si fourni, sinon celle de l'environnement.
+  /// URL retenue : `API_BASE_URL` si fourni, sinon celle de l'environnement (`dev` : backend en
+  /// ligne, pour que `flutter run` sans option teste la vraie API).
   static String baseUrlFor({required bool isProd, required bool isStaging}) {
     if (_override.isNotEmpty) return _override;
     if (isProd) return prodBaseUrl;
     if (isStaging) return stagingBaseUrl;
-    return emulatorBaseUrl;
+    return prodBaseUrl;
   }
 
   /// En-tête évitant la page d'avertissement d'ngrok sur les appels API.

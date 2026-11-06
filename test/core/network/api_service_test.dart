@@ -178,6 +178,88 @@ void main() {
       expect(tokens.refresh, isNull);
       expect(sessionExpired, 1);
     });
+
+    test('refresh en 400 (corps refusé) : session effacée et signal de session expirée', () async {
+      tokens
+        ..access = 'a'
+        ..refresh = 'r';
+      server.handlers[ApiEndpoints.moi] = (_) => (401, _failed('Non authentifié.', 'NON_AUTHENTIFIE'));
+      server.handlers[ApiEndpoints.jetonRafraichir] = (_) => (
+            400,
+            _failed('Données invalides.', 'DONNEES_INVALIDES', {
+              'refresh': ['Ce champ ne peut être vide.'],
+            }),
+          );
+
+      final repo = _repository(api, tokens);
+
+      expect(await repo.restoreSession(), isNull);
+      expect(tokens.access, isNull);
+      expect(tokens.refresh, isNull);
+      expect(sessionExpired, 1);
+    });
+
+    test('refresh injoignable : jetons conservés, aucune session expirée', () async {
+      tokens
+        ..access = 'a'
+        ..refresh = 'r';
+      server.handlers[ApiEndpoints.moi] =
+          (_) => (401, _failed('Session invalide ou expirée. Reconnectez-vous.', 'AUTHENTIFICATION_ECHOUEE'));
+      server.handlers[ApiEndpoints.jetonRafraichir] =
+          (o) => throw DioException.connectionError(requestOptions: o, reason: 'hors ligne');
+
+      final repo = _repository(api, tokens);
+
+      await expectLater(repo.restoreSession(), throwsA(isA<NetworkApiException>()));
+      expect(tokens.access, 'a');
+      expect(tokens.refresh, 'r');
+      expect(sessionExpired, 0);
+    });
+
+    test('refresh en 503 : jetons conservés, aucune session expirée', () async {
+      tokens
+        ..access = 'a'
+        ..refresh = 'r';
+      server.handlers[ApiEndpoints.moi] =
+          (_) => (401, _failed('Session invalide ou expirée. Reconnectez-vous.', 'AUTHENTIFICATION_ECHOUEE'));
+      server.handlers[ApiEndpoints.jetonRafraichir] =
+          (_) => (503, _failed('Service indisponible.', 'SERVICE_INDISPONIBLE'));
+
+      final repo = _repository(api, tokens);
+
+      await expectLater(repo.restoreSession(), throwsA(isA<ServerApiException>()));
+      expect(tokens.access, 'a');
+      expect(tokens.refresh, 'r');
+      expect(sessionExpired, 0);
+    });
+
+    test('envoi multipart rejoué après refresh', () async {
+      tokens
+        ..access = 'access-expire'
+        ..refresh = 'refresh-1';
+      final pieces = ApiEndpoints.kycPieces('conducteur');
+      server.handlers[pieces] = (options) => options.headers['Authorization'] == 'Bearer access-2'
+          ? (201, _ok({'dossier': {'type': 'conducteur', 'statut': 'en_cours'}}))
+          : (401, _failed('Session invalide ou expirée. Reconnectez-vous.', 'AUTHENTIFICATION_ECHOUEE'));
+      server.handlers[ApiEndpoints.jetonRafraichir] =
+          (_) => (200, _ok({'access': 'access-2', 'refresh': 'refresh-2'}));
+
+      final response = await api.send(
+        pieces,
+        method: 'POST',
+        body: FormData.fromMap({
+          'type_piece': 'identite',
+          'fichier': MultipartFile.fromBytes([0xFF, 0xD8], filename: 'p.jpg'),
+        }),
+        parse: ApiService.asMap,
+      );
+
+      expect(response.data['dossier'], isA<Map<String, dynamic>>());
+      final sent = server.requests.where((r) => r.path == pieces).toList();
+      expect(sent, hasLength(2));
+      expect(sent.last.headers['Authorization'], 'Bearer access-2');
+      expect(tokens.refresh, 'refresh-2');
+    });
   });
 
   group('AuthRepositoryImpl + ApiAuthRemoteDataSource', () {

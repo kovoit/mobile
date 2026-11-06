@@ -1,7 +1,8 @@
 # Makefile de l'application mobile Kovoit (Flutter) : raccourcis des commandes de claude.md §6.
 #
-# Trois façons de lancer l'app :
-# - `make lancer`      : API simulée (FakeBackend), aucun backend requis.
+# Quatre façons de lancer l'app :
+# - `make lancer`      : backend en ligne (https://api.kovoittg.com), comme `flutter run`.
+# - `make lancer-demo` : API simulée (FakeBackend), aucun backend requis.
 #                        Démo : demo@kovoit.tg / kovoit123, OTP 123456.
 # - `make lancer-usb`  : vrai backend, téléphone branché en USB (adb reverse : le port 8000 du
 #                        téléphone est relié à celui du PC). Backend : `make serveur` dans backend/.
@@ -10,7 +11,7 @@
 # Choisir l'appareil : make lancer APPAREIL=988AY13F0A (liste : make appareils).
 
 .DEFAULT_GOAL := aide
-.PHONY: aide installer generer appareils lancer lancer-usb lancer-wifi analyser tests \
+.PHONY: aide installer generer appareils lancer lancer-demo lancer-usb lancer-wifi analyser tests \
 	tests-contrat apk nettoyer
 
 PORT ?= 8000
@@ -33,8 +34,11 @@ generer: ## Régénère les DTO (build_runner), après toute modification d'un D
 appareils: ## Liste les appareils et émulateurs détectés
 	flutter devices
 
-lancer: ## Lance l'app avec l'API simulée (aucun backend requis)
+lancer: ## Lance l'app sur le backend en ligne (https://api.kovoittg.com)
 	flutter run $(CIBLE)
+
+lancer-demo: ## Lance l'app avec l'API simulée (aucun backend requis)
+	flutter run $(CIBLE) --dart-define=USE_MOCK_API=true
 
 lancer-usb: ## Lance l'app sur le vrai backend, téléphone en USB (adb reverse)
 	$(ADB) $(if $(APPAREIL),-s $(APPAREIL),) reverse tcp:$(PORT) tcp:$(PORT)

@@ -11,8 +11,10 @@ Covoiturage urbain à Lomé : *« Même trajet, moins cher »*. Application Flut
 
 ```bash
 flutter pub get
-flutter run                                   # ENV=dev, API http://10.0.2.2:8000/api/v1
-flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api/v1   # appareil physique
+flutter run                                   # backend en ligne https://api.kovoittg.com/api/v1
+flutter run --dart-define=USE_MOCK_API=true   # API simulée, hors ligne (voir plus bas)
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1       # backend local, émulateur
+flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8000/api/v1   # backend local, appareil physique
 flutter analyze
 flutter test
 flutter build apk --dart-define=ENV=prod   --dart-define=TILE_URL='https://<fournisseur>/{z}/{x}/{y}.png?key=<clé>'   --dart-define=TILE_ATTRIBUTION='© <fournisseur> © OpenStreetMap'
@@ -24,9 +26,10 @@ l'URL d'un fournisseur de tuiles et son attribution (affichée en bas de chaque 
 
 En environnement `dev`, l'onglet **Profil** donne accès au **catalogue des composants** (`/dev/composants`).
 
-## API simulée (dev)
+## API simulée (démo hors ligne)
 
-Tant que le backend n'est pas prêt, `flutter run` utilise une fausse API en mémoire :
+`flutter run --dart-define=USE_MOCK_API=true` (ou `make lancer-demo`) utilise une fausse API en
+mémoire. Les tests (`flutter test`) tournent toujours dessus (`test/flutter_test_config.dart`) :
 
 - connexion par e-mail + mot de passe (D-68) : `demo@kovoit.tg` (passager) ou `conducteur@kovoit.tg` (conducteur) ; mot de passe dans [lib/core/config/demo_account.dart](lib/core/config/demo_account.dart) (`DemoAccount.password`), rappelé sur l'écran de connexion en démo. Le code `123456` ne sert plus qu'à la vérification de l'e-mail et à « Mot de passe oublié » ;
 - nouveau compte : « Créer un compte » (prénom, nom, e-mail, téléphone, mot de passe, CGU), puis code `123456` pour vérifier l'e-mail ; une adresse inconnue est refusée à la connexion ;
@@ -44,9 +47,9 @@ Tant que le backend n'est pas prêt, `flutter run` utilise une fausse API en mé
 # côté backend : écouter sur toutes les interfaces et ajouter l'IP du PC à ALLOWED_HOSTS (.env)
 python manage.py runserver 0.0.0.0:8000
 # côté mobile, téléphone sur le même Wi-Fi (IP du PC : ipconfig)
-flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://192.168.1.20:8000/api/v1
+flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000/api/v1
 # ou via ngrok
-flutter run --dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api/v1
+flutter run --dart-define=API_BASE_URL=https://xxxx.ngrok-free.app/api/v1
 ```
 
 URL et chemins : [lib/core/constants/api_constants.dart](lib/core/constants/api_constants.dart). Client : [lib/core/network/api_service.dart](lib/core/network/api_service.dart) (enveloppe `{statut, message, reponse}`, JWT + rafraîchissement avec rotation). HTTP en clair autorisé en debug/profile uniquement (`android/app/build.gradle.kts`).
@@ -90,7 +93,7 @@ Sans configuration, l'app fonctionne : la cloche relit `/notifications/` à l'ou
 Le mode démo ne joue jamais le conducteur ni le passager. Acceptation, code de départ, absence, partage de position, fin du trajet, confirmation d'arrivée, notation et signalement se testent sur le vrai backend :
 
 - deux comptes (un conducteur, un passager) et deux téléphones ;
-- l'app lancée sur chaque téléphone avec `--dart-define=USE_MOCK_API=false --dart-define=API_BASE_URL=http://<IP du PC>:8000/api/v1` ;
+- l'app lancée sur chaque téléphone avec `--dart-define=API_BASE_URL=http://<IP du PC>:8000/api/v1` ;
 - le temps avancé côté serveur par `python manage.py avancer_trajet`.
 
 Comptes de test, commandes et scénario pas à pas : [backend/README.md](../backend/README.md), section « Tester un trajet complet avec deux téléphones ».
